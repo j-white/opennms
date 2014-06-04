@@ -1,11 +1,18 @@
 package org.opennms.web.rest;
 
 import com.sun.jersey.spi.resource.PerRequest;
+import org.jrobin.core.RrdException;
 import org.jrobin.data.DataProcessor;
 import org.opennms.netmgt.dao.ResourceDao;
 import org.opennms.netmgt.model.OnmsAttribute;
 import org.opennms.netmgt.model.OnmsResource;
 import org.opennms.netmgt.model.RrdGraphAttribute;
+import org.opennms.netmgt.rrd.MultiOutputRrdStrategy;
+import org.opennms.netmgt.rrd.QueuingRrdStrategy;
+import org.opennms.netmgt.rrd.RrdStrategy;
+import org.opennms.netmgt.rrd.RrdUtils;
+import org.opennms.netmgt.rrd.jrobin.JRobinRrdStrategy;
+import org.opennms.netmgt.rrd.rrdtool.JniRrdStrategy;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
@@ -18,7 +25,9 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.Map;
+import java.util.TreeMap;
 
 @Component
 @PerRequest
@@ -26,40 +35,67 @@ import java.util.Map;
 @Path("rrd")
 public class RrdRestService extends OnmsRestService {
 
+    public static class MetricIdentifier {
+        private String m_resourceId;
+        private String m_attributeId;
+
+        public MetricIdentifier(String resourceId, String attributeId) {
+            this.m_resourceId = resourceId;
+            this.m_attributeId = attributeId;
+        }
+
+        public String getResourceId() {
+            return m_resourceId;
+        }
+
+        public void setResourceId(String m_resourceId) {
+            this.m_resourceId = m_resourceId;
+        }
+
+        public String getAttributeId() {
+            return m_attributeId;
+        }
+
+        public void setAttributeId(String m_attributeId) {
+            this.m_attributeId = m_attributeId;
+        }
+    }
+
     @Autowired
     private ResourceDao m_resourceDao;
-/*
-[
-  [
-    {
+
+    /*
+    [
+      [
+        {
+            "name": "high",
+            "timestamp": 1401824160000,
+            "value": 680.99
+        }, {
+            "name": "ask",
+            "timestamp": 1401824160000,
+            "value": 675.8095833333334
+        }, {
+            "name": "low",
+            "timestamp": 1401824160000,
+            "value": 638.5215833333333
+        }, {
+            "name": "spread",
+            "timestamp": 1401824160000,
+            "value": 2.3978333333334376
+        }, {
+            "name": "bid",
+            "timestamp": 1401824160000,
+            "value": 673.41175
+        }
+      ],
+      [
+        {
         "name": "high",
-        "timestamp": 1401824160000,
+        "timestamp": 1401824400000,
         "value": 680.99
     }, {
-        "name": "ask",
-        "timestamp": 1401824160000,
-        "value": 675.8095833333334
-    }, {
-        "name": "low",
-        "timestamp": 1401824160000,
-        "value": 638.5215833333333
-    }, {
-        "name": "spread",
-        "timestamp": 1401824160000,
-        "value": 2.3978333333334376
-    }, {
-        "name": "bid",
-        "timestamp": 1401824160000,
-        "value": 673.41175
-    }
-  ],
-  [
-    {
-    "name": "high",
-    "timestamp": 1401824400000,
-    "value": 680.99
-}, {
- */
+     */
     @GET
     @Produces({MediaType.TEXT_PLAIN, MediaType.APPLICATION_JSON, MediaType.APPLICATION_ATOM_XML})
     @Path("export/{resourceId}/{attribute}/{start}/{end}")
@@ -67,40 +103,27 @@ public class RrdRestService extends OnmsRestService {
     public Response export(@PathParam("resourceId") final String resourceId, @PathParam("attribute") final String attribute, @PathParam("start") final long start, @PathParam("end") final long end) {
         readLock();
         try {
-            OnmsResource resource = m_resourceDao.getResourceById(resourceId);
 
-            String result = "Not found";
+            String result = "";
 
-            RrdGraphAttribute rrdGraphAttribute = resource.getRrdGraphAttributes().get(attribute);
-            if (rrdGraphAttribute != null) {
-                result = rrdGraphAttribute.getName() + "<br>";
-                result += rrdGraphAttribute.getRrdRelativePath() + "<br>";
-                result += rrdGraphAttribute.getResource().getId() + "<br>";
-            }
-            try {
-                DataProcessor dproc = new DataProcessor(start, end);
-                dproc.setStep(300);
-                dproc.setFetchRequestResolution(300);
-                dproc.addDatasource(attribute, "/opt/opennms/share/rrd/" + rrdGraphAttribute.getRrdRelativePath(), attribute, "AVERAGE");
+            if (getStrategy(RrdUtils.getStrategy()) instanceof JRobinRrdStrategy) {
+                Map<String, MetricIdentifier> requestedMetrics = new HashMap<String, MetricIdentifier>();
+                requestedMetrics.put("key", new MetricIdentifier(resourceId, attribute));
+                try {
+                    Map<Long, Map<String, Double>> results = exportJrb(300, start, end, requestedMetrics);
 
-                dproc.processData();
-
-                long[] timestamps = dproc.getTimestamps();
-
-                for (int i = 0; i < timestamps.length; i++) {
-                    timestamps[i] = timestamps[i] - dproc.getStep();
+                    for (Map.Entry<Long, Map<String, Double>> entry : results.entrySet()) {
+                        for (Map.Entry<String, Double> metricValue : entry.getValue().entrySet()) {
+                            result += entry.getKey() + " " + metricValue.getKey() + " " + metricValue.getValue();
+                        }
+                    }
+                } catch (IOException e) {
+                    e.printStackTrace();
+                } catch (RrdException e) {
+                    e.printStackTrace();
                 }
-
-                double[] values = dproc.getValues(attribute);
-
-                for (int i = 0; i < timestamps.length; i++) {
-                    result += timestamps[i] + " : " + values[i] + "<br>";
-                }
-            } catch (org.jrobin.core.RrdException e) {
-                result += e.getMessage() + "<br>";
-            } catch (IOException e) {
-                result += e.getMessage() + "<br>";
             }
+
             return Response.ok(result, "text/html").build();
         } finally {
             readUnlock();
@@ -114,9 +137,14 @@ public class RrdRestService extends OnmsRestService {
     public Response query(@PathParam("resourceId") final String resourceId) {
         readLock();
         try {
+
             OnmsResource resource = m_resourceDao.getResourceById(resourceId);
 
             String result = "";
+
+            RrdStrategy rrdStrategy = getStrategy(RrdUtils.getStrategy());
+
+            result += "<h1>" + rrdStrategy.getClass().getSimpleName() + "</h1>";
 
             result += resource.getId() + "<br>";
             result += resource.getLabel() + "<br>";
@@ -159,5 +187,64 @@ public class RrdRestService extends OnmsRestService {
         } finally {
             readUnlock();
         }
+    }
+
+    private Map<Long, Map<String, Double>> exportJrb(int step, long start, long end, Map<String, MetricIdentifier> requestedMetrics) throws IOException, RrdException {
+
+        DataProcessor dproc = new DataProcessor(start, end);
+        dproc.setStep(300);
+        dproc.setFetchRequestResolution(300);
+
+        for (Map.Entry<String, MetricIdentifier> entry : requestedMetrics.entrySet()) {
+
+            String key = entry.getKey();
+
+            OnmsResource resource = m_resourceDao.getResourceById(entry.getValue().getResourceId());
+            RrdGraphAttribute rrdGraphAttribute = resource.getRrdGraphAttributes().get(entry.getValue().getAttributeId());
+
+            dproc.addDatasource(key, System.getProperty("rrd.base.dir") + "/" + rrdGraphAttribute.getRrdRelativePath(), entry.getValue().getAttributeId(), "AVERAGE");
+        }
+
+        Map<Long, Map<String, Double>> results = new TreeMap<Long, Map<String, Double>>();
+
+        dproc.processData();
+
+        long[] timestamps = dproc.getTimestamps();
+
+        for (int i = 0; i < timestamps.length; i++) {
+            timestamps[i] = timestamps[i] - dproc.getStep();
+
+            for (String key : requestedMetrics.keySet()) {
+                if (!results.containsKey(timestamps[i])) {
+                    results.put(timestamps[i], new TreeMap<String, Double>());
+                }
+
+                results.get(timestamps[i]).put(key, dproc.getValues(key)[i]);
+            }
+        }
+
+        return results;
+    }
+
+    private static RrdStrategy getStrategy(RrdStrategy rrdStrategy) {
+        if (rrdStrategy instanceof JniRrdStrategy || rrdStrategy instanceof JRobinRrdStrategy) {
+            return rrdStrategy;
+        }
+
+        if (rrdStrategy instanceof QueuingRrdStrategy) {
+            return getStrategy(((QueuingRrdStrategy) rrdStrategy).getDelegate());
+        }
+
+        if (rrdStrategy instanceof MultiOutputRrdStrategy) {
+            for (RrdStrategy delegate : ((MultiOutputRrdStrategy) rrdStrategy).getDelegates()) {
+                RrdStrategy x = getStrategy(delegate);
+
+                if (x instanceof JniRrdStrategy || x instanceof JRobinRrdStrategy) {
+                    return x;
+                }
+            }
+        }
+
+        return rrdStrategy;
     }
 }
