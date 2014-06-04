@@ -1,8 +1,10 @@
 package org.opennms.web.rest;
 
 import com.sun.jersey.spi.resource.PerRequest;
+import org.exolab.castor.xml.Unmarshaller;
 import org.jrobin.core.RrdException;
 import org.jrobin.data.DataProcessor;
+import org.opennms.core.utils.StringUtils;
 import org.opennms.netmgt.dao.ResourceDao;
 import org.opennms.netmgt.model.OnmsAttribute;
 import org.opennms.netmgt.model.OnmsResource;
@@ -16,6 +18,7 @@ import org.opennms.netmgt.rrd.rrdtool.JniRrdStrategy;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
+import org.springframework.util.FileCopyUtils;
 
 import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
@@ -24,7 +27,11 @@ import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;
@@ -187,6 +194,60 @@ public class RrdRestService extends OnmsRestService {
         } finally {
             readUnlock();
         }
+    }
+
+    private Map<Long, Map<String, Double>> exportRrd(int step, long start, long end, Map<String, MetricIdentifier> requestedMetrics) throws IOException, RrdException {
+        String rrdBinary = System.getProperty("rrd.binary");
+
+        if (rrdBinary == null) {
+            throw new RrdException("rrd.binary property must be set either in opennms.properties or in iReport");
+        }
+
+        /**
+         * TODO: construct the query string out of the requestedMetrics data
+         */
+        String queryString = "";
+
+        String command = rrdBinary + " xport " + queryString.replaceAll("[\r\n]+", " ").replaceAll("\\s+", " ");
+
+        String[] commandArray = StringUtils.createCommandArray(command, '@');
+
+        /**
+         * TODO: create class for the Xml unmarshalling...
+         */
+        Object data = null;
+
+        try {
+            Process process = Runtime.getRuntime().exec(commandArray);
+            byte[] byteArray = FileCopyUtils.copyToByteArray(process.getInputStream());
+            String errors = FileCopyUtils.copyToString(new InputStreamReader(process.getErrorStream()));
+
+            if (errors.length() > 0) {
+                return null;
+            }
+
+            BufferedReader reader = null;
+
+            try {
+                InputStream is = new ByteArrayInputStream(byteArray);
+                reader = new BufferedReader(new InputStreamReader(is));
+                /**
+                 * TODO: ...and use the class here
+                 */
+                data = (Object) Unmarshaller.unmarshal(Object.class, reader);
+            } finally {
+                reader.close();
+            }
+        } catch (Exception e) {
+            throw new RrdException("exportRrd: can't execute command '" + command + ": ", e);
+        }
+
+        Map<Long, Map<String, Double>> results = new TreeMap<Long, Map<String, Double>>();
+
+        /**
+         * TODO: constuct the response object out of the unmarshalled xml data
+         */
+        return results;
     }
 
     private Map<Long, Map<String, Double>> exportJrb(int step, long start, long end, Map<String, MetricIdentifier> requestedMetrics) throws IOException, RrdException {
