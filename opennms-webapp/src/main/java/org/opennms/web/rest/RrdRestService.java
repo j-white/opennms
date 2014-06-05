@@ -17,124 +17,215 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
-import javax.ws.rs.Consumes;
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.Produces;
+import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import javax.xml.bind.annotation.XmlAttribute;
+import javax.xml.bind.annotation.XmlElement;
+import javax.xml.bind.annotation.XmlRootElement;
+import javax.xml.bind.annotation.XmlType;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.SortedMap;
 import java.util.TreeMap;
 
 @Component
 @PerRequest
 @Scope("prototype")
-@Path("rrd")
+@Path("/rrd")
 public class RrdRestService extends OnmsRestService {
 
+    @XmlType
     public static class MetricIdentifier {
         private String m_resourceId;
         private String m_attributeId;
 
-        public MetricIdentifier(String resourceId, String attributeId) {
+        public MetricIdentifier() {
+        }
+
+        public MetricIdentifier(final String resourceId,
+                                final String attributeId) {
             this.m_resourceId = resourceId;
             this.m_attributeId = attributeId;
         }
 
+        @XmlAttribute(name = "resource")
         public String getResourceId() {
             return m_resourceId;
         }
 
-        public void setResourceId(String m_resourceId) {
-            this.m_resourceId = m_resourceId;
+        public void setResourceId(String resourceId) {
+            m_resourceId = resourceId;
         }
 
+        @XmlAttribute(name = "attribute")
         public String getAttributeId() {
             return m_attributeId;
         }
 
-        public void setAttributeId(String m_attributeId) {
-            this.m_attributeId = m_attributeId;
+        public void setAttributeId(String attributeId) {
+            m_attributeId = attributeId;
+        }
+    }
+
+    @XmlRootElement(name = "query")
+    public static class QueryRequest {
+        private long m_steps;
+
+        private long m_start;
+        private long m_end;
+
+        private Map<String, MetricIdentifier> m_series;
+
+        @XmlAttribute(name = "steps")
+        public long getSteps() {
+            return m_steps;
+        }
+
+        public void setSteps(long steps) {
+            m_steps = steps;
+        }
+
+        @XmlAttribute(name = "start")
+        public long getStart() {
+            return m_start;
+        }
+
+        public void setStart(final long start) {
+            m_start = start;
+        }
+
+        @XmlAttribute(name = "end")
+        public long getEnd() {
+            return m_end;
+        }
+
+        public void setEnd(final long end) {
+            m_end = end;
+        }
+
+        @XmlElement(name = "series")
+        public Map<String, MetricIdentifier> getSeries() {
+            return m_series;
+        }
+
+        public void setSeries(final Map<String, MetricIdentifier> series) {
+            m_series = series;
+        }
+    }
+
+    @XmlRootElement(name = "query")
+    public static class QueryResponse {
+        private long m_steps;
+
+        private long m_start;
+        private long m_end;
+
+        private SortedMap<Long, Map<String, Double>> m_series;
+
+        @XmlAttribute(name = "steps")
+        public long getSteps() {
+            return m_steps;
+        }
+
+        public void setSteps(long steps) {
+            m_steps = steps;
+        }
+
+        @XmlAttribute(name = "start")
+        public long getStart() {
+            return m_start;
+        }
+
+        public void setStart(final long start) {
+            m_start = start;
+        }
+
+        @XmlAttribute(name = "end")
+        public long getEnd() {
+            return m_end;
+        }
+
+        public void setEnd(final long end) {
+            m_end = end;
+        }
+
+        @XmlElement(name = "series")
+        public SortedMap<Long, Map<String, Double>> getSeries() {
+            return m_series;
+        }
+
+        public void setSeries(final SortedMap<Long, Map<String, Double>> series) {
+            m_series = series;
         }
     }
 
     @Autowired
     private ResourceDao m_resourceDao;
 
-    /*
-    [
-      [
-        {
-            "name": "high",
-            "timestamp": 1401824160000,
-            "value": 680.99
-        }, {
-            "name": "ask",
-            "timestamp": 1401824160000,
-            "value": 675.8095833333334
-        }, {
-            "name": "low",
-            "timestamp": 1401824160000,
-            "value": 638.5215833333333
-        }, {
-            "name": "spread",
-            "timestamp": 1401824160000,
-            "value": 2.3978333333334376
-        }, {
-            "name": "bid",
-            "timestamp": 1401824160000,
-            "value": 673.41175
-        }
-      ],
-      [
-        {
-        "name": "high",
-        "timestamp": 1401824400000,
-        "value": 680.99
-    }, {
-     */
     @GET
-    @Produces({MediaType.TEXT_PLAIN, MediaType.APPLICATION_JSON, MediaType.APPLICATION_ATOM_XML})
-    @Path("export/{resourceId}/{attribute}/{start}/{end}")
-    @Consumes(MediaType.TEXT_PLAIN)
-    public Response export(@PathParam("resourceId") final String resourceId, @PathParam("attribute") final String attribute, @PathParam("start") final long start, @PathParam("end") final long end) {
+    @Path("/")
+    @Produces({MediaType.APPLICATION_XML, MediaType.APPLICATION_JSON, MediaType.APPLICATION_ATOM_XML})
+    public Response test() {
+        final QueryRequest x = new QueryRequest();
+        x.setSteps(300);
+        x.setStart(1000);
+        x.setEnd(2000);
+        final Map<String, MetricIdentifier> m = new HashMap<String, MetricIdentifier>();
+        m.put("x", new MetricIdentifier("node[1].responseTime[127.0.0.1]", "icmp"));
+        x.setSeries(m);
+
+        return Response.ok(x).build();
+    }
+
+    @POST
+    @Path("/")
+    @Produces({MediaType.APPLICATION_XML, MediaType.APPLICATION_JSON, MediaType.APPLICATION_ATOM_XML})
+    @Consumes({MediaType.APPLICATION_XML, MediaType.APPLICATION_JSON, MediaType.APPLICATION_ATOM_XML})
+    public Response query(final QueryRequest request) {
         readLock();
         try {
 
-            String result = "";
+            final QueryResponse response = new QueryResponse();
+            response.setSteps(request.getSteps());
+            response.setStart(request.getStart());
+            response.setEnd(request.getEnd());
 
-            if (getStrategy(RrdUtils.getStrategy()) instanceof JRobinRrdStrategy) {
-                Map<String, MetricIdentifier> requestedMetrics = new HashMap<String, MetricIdentifier>();
-                requestedMetrics.put("key", new MetricIdentifier(resourceId, attribute));
-                try {
-                    Map<Long, Map<String, Double>> results = exportJrb(300, start, end, requestedMetrics);
-
-                    for (Map.Entry<Long, Map<String, Double>> entry : results.entrySet()) {
-                        for (Map.Entry<String, Double> metricValue : entry.getValue().entrySet()) {
-                            result += entry.getKey() + " " + metricValue.getKey() + " " + metricValue.getValue();
-                        }
-                    }
-                } catch (IOException e) {
-                    e.printStackTrace();
-                } catch (RrdException e) {
-                    e.printStackTrace();
+            try {
+                if (findStrategy() instanceof JRobinRrdStrategy) {
+                    response.setSeries(queryJrb(request.getSteps(),
+                            request.getStart(),
+                            request.getEnd(),
+                            request.getSeries()));
+                } else {
+                    return Response
+                            .serverError()
+                            .entity("No appropriate RRD strategy found")
+                            .build();
                 }
+
+                return Response
+                        .ok(response)
+                        .build();
+
+            } catch (Exception e) {
+                return Response
+                        .serverError()
+                        .entity(e)
+                        .build();
             }
 
-            return Response.ok(result, "text/html").build();
         } finally {
             readUnlock();
         }
     }
 
     @GET
-    @Produces({MediaType.TEXT_PLAIN, MediaType.APPLICATION_JSON, MediaType.APPLICATION_ATOM_XML})
-    @Path("query/{resourceId}")
+    @Path("/{resourceId}")
+    @Produces({MediaType.TEXT_PLAIN})
     @Consumes(MediaType.TEXT_PLAIN)
-    public Response query(@PathParam("resourceId") final String resourceId) {
+    public Response info(@PathParam("resourceId") final String resourceId) {
         readLock();
         try {
 
@@ -142,7 +233,7 @@ public class RrdRestService extends OnmsRestService {
 
             String result = "";
 
-            RrdStrategy rrdStrategy = getStrategy(RrdUtils.getStrategy());
+            RrdStrategy rrdStrategy = findStrategy(RrdUtils.getStrategy());
 
             result += "<h1>" + rrdStrategy.getClass().getSimpleName() + "</h1>";
 
@@ -189,10 +280,10 @@ public class RrdRestService extends OnmsRestService {
         }
     }
 
-    private Map<Long, Map<String, Double>> exportJrb(int step, long start, long end, Map<String, MetricIdentifier> requestedMetrics) throws IOException, RrdException {
+    private SortedMap<Long, Map<String, Double>> queryJrb(long step, long start, long end, Map<String, MetricIdentifier> requestedMetrics) throws IOException, RrdException {
 
         DataProcessor dproc = new DataProcessor(start, end);
-        dproc.setStep(300);
+        dproc.setStep(step);
         dproc.setFetchRequestResolution(300);
 
         for (Map.Entry<String, MetricIdentifier> entry : requestedMetrics.entrySet()) {
@@ -205,7 +296,7 @@ public class RrdRestService extends OnmsRestService {
             dproc.addDatasource(key, System.getProperty("rrd.base.dir") + "/" + rrdGraphAttribute.getRrdRelativePath(), entry.getValue().getAttributeId(), "AVERAGE");
         }
 
-        Map<Long, Map<String, Double>> results = new TreeMap<Long, Map<String, Double>>();
+        SortedMap<Long, Map<String, Double>> results = new TreeMap<Long, Map<String, Double>>();
 
         dproc.processData();
 
@@ -226,18 +317,22 @@ public class RrdRestService extends OnmsRestService {
         return results;
     }
 
-    private static RrdStrategy getStrategy(RrdStrategy rrdStrategy) {
+    private static RrdStrategy findStrategy() {
+        return findStrategy(RrdUtils.getStrategy());
+    }
+
+    private static RrdStrategy findStrategy(final RrdStrategy rrdStrategy) {
         if (rrdStrategy instanceof JniRrdStrategy || rrdStrategy instanceof JRobinRrdStrategy) {
             return rrdStrategy;
         }
 
         if (rrdStrategy instanceof QueuingRrdStrategy) {
-            return getStrategy(((QueuingRrdStrategy) rrdStrategy).getDelegate());
+            return findStrategy(((QueuingRrdStrategy) rrdStrategy).getDelegate());
         }
 
         if (rrdStrategy instanceof MultiOutputRrdStrategy) {
-            for (RrdStrategy delegate : ((MultiOutputRrdStrategy) rrdStrategy).getDelegates()) {
-                RrdStrategy x = getStrategy(delegate);
+            for (final RrdStrategy delegate : ((MultiOutputRrdStrategy) rrdStrategy).getDelegates()) {
+                RrdStrategy x = findStrategy(delegate);
 
                 if (x instanceof JniRrdStrategy || x instanceof JRobinRrdStrategy) {
                     return x;
