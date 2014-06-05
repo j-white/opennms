@@ -1,4 +1,4 @@
-package org.opennms.web.rest;
+package org.opennms.web.rest.rrd;
 
 import com.sun.jersey.spi.resource.PerRequest;
 import org.exolab.castor.xml.Unmarshaller;
@@ -15,6 +15,7 @@ import org.opennms.netmgt.rrd.RrdStrategy;
 import org.opennms.netmgt.rrd.RrdUtils;
 import org.opennms.netmgt.rrd.jrobin.JRobinRrdStrategy;
 import org.opennms.netmgt.rrd.rrdtool.JniRrdStrategy;
+import org.opennms.web.rest.OnmsRestService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
@@ -23,146 +24,14 @@ import org.springframework.util.FileCopyUtils;
 import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-import javax.xml.bind.annotation.XmlAttribute;
-import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.XmlType;
 import java.io.*;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.SortedMap;
-import java.util.TreeMap;
+import java.util.*;
 
 @Component
 @PerRequest
 @Scope("prototype")
 @Path("/rrd")
 public class RrdRestService extends OnmsRestService {
-
-    @XmlType
-    public static class MetricIdentifier {
-        private String m_resourceId;
-        private String m_attributeId;
-
-        public MetricIdentifier() {
-        }
-
-        public MetricIdentifier(final String resourceId,
-                                final String attributeId) {
-            this.m_resourceId = resourceId;
-            this.m_attributeId = attributeId;
-        }
-
-        @XmlAttribute(name = "resource")
-        public String getResourceId() {
-            return m_resourceId;
-        }
-
-        public void setResourceId(String resourceId) {
-            m_resourceId = resourceId;
-        }
-
-        @XmlAttribute(name = "attribute")
-        public String getAttributeId() {
-            return m_attributeId;
-        }
-
-        public void setAttributeId(String attributeId) {
-            m_attributeId = attributeId;
-        }
-    }
-
-    @XmlRootElement(name = "query")
-    public static class QueryRequest {
-        private long m_steps;
-
-        private long m_start;
-        private long m_end;
-
-        private Map<String, MetricIdentifier> m_series;
-
-        @XmlAttribute(name = "steps")
-        public long getSteps() {
-            return m_steps;
-        }
-
-        public void setSteps(long steps) {
-            m_steps = steps;
-        }
-
-        @XmlAttribute(name = "start")
-        public long getStart() {
-            return m_start;
-        }
-
-        public void setStart(final long start) {
-            m_start = start;
-        }
-
-        @XmlAttribute(name = "end")
-        public long getEnd() {
-            return m_end;
-        }
-
-        public void setEnd(final long end) {
-            m_end = end;
-        }
-
-        @XmlElement(name = "series")
-        public Map<String, MetricIdentifier> getSeries() {
-            return m_series;
-        }
-
-        public void setSeries(final Map<String, MetricIdentifier> series) {
-            m_series = series;
-        }
-    }
-
-    @XmlRootElement(name = "query")
-    public static class QueryResponse {
-        private long m_steps;
-
-        private long m_start;
-        private long m_end;
-
-        private SortedMap<Long, Map<String, Double>> m_series;
-
-        @XmlAttribute(name = "steps")
-        public long getSteps() {
-            return m_steps;
-        }
-
-        public void setSteps(long steps) {
-            m_steps = steps;
-        }
-
-        @XmlAttribute(name = "start")
-        public long getStart() {
-            return m_start;
-        }
-
-        public void setStart(final long start) {
-            m_start = start;
-        }
-
-        @XmlAttribute(name = "end")
-        public long getEnd() {
-            return m_end;
-        }
-
-        public void setEnd(final long end) {
-            m_end = end;
-        }
-
-        @XmlElement(name = "series")
-        public SortedMap<Long, Map<String, Double>> getSeries() {
-            return m_series;
-        }
-
-        public void setSeries(final SortedMap<Long, Map<String, Double>> series) {
-            m_series = series;
-        }
-    }
 
     @Autowired
     private ResourceDao m_resourceDao;
@@ -172,7 +41,7 @@ public class RrdRestService extends OnmsRestService {
     @Produces({MediaType.APPLICATION_XML, MediaType.APPLICATION_JSON, MediaType.APPLICATION_ATOM_XML})
     public Response test() {
         final QueryRequest x = new QueryRequest();
-        x.setSteps(300);
+        x.setStep(300);
         x.setStart(1000);
         x.setEnd(2000);
         final Map<String, MetricIdentifier> m = new HashMap<String, MetricIdentifier>();
@@ -184,46 +53,47 @@ public class RrdRestService extends OnmsRestService {
 
     @POST
     @Path("/")
-    @Produces({MediaType.APPLICATION_XML, MediaType.APPLICATION_JSON, MediaType.APPLICATION_ATOM_XML})
     @Consumes({MediaType.APPLICATION_XML, MediaType.APPLICATION_JSON, MediaType.APPLICATION_ATOM_XML})
-    public Response query(final QueryRequest request) {
+    @Produces({MediaType.APPLICATION_XML, MediaType.APPLICATION_JSON, MediaType.APPLICATION_ATOM_XML})
+    public Response query(final QueryRequest request) throws Exception {
         readLock();
         try {
 
             final QueryResponse response = new QueryResponse();
-            response.setSteps(request.getSteps());
+            response.setStep(request.getStep());
             response.setStart(request.getStart());
             response.setEnd(request.getEnd());
 
-            try {
-                if (findStrategy() instanceof JniRrdStrategy) {
-                    response.setSeries(queryRrd(request.getSteps(),
-                                                request.getStart(),
-                                                request.getEnd(),
-                                                request.getSeries()));
+            final SortedMap<Long, Map<String, Double>> data;
+            if (findStrategy() instanceof JniRrdStrategy) {
+                data = queryRrd(request.getStep(),
+                        request.getStart(),
+                        request.getEnd(),
+                        request.getSeries());
 
-                } else if (findStrategy() instanceof JRobinRrdStrategy) {
-                    response.setSeries(queryJrb(request.getSteps(),
-                                                request.getStart(),
-                                                request.getEnd(),
-                                                request.getSeries()));
-                } else {
-                    return Response
-                            .serverError()
-                            .entity("No appropriate RRD strategy found")
-                            .build();
-                }
-
-                return Response
-                        .ok(response)
-                        .build();
-
-            } catch (Exception e) {
-                return Response
-                        .serverError()
-                        .entity(e)
-                        .build();
+            } else if (findStrategy() instanceof JRobinRrdStrategy) {
+                data = queryJrb(request.getStep(),
+                        request.getStart(),
+                        request.getEnd(),
+                        request.getSeries());
+                
+            } else {
+                throw new RuntimeException("No appropriate RRD strategy found");
             }
+
+            final List<Metric> metrics = new ArrayList<Metric>(data.size());
+            for (final SortedMap.Entry<Long, Map<String, Double>> e : data.entrySet()) {
+                final Metric metric = new Metric();
+                metric.setTimestamp(e.getKey());
+                metric.setValues(e.getValue());
+                metrics.add(metric);
+            }
+
+            response.setMetrics(metrics);
+
+            return Response
+                    .ok(response)
+                    .build();
 
         } finally {
             readUnlock();
@@ -299,14 +169,43 @@ public class RrdRestService extends OnmsRestService {
             throw new RrdException("rrd.binary property must be set either in opennms.properties or in iReport");
         }
 
-        /**
-         * TODO: construct the query string out of the requestedMetrics data
-         */
-        String queryString = "";
+        //construct the query string out of the requestedMetrics data
+        final StringBuilder query = new StringBuilder();
+        query.append("--step").append(" ")
+                .append(step).append(" ");
 
-        String command = rrdBinary + " xport " + queryString.replaceAll("[\r\n]+", " ").replaceAll("\\s+", " ");
+        query.append("--start").append(" ")
+                .append(start).append(" ");
 
-        String[] commandArray = StringUtils.createCommandArray(command, '@');
+        query.append("--end").append(" ")
+                .append(end).append(" ");
+
+        for (final Map.Entry<String, MetricIdentifier> entry : series.entrySet()) {
+            final OnmsResource resource = m_resourceDao.getResourceById(entry.getValue().getResourceId());
+            final RrdGraphAttribute rrdGraphAttribute = resource.getRrdGraphAttributes().get(entry.getValue().getAttributeId());
+
+            final String rrdFile = System.getProperty("rrd.base.dir") + File.separator + rrdGraphAttribute.getRrdRelativePath();
+
+            query.append("DEF:")
+                    .append(entry.getKey())
+                    .append("=")
+                    .append(rrdFile)
+                    .append(":")
+                    .append(entry.getValue().getAttributeId())
+                    .append(":")
+                    .append("AVERAGE")
+                    .append(" ");
+        }
+
+        StringBuilder command = new StringBuilder();
+        command.append(rrdBinary).append(" ");
+        command.append("xport").append(" ");
+        command.append(query
+                .toString()
+                .replaceAll("[\r\n]+", " ")
+                .replaceAll("\\s+", " "));
+
+        String[] commandArray = StringUtils.createCommandArray(command.toString(), '@');
 
         /**
          * TODO: create class for the Xml unmarshalling...
@@ -361,7 +260,7 @@ public class RrdRestService extends OnmsRestService {
             OnmsResource resource = m_resourceDao.getResourceById(entry.getValue().getResourceId());
             RrdGraphAttribute rrdGraphAttribute = resource.getRrdGraphAttributes().get(entry.getValue().getAttributeId());
 
-            dproc.addDatasource(key, System.getProperty("rrd.base.dir") + "/" + rrdGraphAttribute.getRrdRelativePath(), entry.getValue().getAttributeId(), "AVERAGE");
+            dproc.addDatasource(key, System.getProperty("rrd.base.dir") + File.separator + rrdGraphAttribute.getRrdRelativePath(), entry.getValue().getAttributeId(), "AVERAGE");
         }
 
         SortedMap<Long, Map<String, Double>> results = new TreeMap<Long, Map<String, Double>>();
