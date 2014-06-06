@@ -36,7 +36,10 @@ import javax.servlet.FilterConfig;
 import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
+import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+
+import org.springframework.web.bind.annotation.RequestMethod;
 
 /**
  * A filter that adds an HTTP <em>Access-Control-Allow-Origin</em> header to a servlet or JSP's response.
@@ -47,10 +50,18 @@ public class AddAccessControlHeaderFilter implements Filter {
 	private String m_origin = null;
 
     public void doFilter(final ServletRequest request, final ServletResponse response, final FilterChain chain) throws IOException, ServletException {
-    	final HttpServletResponse httpResponse = (HttpServletResponse) response;
+    	final HttpServletRequest httpRequest = (HttpServletRequest) request;
+        final HttpServletResponse httpResponse = (HttpServletResponse) response;
     	if (m_origin != null && !httpResponse.containsHeader("Access-Control-Allow-Origin")) {
-    		httpResponse.setHeader("Access-Control-Allow-Origin", m_origin);
+    		httpResponse.setHeader("Access-Control-Allow-Origin", httpRequest.getHeader("Origin"));
+    		httpResponse.setHeader("Access-Control-Allow-Credentials", "true");
+    		httpResponse.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    		
+    		if (RequestMethod.OPTIONS.name().equals(httpRequest.getMethod())) {
+    		    httpResponse.setHeader("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization, Authentication");
+    		}
     	}
+
         chain.doFilter(request, httpResponse);
     }
 
