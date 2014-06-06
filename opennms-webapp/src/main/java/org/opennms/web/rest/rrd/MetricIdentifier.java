@@ -10,6 +10,7 @@ import javax.xml.bind.annotation.XmlRootElement;
 public class MetricIdentifier {
     private String resourceId;
     private String attributeId;
+    private String aggregation = "AVERAGE";
 
     public MetricIdentifier() {
     }
@@ -38,5 +39,15 @@ public class MetricIdentifier {
 
     public void setAttributeId(String attributeId) {
         this.attributeId = attributeId;
+    }
+
+    @XmlAttribute(name = "aggregation")
+    @JsonProperty("aggregation")
+    public String getAggregation() {
+        return aggregation;
+    }
+
+    public void setAggregation(String aggregation) {
+        this.aggregation = aggregation;
     }
 }
