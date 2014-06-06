@@ -178,7 +178,7 @@ public class RrdRestService extends OnmsRestService {
                     .append(":")
                     .append(entry.getValue().getAttributeId())
                     .append(":")
-                    .append("AVERAGE")
+                    .append(entry.getValue().getAggregation())
                     .append(" ");
         }
 
@@ -245,7 +245,12 @@ public class RrdRestService extends OnmsRestService {
             OnmsResource resource = m_resourceDao.getResourceById(entry.getValue().getResourceId());
             RrdGraphAttribute rrdGraphAttribute = resource.getRrdGraphAttributes().get(entry.getValue().getAttributeId());
 
-            dproc.addDatasource(key, System.getProperty("rrd.base.dir") + File.separator + rrdGraphAttribute.getRrdRelativePath(), entry.getValue().getAttributeId(), "AVERAGE");
+            final String file = System.getProperty("rrd.base.dir") + File.separator + rrdGraphAttribute.getRrdRelativePath();
+
+            dproc.addDatasource(key,
+                                file,
+                                entry.getValue().getAttributeId(),
+                                entry.getValue().getAggregation());
         }
 
         SortedMap<Long, Map<String, Double>> results = new TreeMap<Long, Map<String, Double>>();
