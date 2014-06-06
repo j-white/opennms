@@ -81,9 +81,8 @@ public class RrdGraphController extends AbstractController {
         }
 
         String resourceId = request.getParameter("resourceId");
-        
-        long times[] = this.parseTimes(request);
-        
+
+        long times[] = RrdGraphController.parseTimes(request.getParameter("start"), request.getParameter("end"));
         long startTime = times[0];
         long endTime = times[1];
 
@@ -147,11 +146,8 @@ public class RrdGraphController extends AbstractController {
                 
         return null;
     }
-    
-    public long[] parseTimes(HttpServletRequest request) {
-    	String startTime = request.getParameter("start");
-    	String endTime = request.getParameter("end");
-    	
+
+    public static long[] parseTimes(String startTime, String endTime) {
     	if(startTime == null || "".equals(startTime)) {
     		startTime = "now - 1day";
     	}
