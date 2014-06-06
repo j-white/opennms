@@ -36,21 +36,6 @@ public class RrdRestService extends OnmsRestService {
     @Autowired
     private ResourceDao m_resourceDao;
 
-    @GET
-    @Path("/")
-    @Produces({MediaType.APPLICATION_XML, MediaType.APPLICATION_JSON, MediaType.APPLICATION_ATOM_XML})
-    public Response test() {
-        final QueryRequest x = new QueryRequest();
-        x.setStep(300);
-        x.setStart(1000);
-        x.setEnd(2000);
-        final Map<String, MetricIdentifier> m = new HashMap<String, MetricIdentifier>();
-        m.put("x", new MetricIdentifier("node[1].responseTime[127.0.0.1]", "icmp"));
-        x.setSeries(m);
-
-        return Response.ok(x).build();
-    }
-
     @POST
     @Path("/")
     @Consumes({MediaType.APPLICATION_XML, MediaType.APPLICATION_JSON, MediaType.APPLICATION_ATOM_XML})
