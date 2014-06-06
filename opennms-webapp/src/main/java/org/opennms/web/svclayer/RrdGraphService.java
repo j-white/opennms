@@ -51,7 +51,18 @@ public interface RrdGraphService {
      */
     public InputStream getPrefabGraph(String resourceId,
             String report, long start, long end, Integer width, Integer height);
-    
+
+    /**
+     * <p>getPrefabGraphCommand</p>
+     *
+     * @param resourceId a {@link java.lang.String} object.
+     * @param report a {@link java.lang.String} object.
+     * @param start a long.
+     * @param end a long.
+     * @return the rrdgraph command used to generate the graph.
+     */
+    public String getPrefabGraphCommand(String resourceId, String report, long start, long end, Integer width, Integer height);
+
     /**
      * <p>getAdhocGraph</p>
      *

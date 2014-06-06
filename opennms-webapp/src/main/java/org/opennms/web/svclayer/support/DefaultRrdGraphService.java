@@ -139,6 +139,13 @@ public class DefaultRrdGraphService implements RrdGraphService, InitializingBean
     /** {@inheritDoc} */
     @Override
     public InputStream getPrefabGraph(String resourceId, String report, long start, long end, Integer width, Integer height) {
+        String command = getPrefabGraphCommand(resourceId, report, start, end, width, height);
+        return getInputStreamForCommand(command);
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public String getPrefabGraphCommand(String resourceId, String report, long start, long end, Integer width, Integer height) {
         Assert.notNull(resourceId, "resourceId argument cannot be null");
         Assert.notNull(report, "report argument cannot be null");
         Assert.isTrue(end > start, "end time " + end + " must be after start time" + start);
@@ -156,16 +163,14 @@ public class DefaultRrdGraphService implements RrdGraphService, InitializingBean
         
         Graph graph = new Graph(prefabGraph, r, new Date(start), new Date(end));
 
-        String command = createPrefabCommand(graph,
-                                             t.getCommandPrefix(),
-                                             m_resourceDao.getRrdDirectory(true),
-                                             report,
-                                             width,
-                                             height);
-        
-        return getInputStreamForCommand(command);
+        return createPrefabCommand(graph,
+                                     t.getCommandPrefix(),
+                                     m_resourceDao.getRrdDirectory(true),
+                                     report,
+                                     width,
+                                     height);
     }
-    
+
     /**
      * <p>createAdHocCommand</p>
      *
