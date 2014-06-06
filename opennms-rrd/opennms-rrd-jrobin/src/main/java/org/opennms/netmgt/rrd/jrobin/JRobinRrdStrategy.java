@@ -370,11 +370,7 @@ public class JRobinRrdStrategy implements RrdStrategy<RrdDef,RrdDb> {
     public RrdGraphDetails createGraphReturnDetails(final String command, final File workDir) throws IOException, org.opennms.netmgt.rrd.RrdException {
 
         try {
-            String[] commandArray = tokenize(command, " \t", false);
-
-            RrdGraphDef graphDef = createGraphDef(workDir, commandArray);
-            graphDef.setSignature("OpenNMS/JRobin");
-
+            RrdGraphDef graphDef = createGraphDef(command, workDir);
             RrdGraph graph = new RrdGraph(graphDef);
 
             /*
@@ -402,6 +398,33 @@ public class JRobinRrdStrategy implements RrdStrategy<RrdDef,RrdDb> {
 
 
     /**
+     * Allows subclasses to overload the creation
+     * of {@link org.jrobin.graph.RrdGraphDef} objects.
+     *
+     * @return a new {@link org.jrobin.graph.RrdGraphDef} object.
+     */
+    public RrdGraphDef createGraphDef() {
+        return new RrdGraphDef();
+    }
+
+    /**
+     * Exposes the ability to retrieve the graph definition directly
+     * from the command string.
+     *
+     * @param command the rrdgraph command.
+     * @param workDir the directory in which the rrd files are stored.
+     * @return a new {@link org.jrobin.graph.RrdGraphDef} object.
+     * @throws RrdException
+     */
+    public RrdGraphDef createGraphDef(final String command, final File workDir) throws RrdException {
+        String[] commandArray = tokenize(command, " \t", false);
+
+        RrdGraphDef graphDef = createGraphDef(workDir, commandArray);
+        graphDef.setSignature("OpenNMS/JRobin");
+        return graphDef;
+    }
+
+    /**
      * <p>createGraphDef</p>
      *
      * @param workDir a {@link java.io.File} object.
@@ -410,7 +433,7 @@ public class JRobinRrdStrategy implements RrdStrategy<RrdDef,RrdDb> {
      * @throws org.jrobin.core.RrdException if any.
      */
     protected RrdGraphDef createGraphDef(final File workDir, final String[] inputArray) throws RrdException {
-        RrdGraphDef graphDef = new RrdGraphDef();
+        RrdGraphDef graphDef = createGraphDef();
         graphDef.setImageFormat("PNG");
         long start = 0;
         long end = 0;
