@@ -37,26 +37,6 @@ public class RrdRestService extends OnmsRestService {
     @Autowired
     private ResourceDao m_resourceDao;
 
-    @GET
-    @Path("/")
-    @Produces({MediaType.APPLICATION_XML, MediaType.APPLICATION_JSON, MediaType.APPLICATION_ATOM_XML})
-    public Response test() throws Exception {
-        final QueryRequest request = new QueryRequest();
-        request.setStart(1000);
-        request.setEnd(2000);
-        request.setStep(300);
-        List<QueryRequest.Source> sources = new ArrayList<QueryRequest.Source>();
-        sources.add(new QueryRequest.Source("label", "resource", "attribute"));
-        sources.add(new QueryRequest.Source("label", "resource", "attribute"));
-        request.setSources(sources);
-        List<QueryRequest.Expression> expressions = new ArrayList<QueryRequest.Expression>();
-        expressions.add(new QueryRequest.Expression("label", "exp"));
-        expressions.add(new QueryRequest.Expression("label", "exp"));
-        request.setExpressions(expressions);
-
-        return Response.ok(request).build();
-    }
-
     @POST
     @Path("/")
     @Consumes({MediaType.APPLICATION_XML, MediaType.APPLICATION_JSON, MediaType.APPLICATION_ATOM_XML})
