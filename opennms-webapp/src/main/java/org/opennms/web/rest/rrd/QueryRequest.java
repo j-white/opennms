@@ -1,21 +1,109 @@
 package org.opennms.web.rest.rrd;
 
-import org.codehaus.jackson.annotate.JsonProperty;
-
-import javax.xml.bind.annotation.*;
-import java.util.Map;
+import javax.xml.bind.annotation.XmlAttribute;
+import javax.xml.bind.annotation.XmlElement;
+import javax.xml.bind.annotation.XmlRootElement;
+import javax.xml.bind.annotation.XmlValue;
+import java.util.LinkedList;
+import java.util.List;
 
 @XmlRootElement(name = "query-request")
 public class QueryRequest {
+    public static class Source {
+        private String label;
+        private String resource;
+        private String attribute;
+        private String aggregation = "AVERAGE";
+
+        public Source() {
+        }
+
+        public Source(final String label,
+                      final String resource,
+                      final String attribute) {
+            this.label = label;
+            this.resource = resource;
+            this.attribute = attribute;
+        }
+
+        @XmlAttribute(name = "label")
+        public String getLabel() {
+            return this.label;
+        }
+
+        public void setLabel(final String label) {
+            this.label = label;
+        }
+
+        @XmlAttribute(name = "resource")
+        public String getResource() {
+            return this.resource;
+        }
+
+        public void setResource(final String resource) {
+            this.resource = resource;
+        }
+
+        @XmlAttribute(name = "attribute")
+        public String getAttribute() {
+            return this.attribute;
+        }
+
+        public void setAttribute(final String attribute) {
+            this.attribute = attribute;
+        }
+
+        @XmlAttribute(name = "aggregation")
+        public String getAggregation() {
+            return this.aggregation;
+        }
+
+        public void setAggregation(final String aggregation) {
+            this.aggregation = aggregation;
+        }
+    }
+
+    public static class Expression {
+        private String label;
+        private String expression;
+
+        public Expression() {
+        }
+
+        public Expression(final String label,
+                          final String expression) {
+            this.label = label;
+            this.expression = expression;
+        }
+
+        @XmlAttribute(name = "label")
+        public String getLabel() {
+            return this.label;
+        }
+
+        public void setLabel(final String label) {
+            this.label = label;
+        }
+
+        @XmlValue
+        public String getExpression() {
+            return this.expression;
+        }
+
+        public void setExpression(final String expression) {
+            this.expression = expression;
+        }
+    }
+
     private long step;
 
     private long start;
     private long end;
 
-    private Map<String, MetricIdentifier> series;
+    private List<Source> sources = new LinkedList<Source>();
+    private List<Expression> expressions = new LinkedList<Expression>();
 
     @XmlAttribute(name = "step")
-    @JsonProperty("step")
     public long getStep() {
         return step;
     }
@@ -25,7 +113,6 @@ public class QueryRequest {
     }
 
     @XmlAttribute(name = "start")
-    @JsonProperty("start")
     public long getStart() {
         return start;
     }
@@ -35,7 +122,6 @@ public class QueryRequest {
     }
 
     @XmlAttribute(name = "end")
-    @JsonProperty("end")
     public long getEnd() {
         return end;
     }
@@ -44,37 +130,21 @@ public class QueryRequest {
         this.end = end;
     }
 
-    @XmlElement(name = "series")
-    @JsonProperty("series")
-    public Map<String, MetricIdentifier> getSeries() {
-        return series;
+    @XmlElement(name = "source")
+    public List<Source> getSources() {
+        return sources;
     }
 
-    public void setSeries(final Map<String, MetricIdentifier> series) {
-        this.series = series;
+    public void setSources(final List<Source> sources) {
+        this.sources = sources;
     }
 
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-
-        QueryRequest that = (QueryRequest) o;
-
-        if (end != that.end) return false;
-        if (start != that.start) return false;
-        if (step != that.step) return false;
-        if (series != null ? !series.equals(that.series) : that.series != null) return false;
-
-        return true;
+    @XmlElement(name = "expression")
+    public List<Expression> getExpressions() {
+        return expressions;
     }
 
-    @Override
-    public int hashCode() {
-        int result = (int) (step ^ (step >>> 32));
-        result = 31 * result + (int) (start ^ (start >>> 32));
-        result = 31 * result + (int) (end ^ (end >>> 32));
-        result = 31 * result + (series != null ? series.hashCode() : 0);
-        return result;
+    public void setExpressions(final List<Expression> expressions) {
+        this.expressions = expressions;
     }
 }

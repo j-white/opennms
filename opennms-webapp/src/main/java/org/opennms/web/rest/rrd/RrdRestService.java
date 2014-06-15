@@ -1,6 +1,7 @@
 package org.opennms.web.rest.rrd;
 
 import com.sun.jersey.spi.resource.PerRequest;
+import org.apache.commons.jexl2.*;
 import org.exolab.castor.xml.Unmarshaller;
 import org.jrobin.core.RrdException;
 import org.jrobin.data.DataProcessor;
@@ -43,34 +44,53 @@ public class RrdRestService extends OnmsRestService {
     public Response query(final QueryRequest request) throws Exception {
         readLock();
         try {
+            // Compile the expressions
+            final JexlEngine jexl = new JexlEngine();
+            final LinkedHashMap<String, Expression> expressions = new LinkedHashMap<String, Expression>();
+            for (final QueryRequest.Expression e : request.getExpressions()) {
+                expressions.put(e.getLabel(),
+                                jexl.createExpression(e.getExpression()));
+            }
 
+            // Prepare the response
             final QueryResponse response = new QueryResponse();
             response.setStep(request.getStep());
             response.setStart(request.getStart());
             response.setEnd(request.getEnd());
 
+            // Fetch the data
             final SortedMap<Long, Map<String, Double>> data;
             if (findStrategy() instanceof JniRrdStrategy) {
                 data = queryRrd(request.getStep(),
-                        request.getStart(),
-                        request.getEnd(),
-                        request.getSeries());
+                                request.getStart(),
+                                request.getEnd(),
+                                request.getSources());
 
             } else if (findStrategy() instanceof JRobinRrdStrategy) {
                 data = queryJrb(request.getStep(),
-                        request.getStart(),
-                        request.getEnd(),
-                        request.getSeries());
+                                request.getStart(),
+                                request.getEnd(),
+                                request.getSources());
                 
             } else {
                 throw new RuntimeException("No appropriate RRD strategy found");
             }
 
-            final List<Metric> metrics = new ArrayList<Metric>(data.size());
-            for (final SortedMap.Entry<Long, Map<String, Double>> e : data.entrySet()) {
-                final Metric metric = new Metric();
-                metric.setTimestamp(e.getKey());
-                metric.setValues(e.getValue());
+            // Do the calculations and build the list of resulting metrics
+            final List<QueryResponse.Metric> metrics = new ArrayList<QueryResponse.Metric>(data.size());
+            for (final SortedMap.Entry<Long, Map<String, Double>> dataEntry : data.entrySet()) {
+                Map<String, Double> values = dataEntry.getValue();
+
+                for (final Map.Entry<String, Expression> expressionEntry : expressions.entrySet()) {
+                    final JexlContext context = new MapContext(new HashMap<String, Object>(values));
+
+                    values.put(expressionEntry.getKey(),
+                               (Double) expressionEntry.getValue().evaluate(context));
+                }
+
+                final QueryResponse.Metric metric = new QueryResponse.Metric();
+                metric.setTimestamp(dataEntry.getKey());
+                metric.setValues(values);
                 metrics.add(metric);
             }
 
@@ -147,7 +167,7 @@ public class RrdRestService extends OnmsRestService {
     private SortedMap<Long, Map<String, Double>> queryRrd(final long step,
                                                           final long start,
                                                           final long end,
-                                                          final Map<String, MetricIdentifier> series) throws Exception {
+                                                          final List<QueryRequest.Source> sources) throws Exception {
         String rrdBinary = System.getProperty("rrd.binary");
 
         if (rrdBinary == null) {
@@ -165,20 +185,20 @@ public class RrdRestService extends OnmsRestService {
         query.append("--end").append(" ")
                 .append(end).append(" ");
 
-        for (final Map.Entry<String, MetricIdentifier> entry : series.entrySet()) {
-            final OnmsResource resource = m_resourceDao.getResourceById(entry.getValue().getResourceId());
-            final RrdGraphAttribute rrdGraphAttribute = resource.getRrdGraphAttributes().get(entry.getValue().getAttributeId());
+        for (final QueryRequest.Source source : sources) {
+            final OnmsResource resource = m_resourceDao.getResourceById(source.getResource());
+            final RrdGraphAttribute rrdGraphAttribute = resource.getRrdGraphAttributes().get(source.getAttribute());
 
             final String rrdFile = System.getProperty("rrd.base.dir") + File.separator + rrdGraphAttribute.getRrdRelativePath();
 
             query.append("DEF:")
-                    .append(entry.getKey())
+                    .append(source.getLabel())
                     .append("=")
                     .append(rrdFile)
                     .append(":")
-                    .append(entry.getValue().getAttributeId())
+                    .append(source.getAttribute())
                     .append(":")
-                    .append(entry.getValue().getAggregation())
+                    .append(source.getAggregation())
                     .append(" ");
         }
 
@@ -233,24 +253,22 @@ public class RrdRestService extends OnmsRestService {
     private SortedMap<Long, Map<String, Double>> queryJrb(final long step,
                                                           final long start,
                                                           final long end,
-                                                          final Map<String, MetricIdentifier> series) throws IOException, RrdException {
+                                                          final List<QueryRequest.Source> sources) throws IOException, RrdException {
 
         final DataProcessor dproc = new DataProcessor(start, end);
         dproc.setStep(step);
         dproc.setFetchRequestResolution(300);
 
-        for (final Map.Entry<String, MetricIdentifier> entry : series.entrySet()) {
-            String key = entry.getKey();
-
-            OnmsResource resource = m_resourceDao.getResourceById(entry.getValue().getResourceId());
-            RrdGraphAttribute rrdGraphAttribute = resource.getRrdGraphAttributes().get(entry.getValue().getAttributeId());
+        for (final QueryRequest.Source source : sources) {
+            OnmsResource resource = m_resourceDao.getResourceById(source.getResource());
+            RrdGraphAttribute rrdGraphAttribute = resource.getRrdGraphAttributes().get(source.getAttribute());
 
             final String file = System.getProperty("rrd.base.dir") + File.separator + rrdGraphAttribute.getRrdRelativePath();
 
-            dproc.addDatasource(key,
+            dproc.addDatasource(source.getLabel(),
                                 file,
-                                entry.getValue().getAttributeId(),
-                                entry.getValue().getAggregation());
+                                source.getAttribute(),
+                                source.getAggregation());
         }
 
         SortedMap<Long, Map<String, Double>> results = new TreeMap<Long, Map<String, Double>>();
@@ -260,14 +278,14 @@ public class RrdRestService extends OnmsRestService {
         long[] timestamps = dproc.getTimestamps();
 
         for (int i = 0; i < timestamps.length; i++) {
-            timestamps[i] = timestamps[i] - dproc.getStep();
+            final long timestamp = timestamps[i] - dproc.getStep();
 
             Map<String, Double> data = new HashMap<String, Double>();
-            for (String key : series.keySet()) {
-                data.put(key, dproc.getValues(key)[i]);
+            for (QueryRequest.Source source : sources) {
+                data.put(source.getLabel(), dproc.getValues(source.getLabel())[i]);
             }
 
-            results.put(timestamps[i], data);
+            results.put(timestamp, data);
         }
 
         return results;
