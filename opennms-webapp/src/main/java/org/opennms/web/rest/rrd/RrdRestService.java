@@ -6,7 +6,7 @@ import org.exolab.castor.xml.Unmarshaller;
 import org.jrobin.core.RrdException;
 import org.jrobin.data.DataProcessor;
 import org.opennms.core.utils.StringUtils;
-import org.opennms.netmgt.dao.ResourceDao;
+import org.opennms.netmgt.dao.api.ResourceDao;
 import org.opennms.netmgt.model.OnmsAttribute;
 import org.opennms.netmgt.model.OnmsResource;
 import org.opennms.netmgt.model.RrdGraphAttribute;
