@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2004-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -47,14 +47,14 @@ import org.opennms.netmgt.config.BasicScheduleUtils;
 import org.opennms.netmgt.config.PollOutagesConfigManager;
 import org.opennms.netmgt.config.PollerConfig;
 import org.opennms.netmgt.config.poller.Downtime;
-import org.opennms.netmgt.config.poller.Interface;
-import org.opennms.netmgt.config.poller.Node;
-import org.opennms.netmgt.config.poller.Outage;
 import org.opennms.netmgt.config.poller.Package;
 import org.opennms.netmgt.config.poller.Parameter;
 import org.opennms.netmgt.config.poller.PollerConfiguration;
 import org.opennms.netmgt.config.poller.Service;
-import org.opennms.netmgt.config.poller.Time;
+import org.opennms.netmgt.config.poller.outages.Interface;
+import org.opennms.netmgt.config.poller.outages.Node;
+import org.opennms.netmgt.config.poller.outages.Outage;
+import org.opennms.netmgt.config.poller.outages.Time;
 import org.opennms.netmgt.model.OnmsMonitoredService;
 import org.opennms.netmgt.model.ServiceSelector;
 import org.opennms.netmgt.poller.DistributionContext;
@@ -100,10 +100,11 @@ public class MockPollerConfig extends PollOutagesConfigManager implements Poller
      * @param svc a {@link org.opennms.netmgt.config.poller.Service} object.
      * @return a {@link java.lang.Iterable} object.
      */
+    @Override
     public Iterable<Parameter> parameters(final Service svc) {
         getReadLock().lock();
         try {
-            return svc.getParameterCollection();
+            return svc.getParameters();
         } finally {
             getReadLock().unlock();
         }
@@ -242,7 +243,8 @@ public class MockPollerConfig extends PollOutagesConfigManager implements Poller
     }
 
     public void clearDowntime() {
-        m_currentPkg.removeAllDowntime();
+        final List<Downtime> emptyList = Collections.emptyList();
+        m_currentPkg.setDowntimes(emptyList);;
     }
 
     public void addPackage(String name) {
@@ -252,17 +254,19 @@ public class MockPollerConfig extends PollOutagesConfigManager implements Poller
         m_pkgs.add(m_currentPkg);
     }
 
+    @Override
     public void addMonitor(String svcName, String className) {
         addServiceMonitor(svcName, new MockMonitor(m_network, svcName));
 
     }
 
+    @Override
     public Enumeration<Package> enumeratePackage() {
         return m_pkgs.elements();
     }
 
     private Service findService(Package pkg, String svcName) {
-        for (Service svc : pkg.getServiceCollection()) {
+        for (Service svc : pkg.getServices()) {
             if (svcName.equals(svc.getName())) {
                 return svc;
             }
@@ -270,18 +274,22 @@ public class MockPollerConfig extends PollOutagesConfigManager implements Poller
         return null;
     }
 
+    @Override
     public String getCriticalService() {
         return m_criticalSvcName;
     }
 
+    @Override
     public Package getFirstPackageMatch(String ipaddr) {
         return null;
     }
 
+    @Override
     public String getNextOutageIdSql() {
         return m_nextOutageIdSql;
     }
 
+    @Override
     public Package getPackage(String name) {
         for (Package pkg : m_pkgs) {
             if (pkg.getName().equals(name)) {
@@ -291,26 +299,32 @@ public class MockPollerConfig extends PollOutagesConfigManager implements Poller
         return null;
     }
 
+    @Override
     public List<String> getRRAList(Package pkg) {
         return null;
     }
 
+    @Override
     public ServiceMonitor getServiceMonitor(String svcName) {
         return getServiceMonitors().get(svcName);
     }
 
+    @Override
     public Map<String, ServiceMonitor> getServiceMonitors() {
         return m_svcMonitors;
     }
 
+    @Override
     public int getStep(Package pkg) {
         return 0;
     }
 
+    @Override
     public int getThreads() {
         return m_threads;
     }
 
+    @Override
     public boolean shouldNotifyXmlrpc() {
         return false;
     }
@@ -323,33 +337,39 @@ public class MockPollerConfig extends PollOutagesConfigManager implements Poller
         return getServiceMonitor(svcName) != null;
     }
 
+    @Override
     public boolean isInterfaceInPackage(final String iface, final Package pkg) {
-        for (final String ipAddr : pkg.getSpecificCollection()) {
+        for (final String ipAddr : pkg.getSpecifics()) {
             if (ipAddr.equals(iface))
                 return true;
         }
         return false;
     }
 
+    @Override
     public boolean isPolled(final String ipaddr) {
         // TODO Auto-generated method stub
         return false;
     }
 
+    @Override
     public boolean isPolled(final String svcName, final Package pkg) {
         // TODO Auto-generated method stub
         return false;
     }
 
+    @Override
     public boolean isPolled(final String ipaddr, final String svcName) {
         // TODO Auto-generated method stub
         return false;
     }
 
+    @Override
     public boolean isNodeOutageProcessingEnabled() {
         return m_outageProcessingEnabled;
     }
 
+    @Override
     public boolean shouldPollAllIfNoCriticalServiceDefined() {
         // TODO Auto-generated method stub
         return m_pollAll ;
@@ -359,24 +379,28 @@ public class MockPollerConfig extends PollOutagesConfigManager implements Poller
         m_pollAll = pollAll;
     }
 
+    @Override
     public void rebuildPackageIpListMap() {
         // TODO Auto-generated method stub
 
     }
 
+    @Override
     public boolean isServiceInPackageAndEnabled(final String svcName, final Package pkg) {
-        for (final Service svc : pkg.getServiceCollection()) {
+        for (final Service svc : pkg.getServices()) {
             if (svc.getName().equals(svcName))
                 return true;
         }
         return false;
     }
 
+    @Override
     public boolean isServiceMonitored(final String svcName) {
         // TODO Auto-generated method stub
         return false;
     }
 
+    @Override
     public boolean isServiceUnresponsiveEnabled() {
         return m_serviceUnresponsiveEnabled;
     }
@@ -424,6 +448,7 @@ public class MockPollerConfig extends PollOutagesConfigManager implements Poller
 
     public void populatePackage(final MockNetwork network) {
         final MockVisitor populator = new MockVisitorAdapter() {
+            @Override
             public void visitService(final MockService svc) {
                 addService(svc);
             }
@@ -436,14 +461,17 @@ public class MockPollerConfig extends PollOutagesConfigManager implements Poller
 
     }
 
+    @Override
     public Service getServiceInPackage(final String svcName, final Package pkg) {
         return findService(pkg, svcName);
     }
 
+    @Override
     public void update() {
 
     }
 
+    @Override
     public void save() {
 
     }
@@ -455,30 +483,37 @@ public class MockPollerConfig extends PollOutagesConfigManager implements Poller
         m_currentSvc.addParameter(param);
     }
 
+    @Override
     public void addPackage(final Package pkg) {
         m_pkgs.add(pkg);
     }
 
+    @Override
     public PollerConfiguration getConfiguration() {
         // FIXME: need to actually implement this
         return null;
     }
 
+    @Override
     public List<String> getAllPackageMatches(final String ipAddr) {
         return new ArrayList<String>(0);
     }
 
+    @Override
     public boolean isPathOutageEnabled() {
         return false;
     }
 
+    @Override
     public void releaseAllServiceMonitors() {
     }
 
+    @Override
     public List<InetAddress> getIpList(final Package pkg) {
         return Collections.emptyList();
     }
 
+    @Override
     public ServiceSelector getServiceSelectorForPackage(final Package pkg) {
         return null;
     }
@@ -488,18 +523,22 @@ public class MockPollerConfig extends PollOutagesConfigManager implements Poller
 
     }
 
+    @Override
     public Collection<ServiceMonitorLocator> getServiceMonitorLocators(final DistributionContext context) {
         throw new UnsupportedOperationException("not yet implemented");
     }
 
+    @Override
     public Package getFirstLocalPackageMatch(final String ipaddr) {
         throw new UnsupportedOperationException("MockPollerConfig.getFirstLocalPackageMatch is not yet implemented");
     }
 
+    @Override
     public boolean isPolledLocally(final String ipaddr) {
         throw new UnsupportedOperationException("MockPollerConfig.isPolledLocally is not yet implemented");
     }
 
+    @Override
     public boolean isPolledLocally(final String ipaddr, final String svcName) {
         throw new UnsupportedOperationException("MockPollerConfig.isPolledLocally is not yet implemented");
     }

@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2002-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -34,7 +34,8 @@ import java.io.IOException;
 import org.exolab.castor.xml.MarshalException;
 import org.exolab.castor.xml.ValidationException;
 import org.opennms.core.utils.ConfigFileConstants;
-import org.opennms.core.utils.ThreadCategory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.util.Assert;
 
 /**
@@ -52,6 +53,7 @@ import org.springframework.util.Assert;
  * @version $Id: $
  */
 public final class CapsdConfigFactory {
+    private static final Logger LOG = LoggerFactory.getLogger(CapsdConfigFactory.class);
     /**
      * The singleton instance of this factory
      */
@@ -89,9 +91,7 @@ public final class CapsdConfigFactory {
 
         File cfgFile = ConfigFileConstants.getFile(ConfigFileConstants.CAPSD_CONFIG_FILE_NAME);
 
-        if (log().isDebugEnabled()) {
-            log().debug("init: config file path: " + cfgFile.getPath());
-        }
+        LOG.debug("init: config file path: {}", cfgFile.getPath());
 
         DefaultCapsdConfigManager capsdConfig = new DefaultCapsdConfigManager();
         capsdConfig.update();
@@ -142,9 +142,4 @@ public final class CapsdConfigFactory {
     public static synchronized void setInstance(CapsdConfig instance) {
         s_singleton = instance;
     }
-
-    private static ThreadCategory log() {
-        return ThreadCategory.getInstance(CapsdConfigFactory.class);
-    }
-
 }

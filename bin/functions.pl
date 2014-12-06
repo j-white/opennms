@@ -4,7 +4,7 @@ use strict;
 use warnings;
 
 use Config;
-use Cwd;
+use Cwd qw(abs_path getcwd);
 use File::Basename;
 use File::Find;
 use File::Path qw(rmtree);
@@ -19,21 +19,26 @@ use vars qw(
 	$HELP
 	$JAVA_HOME
 	@JAVA_SEARCH_DIRS
+	$LOGLEVEL
 	$MVN
 	$MAVEN_VERSION
 	$MAVEN_OPTS
+	$OOSNMP_TRUSTSTORE
 	$PATHSEP
 	$PREFIX
+	$SKIP_OPENJDK
 	$TESTS
 	$VERBOSE
 	@ARGS
 );
+@ARGS          = ();
 $BUILD_PROFILE = "default";
 $HELP          = undef;
 $JAVA_HOME     = undef;
+$LOGLEVEL      = 'debug' unless (defined $LOGLEVEL);
 $PATHSEP       = $Config{'path_sep'};
+$SKIP_OPENJDK  = $ENV{'SKIP_OPENJDK'};
 $VERBOSE       = undef;
-@ARGS          = ();
 
 @JAVA_SEARCH_DIRS = qw(
 	/usr/lib/jvm
@@ -42,7 +47,11 @@ $VERBOSE       = undef;
 	/Library/Java/JavaVirtualMachines
 	/Library/Java/Home
 	/opt
+	/opt/ci/java
 );
+unshift(@JAVA_SEARCH_DIRS, File::Spec->catdir($ENV{'HOME'}, 'ci', 'java'));
+
+push(@JAVA_SEARCH_DIRS, File::Spec->catdir($ENV{'HOME'}, 'ci', 'java'));
 
 eval {
 	setpriority(0, 0, 10);
@@ -74,8 +83,9 @@ delete $ENV{'M2_HOME'};
 
 # maven options
 $MAVEN_OPTS = $ENV{'MAVEN_OPTS'};
+$OOSNMP_TRUSTSTORE = File::Spec->catfile($PREFIX, 'bin', 'oosnmp.net.trustStore');
 if (not defined $MAVEN_OPTS or $MAVEN_OPTS eq '') {
-	$MAVEN_OPTS = '-XX:PermSize=512m -XX:MaxPermSize=1g -Xmx1g -XX:ReservedCodeCacheSize=512m';
+	$MAVEN_OPTS = "-XX:PermSize=512m -XX:MaxPermSize=1g -Xmx1g -XX:ReservedCodeCacheSize=512m -Djavax.net.ssl.trustStore=$OOSNMP_TRUSTSTORE -Djavax.net.ssl.trustStorePassword=password";
 }
 
 my $result = GetOptions(
@@ -85,6 +95,7 @@ my $result = GetOptions(
 	"profile|p=s"               => \$BUILD_PROFILE,
 	"java-home|java|j=s"        => \$JAVA_HOME,
 	"verbose|v"                 => \$VERBOSE,
+	"log-level|l=s"             => \$LOGLEVEL,
 );
 
 if (not $result) {
@@ -108,8 +119,22 @@ usage: $0 [-h] [-j \$JAVA_HOME] [-t] [-v]
 	                       (default: $MAVEN_OPTS)
 	-p/--profile PROFILE   default, dir, full, or fulldir
 	-t/--enable-tests      enable tests when building
-	-v/--verbose           be more verbose
+	-l/--log-level         log level (error/warning/info/debug)
 END
+	exit 1;
+}
+
+if ($VERBOSE) {
+	$LOGLEVEL = 'debug';
+}
+
+if (not defined $LOGLEVEL or $LOGLEVEL eq '') {
+	$LOGLEVEL = 'info';
+}
+
+$LOGLEVEL = lc($LOGLEVEL);
+if ($LOGLEVEL !~ /^(error|warning|info|debug)$/) {
+	print STDERR "Log level $LOGLEVEL invalid.  Must be one of 'error', 'warning', 'info', or 'debug'.\n";
 	exit 1;
 }
 
@@ -122,7 +147,9 @@ if ((defined $JAVA_HOME and -d $JAVA_HOME) or (exists $ENV{'JAVA_HOME'} and -d $
 	my $minimumversion = get_minimum_java();
 
 	if ($shortversion < $minimumversion) {
-		die "You specified a Java home of $JAVA_HOME, but it does not meet minimum java version $minimumversion!\n";
+		warning("You specified a Java home of $JAVA_HOME, but it does not meet minimum java version $minimumversion!  Will attempt to search for one instead.");
+		$JAVA_HOME = undef;
+		delete $ENV{'JAVA_HOME'};
 	}
 }
 
@@ -145,7 +172,7 @@ if (not exists $ENV{'JAVA_VENDOR'}) {
 	warning("you might need to set it, eg, to 'Sun' or 'openjdk'.");
 }
 
-$MAVEN_VERSION = `$MVN --version`;
+$MAVEN_VERSION = `'$MVN' --version`;
 $MAVEN_VERSION =~ s/^.*Apache Maven ([\d\.]+).*?$/$1/gs;
 chomp($MAVEN_VERSION);
 if ($MAVEN_VERSION =~ /^[12]/) {
@@ -285,7 +312,14 @@ sub find_java_home {
 
 		for my $java (@javas) {
 			if (-x $java and ! -d $java) {
+				$java = abs_path($java);
 				my ($shortversion, $version, $build, $java_home) = get_version_from_java($java);
+
+				if ($SKIP_OPENJDK) {
+					next if ($java  =~ /openjdk/i);
+					next if ($build =~ /openjdk/i);
+				}
+
 				next if (exists $versions->{$shortversion}->{$version}->{$build});
 
 				$versions->{$shortversion}->{$version}->{$build} = $java_home;
@@ -306,7 +340,13 @@ sub find_java_home {
 			for my $build (sort keys %{$versions->{$majorversion}->{$version}}) {
 				my $java_home = $versions->{$majorversion}->{$version}->{$build};
 				#print STDERR "    ", $build, ": ", $java_home, "\n";
-				if ($build =~ /^\d/) {
+				if ($build =~ /^(\d+)/) {
+					my $buildnumber = $1 || 0;
+					if ($majorversion eq "1.7" and $buildnumber >= 65 and defined $highest_valid) {
+						# if we've already found an older Java 7, skip build 65 and higher because of bytecode verification issues
+						next;
+					}
+
 					$highest_valid = $java_home;
 				} elsif (defined $highest_valid) {
 					last JDK_SEARCH;
@@ -496,15 +536,15 @@ sub run_command {
 }
 
 sub debug {
-	print "[DEBUG] " . join(' ', @_) . "\n" if ($VERBOSE);
+	print "[DEBUG] " . join(' ', @_) . "\n" if ($LOGLEVEL eq 'debug');
 }
 
 sub warning {
-	print "[WARN] " . join(' ', @_) . "\n";
+	print "[WARN] " . join(' ', @_) . "\n" if ($LOGLEVEL =~ /^(debug|warning)$/);
 }
 
 sub info {
-	print "[INFO] " . join(' ', @_) . "\n";
+	print "[INFO] " . join(' ', @_) . "\n" if ($LOGLEVEL =~ /^(debug|warning|info)$/);
 }
 
 sub error {

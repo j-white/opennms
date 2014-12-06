@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2011-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2011-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -34,10 +34,12 @@ import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 
-import org.apache.commons.lang.builder.CompareToBuilder;
-import org.opennms.core.utils.ThreadCategory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class TableTracker extends CollectionTracker implements RowCallback, RowResultFactory {
+	
+	private static final transient Logger LOG = LoggerFactory.getLogger(TableTracker.class);
 
     private final SnmpTableResult m_tableResult;
 
@@ -97,12 +99,14 @@ public class TableTracker extends CollectionTracker implements RowCallback, RowR
         return new CombinedColumnResponseProcessor(processors);
     }
 
+        @Override
     public void storeResult(SnmpResult res) {
         //System.err.println(String.format("storeResult: %s", res));
-    	ThreadCategory.getInstance(SnmpResult.class).debug(String.format("storeResult: %s", res));
+    	LOG.debug("storeResult: {}", res);
         m_tableResult.storeResult(res);
     }
     
+        @Override
     public void rowCompleted(SnmpRowResult row) {
         // the default implementation just forwards this to the super class
         // like the defaults for other CollectionTrackers except this does it
@@ -112,6 +116,7 @@ public class TableTracker extends CollectionTracker implements RowCallback, RowR
         }
     }
 
+        @Override
     public SnmpRowResult createRowResult(int columnCount, SnmpInstId instance) {
         return m_tableResult.createRowResult(columnCount, instance);
     }
@@ -121,10 +126,14 @@ public class TableTracker extends CollectionTracker implements RowCallback, RowR
         List<ColumnTracker> sortedTrackerList = new ArrayList<ColumnTracker>(m_columnTrackers);
 
         Collections.sort(sortedTrackerList, new Comparator<ColumnTracker>() {
+            @Override
             public int compare(ColumnTracker o1, ColumnTracker o2) {
-                return new CompareToBuilder()
-                    .append(o1.getLastInstance(), o2.getLastInstance())
-                    .toComparison();
+            	SnmpInstId lhs = o1.getLastInstance();
+				SnmpInstId rhs = o2.getLastInstance();
+				if (lhs == rhs) return 0;
+				if (lhs == null) return -1;
+				if (rhs == null) return 1;
+				return lhs.compareTo(rhs);
             }
         });
         
@@ -149,6 +158,7 @@ public class TableTracker extends CollectionTracker implements RowCallback, RowR
             m_processors = processors;
         }
 
+        @Override
         public void processResponse(SnmpObjId responseObjId, SnmpValue val) {
             try {
             ResponseProcessor rp = m_processors.get(m_currentIndex);
@@ -159,11 +169,12 @@ public class TableTracker extends CollectionTracker implements RowCallback, RowR
 
             rp.processResponse(responseObjId, val);
             } catch (Exception e) {
-                e.printStackTrace();
+                LOG.warn("Failed to process response", e);
             }
 
         }
 
+        @Override
         public boolean processErrors(int errorStatus, int errorIndex) {
             
             /*

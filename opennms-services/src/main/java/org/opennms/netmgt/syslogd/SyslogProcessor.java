@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2002-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -35,10 +35,11 @@ import java.util.concurrent.Callable;
 
 import org.opennms.core.concurrent.EndOfTheWaterfall;
 import org.opennms.core.utils.InetAddressUtils;
-import org.opennms.core.utils.ThreadCategory;
-import org.opennms.netmgt.EventConstants;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.opennms.netmgt.config.SyslogdConfigFactory;
-import org.opennms.netmgt.eventd.EventIpcManagerFactory;
+import org.opennms.netmgt.events.api.EventConstants;
+import org.opennms.netmgt.events.api.EventIpcManagerFactory;
 import org.opennms.netmgt.model.events.EventBuilder;
 import org.opennms.netmgt.xml.event.Parm;
 
@@ -52,6 +53,7 @@ import org.opennms.netmgt.xml.event.Parm;
  * @author <a href="http://www.oculan.com">Oculan Corporation </a>
  */
 final class SyslogProcessor implements EndOfTheWaterfall {
+    private static final Logger LOG = LoggerFactory.getLogger(SyslogProcessor.class);
 
     private final boolean m_NewSuspectOnMessage;
 
@@ -71,53 +73,41 @@ final class SyslogProcessor implements EndOfTheWaterfall {
     @Override
     public Callable<Void> call() {
         // get a logger
-        ThreadCategory log = ThreadCategory.getInstance(getClass());
-        boolean isTracing = log.isEnabledFor(ThreadCategory.Level.TRACE);
         try {
-            if (isTracing)  {
-                log.trace("Processing a syslog to event dispatch" + m_event.toString());
+            if (LOG.isTraceEnabled())  {
+                LOG.trace("Processing a syslog to event dispatch", m_event.toString());
                 String uuid = m_event.getEvent().getUuid();
-                log.trace("Event {");
-                log.trace("  uuid  = "
-                        + (uuid != null && uuid.length() > 0 ? uuid
-                        : "<not-set>"));
-                log.trace("  uei   = " + m_event.getEvent().getUei());
-                log.trace("  src   = " + m_event.getEvent().getSource());
-                log.trace("  iface = " + m_event.getEvent().getInterface());
-                log.trace("  time  = " + m_event.getEvent().getTime());
-                log.trace("  Msg   = "
-                        + m_event.getEvent().getLogmsg().getContent());
-                log.trace("  Dst   = "
-                        + m_event.getEvent().getLogmsg().getDest());
+                LOG.trace("Event {");
+                LOG.trace("  uuid  = {}", (uuid != null && uuid.length() > 0 ? uuid : "<not-set>"));
+                LOG.trace("  uei   = {}", m_event.getEvent().getUei());
+                LOG.trace("  src   = {}", m_event.getEvent().getSource());
+                LOG.trace("  iface = {}", m_event.getEvent().getInterface());
+                LOG.trace("  time  = {}", m_event.getEvent().getTime());
+                LOG.trace("  Msg   = {}", m_event.getEvent().getLogmsg().getContent());
+                LOG.trace("  Dst   = {}", m_event.getEvent().getLogmsg().getDest());
                 List<Parm> parms = (m_event.getEvent().getParmCollection() == null ? null : m_event.getEvent().getParmCollection());
                 if (parms != null) {
-                    log.trace("  parms {");
+                    LOG.trace("  parms {");
                     for (Parm parm : parms) {
                         if ((parm.getParmName() != null)
                                 && (parm.getValue().getContent() != null)) {
-                            log.trace("    ("
-                                    + parm.getParmName().trim()
-                                    + ", "
-                                    + parm.getValue().getContent().trim()
-                                    + ")");
+                            LOG.trace("    ({}, {})", parm.getParmName().trim(), parm.getValue().getContent().trim());
                         }
                     }
-                    log.trace("  }");
+                    LOG.trace("  }");
                 }
-                log.trace("}");
+                LOG.trace("}");
             }
 
             EventIpcManagerFactory.getIpcManager().sendNow(m_event.getEvent());
 
             if (m_NewSuspectOnMessage && !m_event.getEvent().hasNodeid()) {
-                if (isTracing) {
-                    log.trace("Syslogd: Found a new suspect " + m_event.getEvent().getInterface());
-                }
+                LOG.trace("Syslogd: Found a new suspect {}", m_event.getEvent().getInterface());
                 sendNewSuspectEvent(m_localAddr, m_event.getEvent().getInterface());
             }
 
         } catch (Throwable t) {
-            log.error("Unexpected error processing SyslogMessage - Could not send", t);
+            LOG.error("Unexpected error processing SyslogMessage - Could not send", t);
         }
 
         // This task is the terminal task of syslogd so it doesn't return a Callable

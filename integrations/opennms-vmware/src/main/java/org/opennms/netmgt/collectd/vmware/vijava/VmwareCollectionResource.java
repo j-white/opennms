@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2010-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -28,10 +28,9 @@
 
 package org.opennms.netmgt.collectd.vmware.vijava;
 
-import org.opennms.netmgt.collectd.AbstractCollectionResource;
-import org.opennms.netmgt.collectd.CollectionAgent;
-import org.opennms.netmgt.config.collector.CollectionAttributeType;
-import org.opennms.netmgt.config.collector.ServiceParameters;
+import org.opennms.netmgt.collection.api.CollectionAgent;
+import org.opennms.netmgt.collection.api.CollectionAttributeType;
+import org.opennms.netmgt.collection.support.AbstractCollectionResource;
 
 public abstract class VmwareCollectionResource extends AbstractCollectionResource {
 
@@ -39,28 +38,15 @@ public abstract class VmwareCollectionResource extends AbstractCollectionResourc
         super(agent);
     }
 
-    public int getType() {
-        return -1; //Is this right?
-    }
-
-    public boolean rescanNeeded() {
-        return false;
-    }
-
-    public boolean shouldPersist(final ServiceParameters params) {
-        return true;
-    }
-
     public void setAttributeValue(final CollectionAttributeType type, final String value) {
-        final VmwareCollectionAttribute attr = new VmwareCollectionAttribute(this, type, type.getName(), value);
+        final VmwareCollectionAttribute attr = new VmwareCollectionAttribute(this, type, value);
         addAttribute(attr);
     }
 
+    @Override
     public abstract String getResourceTypeName();
 
+    @Override
     public abstract String getInstance();
 
-    public String getParent() {
-        return m_agent.getStorageDir().toString();
-    }
 }

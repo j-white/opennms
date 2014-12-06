@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2002-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -40,12 +40,13 @@ import java.net.NoRouteToHostException;
 import java.net.Socket;
 import java.util.Map;
 import java.util.StringTokenizer;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 
-import org.apache.regexp.RE;
-import org.apache.regexp.RESyntaxException;
 import org.opennms.core.utils.InetAddressUtils;
 import org.opennms.core.utils.ParameterMap;
-import org.opennms.core.utils.ThreadCategory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.opennms.netmgt.capsd.AbstractPlugin;
 
 /**
@@ -61,14 +62,15 @@ import org.opennms.netmgt.capsd.AbstractPlugin;
  * @author <a href="http://www.opennms.org">OpenNMS</a>
  */
 public final class SmtpPlugin extends AbstractPlugin {
+    private static final Logger LOG = LoggerFactory.getLogger(SmtpPlugin.class);
 
     /**
      * The regular expression test used to determine if the reply is a multi
      * line reply. A multi line reply is one that each line, but the last, is in
      * the form of "ddd-" where 'ddd' is the result code.
-     * 
+     *
      */
-    private static final RE MULTILINE_RESULT;
+    private static final Pattern MULTILINE_RESULT;
 
     /**
      * <P>
@@ -101,8 +103,8 @@ public final class SmtpPlugin extends AbstractPlugin {
 
     static {
         try {
-            MULTILINE_RESULT = new RE("^[1-5][0-9]{2}-");
-        } catch (RESyntaxException re) {
+            MULTILINE_RESULT = Pattern.compile("^[1-5][0-9]{2}-");
+        } catch (PatternSyntaxException re) {
             throw new java.lang.reflect.UndeclaredThrowableException(re);
         }
     }
@@ -114,19 +116,18 @@ public final class SmtpPlugin extends AbstractPlugin {
      * true is returned from the method. Otherwise a false value is returned to
      * the caller.
      * </P>
-     * 
+     *
      * @param host
      *            The remote host to connect to.
      * @param port
      *            The remote port on the host.
-     * 
+     *
      * @return True if server supports SMTP on the specified port, false
      *         otherwise
      */
     private boolean isServer(InetAddress host, int port, int retries, int timeout) {
         // get a log to send errors
         //
-        ThreadCategory log = ThreadCategory.getInstance(getClass());
 
         boolean isAServer = false;
         for (int attempts = 0; attempts <= retries && !isAServer; attempts++) {
@@ -135,7 +136,7 @@ public final class SmtpPlugin extends AbstractPlugin {
                 socket = new Socket();
                 socket.connect(new InetSocketAddress(host, port), timeout);
                 socket.setSoTimeout(timeout);
-                log.debug("SmtpPlugin: connected to host: " + host + " on port: " + port);
+                LOG.debug("SmtpPlugin: connected to host: {} on port: {}", port, host);
 
                 // Allocate a line reader
                 //
@@ -148,10 +149,10 @@ public final class SmtpPlugin extends AbstractPlugin {
                 do {
                     result = lineRdr.readLine();
 
-                } while (result != null && result.length() > 0 && MULTILINE_RESULT.match(result));
+                } while (result != null && result.length() > 0 && MULTILINE_RESULT.matcher(result).find());
 
                 if (result == null || result.length() == 0) {
-                    log.info("Received truncated response from SMTP server " + InetAddressUtils.str(host));
+                    LOG.info("Received truncated response from SMTP server {}", InetAddressUtils.str(host));
                     continue;
                 }
 
@@ -185,10 +186,10 @@ public final class SmtpPlugin extends AbstractPlugin {
                     do {
                         result = lineRdr.readLine();
 
-                    } while (result != null && result.length() > 0 && MULTILINE_RESULT.match(result));
+                    } while (result != null && result.length() > 0 && MULTILINE_RESULT.matcher(result).find());
 
                     if (result == null || result.length() == 0) {
-                        log.info("Received truncated response from SMTP server " + InetAddressUtils.str(host));
+                        LOG.info("Received truncated response from SMTP server {}", InetAddressUtils.str(host));
                         continue;
                     }
 
@@ -221,10 +222,10 @@ public final class SmtpPlugin extends AbstractPlugin {
                         do {
                             result = lineRdr.readLine();
 
-                        } while (result != null && result.length() > 0 && MULTILINE_RESULT.match(result));
+                        } while (result != null && result.length() > 0 && MULTILINE_RESULT.matcher(result).find());
 
                         if (result == null || result.length() == 0) {
-                            log.info("Received truncated response from SMTP server " + InetAddressUtils.str(host));
+                            LOG.info("Received truncated response from SMTP server {}", InetAddressUtils.str(host));
                             continue;
                         }
 
@@ -236,27 +237,27 @@ public final class SmtpPlugin extends AbstractPlugin {
                     }
                 }
             } catch (NumberFormatException e) {
-                log.info("SmtpPlugin: received invalid result code from server " + InetAddressUtils.str(host), e);
+                LOG.info("SmtpPlugin: received invalid result code from server {}", InetAddressUtils.str(host), e);
                 isAServer = false;
             } catch (ConnectException cE) {
                 // Connection refused!! Continue to retry.
                 //
-                log.debug("SmtpPlugin: connection refused to " + InetAddressUtils.str(host) + ":" + port);
+                LOG.debug("SmtpPlugin: connection refused to {}: {}", port, InetAddressUtils.str(host));
                 isAServer = false;
             } catch (NoRouteToHostException e) {
                 // No route to host!! No need to perform retries.
                 e.fillInStackTrace();
-                log.info("SmtpPlugin: Unable to test host " + InetAddressUtils.str(host) + ", no route available", e);
+                LOG.info("SmtpPlugin: Unable to test host {}, no route available", InetAddressUtils.str(host), e);
                 isAServer = false;
                 throw new UndeclaredThrowableException(e);
             } catch (InterruptedIOException e) {
-                log.debug("SmtpPlugin: did not connect to host within timeout: " + timeout + " attempt: " + attempts);
+                LOG.debug("SmtpPlugin: did not connect to host within timeout: {} attempt: {}", attempts, timeout);
                 isAServer = false;
             } catch (IOException e) {
-                log.info("SmtpPlugin: Error communicating with host " + InetAddressUtils.str(host), e);
+                LOG.info("SmtpPlugin: Error communicating with host {}", InetAddressUtils.str(host), e);
                 isAServer = false;
             } catch (Throwable t) {
-                log.warn("SmtpPlugin: Undeclared throwable exception caught contacting host " + InetAddressUtils.str(host), t);
+                LOG.warn("SmtpPlugin: Undeclared throwable exception caught contacting host {}", InetAddressUtils.str(host), t);
                 isAServer = false;
             } finally {
                 try {
@@ -280,6 +281,7 @@ public final class SmtpPlugin extends AbstractPlugin {
      *
      * @return The protocol name for this plugin.
      */
+    @Override
     public String getProtocolName() {
         return PROTOCOL_NAME;
     }
@@ -290,6 +292,7 @@ public final class SmtpPlugin extends AbstractPlugin {
      * Returns true if the protocol defined by this plugin is supported. If the
      * protocol is not supported then a false value is returned to the caller.
      */
+    @Override
     public boolean isProtocolSupported(InetAddress address) {
         return isServer(address, DEFAULT_PORT, DEFAULT_RETRY, DEFAULT_TIMEOUT);
     }
@@ -303,6 +306,7 @@ public final class SmtpPlugin extends AbstractPlugin {
      * additional information by key-name. These key-value pairs can be added to
      * service events if needed.
      */
+    @Override
     public boolean isProtocolSupported(InetAddress address, Map<String, Object> qualifiers) {
         int retries = DEFAULT_RETRY;
         int timeout = DEFAULT_TIMEOUT;

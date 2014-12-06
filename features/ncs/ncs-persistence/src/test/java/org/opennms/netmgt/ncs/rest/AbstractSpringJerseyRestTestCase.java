@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2008-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -70,9 +70,9 @@ import com.sun.jersey.spi.container.servlet.ServletContainer;
 import com.sun.jersey.spi.spring.container.servlet.SpringServlet;
 
 /**
- * @deprecated This class is mostly copied from {@link org.opennms.web.rest.AbstractSpringJerseyRestTestCase}
+ * @deprecated This class is mostly copied from {@link org.opennms.core.test.rest.AbstractSpringJerseyRestTestCase}
  * 
- * TODO: Deduplicate the class AbstractSpringJerseyRestTestCase classes
+ * TODO: Replace usage of this class with {@link org.opennms.core.test.rest.AbstractSpringJerseyRestTestCase}
  * 
  * @author <a href="mailto:brozow@opennms.org">Mathew Brozowski</a>
  *
@@ -165,6 +165,7 @@ public abstract class AbstractSpringJerseyRestTestCase {
 
     protected void dispatch(final MockHttpServletRequest request, final MockHttpServletResponse response) throws Exception {
         final FilterChain filterChain = new FilterChain() {
+            @Override
             public void doFilter(final ServletRequest filterRequest, final ServletResponse filterResponse) throws IOException, ServletException {
                 getDispatcher().service(filterRequest, filterResponse);
             }
@@ -186,7 +187,6 @@ public abstract class AbstractSpringJerseyRestTestCase {
             @Override
             public void setContentType(final String contentType) {
                 super.setContentType(contentType);
-                super.addHeader("Content-Type", contentType);
             }
             
         };

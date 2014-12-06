@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2009-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -58,10 +58,11 @@ public class AutoIntegerIdMapStoreReplacement implements ColumnChangeReplacement
      */
     public AutoIntegerIdMapStoreReplacement(int initialValue, String[] indexColumns) {
         m_value = initialValue;
-        m_indexColumns = indexColumns;
+        m_indexColumns = indexColumns == null? null : indexColumns.clone();
     }
     
     /** {@inheritDoc} */
+    @Override
     public Integer getColumnReplacement(ResultSet rs, Map<String, ColumnChange> columnChanges) throws SQLException {
         MultiColumnKey key = getKeyForColumns(rs, columnChanges, m_indexColumns);
         Integer newInteger = m_value++;
@@ -74,6 +75,7 @@ public class AutoIntegerIdMapStoreReplacement implements ColumnChangeReplacement
      *
      * @return a boolean.
      */
+    @Override
     public boolean addColumnIfColumnIsNew() {
         return true;
     }
@@ -114,11 +116,11 @@ public class AutoIntegerIdMapStoreReplacement implements ColumnChangeReplacement
         return new MultiColumnKey(objects);
     }
     
-    public class MultiColumnKey {
+    public static class MultiColumnKey {
         private final Object[] m_keys;
         
         public MultiColumnKey(Object[] keys) {
-            m_keys = keys;
+            m_keys = keys == null? null : keys.clone();
         }
         
         @Override
@@ -168,6 +170,7 @@ public class AutoIntegerIdMapStoreReplacement implements ColumnChangeReplacement
     /**
      * <p>close</p>
      */
+    @Override
     public void close() {
     }
 }

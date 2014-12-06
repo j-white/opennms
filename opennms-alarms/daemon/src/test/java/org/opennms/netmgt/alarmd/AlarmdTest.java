@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2011-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2008-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -44,16 +44,16 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.opennms.core.soa.ServiceRegistry;
+import org.opennms.core.spring.BeanUtils;
 import org.opennms.core.test.OpenNMSJUnit4ClassRunner;
 import org.opennms.core.test.db.MockDatabase;
 import org.opennms.core.test.db.TemporaryDatabaseAware;
 import org.opennms.core.test.db.annotations.JUnitTemporaryDatabase;
-import org.opennms.core.utils.BeanUtils;
 import org.opennms.netmgt.alarmd.api.NorthboundAlarm;
 import org.opennms.netmgt.alarmd.api.Northbounder;
 import org.opennms.netmgt.alarmd.api.NorthbounderException;
-import org.opennms.netmgt.dao.NodeDao;
-import org.opennms.netmgt.eventd.mock.MockEventIpcManager;
+import org.opennms.netmgt.dao.api.NodeDao;
+import org.opennms.netmgt.dao.mock.MockEventIpcManager;
 import org.opennms.netmgt.mock.MockEventUtil;
 import org.opennms.netmgt.mock.MockNetwork;
 import org.opennms.netmgt.mock.MockNode;
@@ -79,6 +79,7 @@ import org.springframework.util.StringUtils;
 @RunWith(OpenNMSJUnit4ClassRunner.class)
 @ContextConfiguration(locations={
         "classpath:/META-INF/opennms/applicationContext-soa.xml",
+        "classpath:/META-INF/opennms/applicationContext-commonConfigs.xml",
         "classpath:/META-INF/opennms/applicationContext-dao.xml",
         "classpath*:/META-INF/opennms/component-dao.xml",
         "classpath:/META-INF/opennms/applicationContext-daemon.xml",
@@ -181,28 +182,29 @@ public class AlarmdTest implements TemporaryDatabaseAware<MockDatabase>, Initial
         final MockNode node = m_mockNetwork.getNode(1);
 
         //there should be no alarms in the alarms table
-        assertEquals(0, m_jdbcTemplate.queryForInt("select count(*) from alarms"));
+        assertEquals(0, m_jdbcTemplate.queryForObject("select count(*) from alarms", Integer.class).intValue());
 
         //this should be the first occurrence of this alarm
         //there should be 1 alarm now
         sendNodeDownEvent("%nodeid%", node);
         Thread.sleep(1000);
-        assertEquals(1, m_jdbcTemplate.queryForInt("select count(*) from alarms"));
+        assertEquals(1, m_jdbcTemplate.queryForObject("select count(*) from alarms", Integer.class).intValue());
 
         //this should be the second occurrence and shouldn't create another row
         //there should still be only 1 alarm
         sendNodeDownEvent("%nodeid%", node);
         Thread.sleep(1000);
-        assertEquals(1, m_jdbcTemplate.queryForInt("select count(*) from alarms"));
+        assertEquals(1, m_jdbcTemplate.queryForObject("select count(*) from alarms", Integer.class).intValue());
 
         //this should be a new alarm because of the new key
         //there should now be 2 alarms
         sendNodeDownEvent("DontReduceThis", node);
         Thread.sleep(1000);
-        assertEquals(2, m_jdbcTemplate.queryForInt("select count(*) from alarms"));
+        assertEquals(2, m_jdbcTemplate.queryForObject("select count(*) from alarms", Integer.class).intValue());
 
         MockUtil.println("Going for the print of the counter column");
         m_jdbcTemplate.query("select reductionKey, sum(counter) from alarms group by reductionKey", new RowCallbackHandler() {
+            @Override
             public void processRow(ResultSet rs) throws SQLException {
                 MockUtil.println("count for reductionKey: " + rs.getString(1) + " is: " + rs.getObject(2));
             }
@@ -217,7 +219,7 @@ public class AlarmdTest implements TemporaryDatabaseAware<MockDatabase>, Initial
         int numberOfAlarmsToReduce = 10;
 
         //there should be no alarms in the alarms table
-        assertEquals(0, m_jdbcTemplate.queryForInt("select count(*) from alarms"));
+        assertEquals(0, m_jdbcTemplate.queryForObject("select count(*) from alarms", Integer.class).intValue());
 
         final String reductionKey = "countThese";
         final MockNode node = m_mockNetwork.getNode(1);
@@ -230,6 +232,7 @@ public class AlarmdTest implements TemporaryDatabaseAware<MockDatabase>, Initial
             MockUtil.println("Creating Runnable: "+i+" of "+numberOfAlarmsToReduce+" events to reduce.");
 
             class EventRunner implements Runnable {
+                @Override
                 public void run() {
                     try {
                         while (System.currentTimeMillis() < millis) {
@@ -257,14 +260,15 @@ public class AlarmdTest implements TemporaryDatabaseAware<MockDatabase>, Initial
 
         //this should be the first occurrence of this alarm
         //there should be 1 alarm now
-        int rowCount = m_jdbcTemplate.queryForInt("select count(*) from alarms");
-        Integer counterColumn = m_jdbcTemplate.queryForInt("select counter from alarms where reductionKey = ?", new Object[] { reductionKey });
+        int rowCount = m_jdbcTemplate.queryForObject("select count(*) from alarms", Integer.class).intValue();
+        Integer counterColumn = m_jdbcTemplate.queryForObject("select counter from alarms where reductionKey = ?", new Object[] { reductionKey }, Integer.class).intValue();
         MockUtil.println("rowcCount is: "+rowCount+", expected 1.");
         MockUtil.println("counterColumn is: "+counterColumn+", expected "+numberOfAlarmsToReduce);
         assertEquals(1, rowCount);
         if (numberOfAlarmsToReduce != counterColumn) {
             final List<Integer> reducedEvents = new ArrayList<Integer>();
             m_jdbcTemplate.query("select eventid from events where alarmID is not null", new RowCallbackHandler() {
+                @Override
                 public void processRow(ResultSet rs) throws SQLException {
                     reducedEvents.add(rs.getInt(1));
                 }
@@ -273,6 +277,7 @@ public class AlarmdTest implements TemporaryDatabaseAware<MockDatabase>, Initial
 
             final List<Integer> nonReducedEvents = new ArrayList<Integer>();
             m_jdbcTemplate.query("select eventid from events where alarmID is null", new RowCallbackHandler() {
+                @Override
                 public void processRow(ResultSet rs) throws SQLException {
                     nonReducedEvents.add(rs.getInt(1));
                 }
@@ -285,12 +290,12 @@ public class AlarmdTest implements TemporaryDatabaseAware<MockDatabase>, Initial
         }
 
 
-        Integer alarmId = m_jdbcTemplate.queryForInt("select alarmId from alarms where reductionKey = ?", new Object[] { reductionKey });
-        rowCount = m_jdbcTemplate.queryForInt("select count(*) from events where alarmid = ?", new Object[] { alarmId });
+        Integer alarmId = m_jdbcTemplate.queryForObject("select alarmId from alarms where reductionKey = ?", new Object[] { reductionKey }, Integer.class).intValue();
+        rowCount = m_jdbcTemplate.queryForObject("select count(*) from events where alarmid = ?", new Object[] { alarmId }, Integer.class).intValue();
         MockUtil.println(String.valueOf(rowCount) + " of events with alarmid: "+alarmId);
         //      assertEquals(numberOfAlarmsToReduce, rowCount);
 
-        rowCount = m_jdbcTemplate.queryForInt("select count(*) from events where alarmid is null");
+        rowCount = m_jdbcTemplate.queryForObject("select count(*) from events where alarmid is null", Integer.class).intValue();
         MockUtil.println(String.valueOf(rowCount) + " of events with null alarmid");
         assertEquals(0, rowCount);
 
@@ -371,11 +376,11 @@ public class AlarmdTest implements TemporaryDatabaseAware<MockDatabase>, Initial
     @Test
     @JUnitTemporaryDatabase(tempDbClass=MockDatabase.class)
     public void changeFields() throws InterruptedException, SQLException {
-        assertEquals(0, m_jdbcTemplate.queryForInt("select count(*) from alarms"));
+        assertEquals(0, m_jdbcTemplate.queryForObject("select count(*) from alarms", Integer.class).intValue());
         
         String reductionKey = "testUpdateField";
         
-        int alarmCount = m_jdbcTemplate.queryForInt("select count(*) from alarms");
+        int alarmCount = m_jdbcTemplate.queryForObject("select count(*) from alarms", Integer.class).intValue();
         
         assertEquals(0, alarmCount);
         
@@ -383,7 +388,7 @@ public class AlarmdTest implements TemporaryDatabaseAware<MockDatabase>, Initial
         
         //Verify we have the default alarm
         sendNodeDownEvent(reductionKey, node1);
-        int severity = m_jdbcTemplate.queryForInt("select severity from alarms a where a.reductionKey = ?", reductionKey);
+        int severity = m_jdbcTemplate.queryForObject("select severity from alarms a where a.reductionKey = ?", new Object[] { reductionKey }, Integer.class).intValue();
         assertEquals(OnmsSeverity.MAJOR, OnmsSeverity.get(severity));
         
         //Store the original logmsg from the original alarm (we are about to test changing it with subsequent alarm reduction)
@@ -409,12 +414,12 @@ public class AlarmdTest implements TemporaryDatabaseAware<MockDatabase>, Initial
 
         //Duplicate the alarm but change the severity and verify the change
         sendNodeDownEventWithUpdateFieldSeverity(reductionKey, node1, OnmsSeverity.CRITICAL);
-        severity = m_jdbcTemplate.queryForInt("select severity from alarms");
+        severity = m_jdbcTemplate.queryForObject("select severity from alarms", Integer.class).intValue();
         assertEquals("Severity should now be Critical", OnmsSeverity.CRITICAL, OnmsSeverity.get(severity));
         
         //Duplicate the alarm but don't force the change of severity
         sendNodeDownEvent(reductionKey, node1);
-        severity = m_jdbcTemplate.queryForInt("select severity from alarms");
+        severity = m_jdbcTemplate.queryForObject("select severity from alarms", Integer.class).intValue();
         assertEquals("Severity should still be Critical", OnmsSeverity.CRITICAL, OnmsSeverity.get(severity));
 
         //Duplicate the alarm and change the logmsg

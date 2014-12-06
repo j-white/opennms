@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2007-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2007-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -32,7 +32,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.opennms.netmgt.EventConstants;
+import org.opennms.netmgt.events.api.EventConstants;
 import org.opennms.netmgt.xml.event.Event;
 import org.springframework.util.Assert;
 
@@ -56,11 +56,13 @@ public class ThresholdEvaluatorRelativeChange implements ThresholdEvaluator {
     private static final String TYPE = "relativeChange";
 
     /** {@inheritDoc} */
+    @Override
     public ThresholdEvaluatorState getThresholdEvaluatorState(BaseThresholdDefConfigWrapper threshold) {
         return new ThresholdEvaluatorStateRelativeChange(threshold);
     }
 
     /** {@inheritDoc} */
+    @Override
     public boolean supportsType(String type) {
         return TYPE.equals(type);
     }
@@ -96,10 +98,12 @@ public class ThresholdEvaluatorRelativeChange implements ThresholdEvaluator {
             setMultiplier(thresholdConfig.getValue());
         }
 
+        @Override
         public BaseThresholdDefConfigWrapper getThresholdConfig() {
             return m_thresholdConfig;
         }
 
+        @Override
         public Status evaluate(double dsValue) {
         	//Fix for Bug 2275 so we handle negative numbers
         	//It will not handle values which cross the 0 boundary (from - to +, or v.v.) properly, but
@@ -138,6 +142,7 @@ public class ThresholdEvaluatorRelativeChange implements ThresholdEvaluator {
             m_lastSample = lastSample;
         }
 
+        @Override
         public Event getEventForState(Status status, Date date, double dsValue, CollectionResourceWrapper resource) {
             if (status == Status.TRIGGERED) {
                 String uei=getThresholdConfig().getTriggeredUEI();
@@ -175,16 +180,19 @@ public class ThresholdEvaluatorRelativeChange implements ThresholdEvaluator {
             m_multiplier = multiplier;
         }
 
+        @Override
         public ThresholdEvaluatorState getCleanClone() {
             return new ThresholdEvaluatorStateRelativeChange(m_thresholdConfig);
         }
 
         // FIXME This must be implemented correctly
+        @Override
         public boolean isTriggered() {
             return false;
         }
         
         // FIXME This must be implemented correctly
+        @Override
         public void clearState() {
         }
 

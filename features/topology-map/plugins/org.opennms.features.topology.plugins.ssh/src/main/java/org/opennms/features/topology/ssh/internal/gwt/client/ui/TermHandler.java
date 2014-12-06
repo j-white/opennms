@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2012-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -79,6 +79,7 @@ public class TermHandler implements KeyUpHandler, KeyDownHandler, KeyPressHandle
 	 * The onKeyDown method handles all keys that are held down, before
 	 * KeyUp and KeyPress events are triggered.
 	 */
+        @Override
 	public void onKeyDown(KeyDownEvent event) {
 		code = new Code(event);
 		if (!code.isControlKey()){
@@ -94,6 +95,7 @@ public class TermHandler implements KeyUpHandler, KeyDownHandler, KeyPressHandle
 	 * The onKeyPress method handles all keys that were held down and then lifted up,
 	 * after the KeyDown and KeyUp events are triggered
 	 */
+        @Override
 	public void onKeyPress(KeyPressEvent event) {
 		code = new Code(event);
 		if (code.getCharCode() > 31 && code.getCharCode() < 127) {
@@ -107,6 +109,7 @@ public class TermHandler implements KeyUpHandler, KeyDownHandler, KeyPressHandle
 	 * The onKeyUp method handles all keys that were lifted up, after the KeyDown
 	 * event is triggered and before the KeyPress event is triggered
 	 */
+        @Override
 	public void onKeyUp(KeyUpEvent event) {/*Do not handle KeyUp events*/}
 
 	/**

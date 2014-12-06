@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2004-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -32,19 +32,20 @@ import java.io.IOException;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.util.Enumeration;
 import java.util.ArrayList;
+import java.util.List;
 
 import org.exolab.castor.xml.MarshalException;
 import org.exolab.castor.xml.ValidationException;
 import org.opennms.core.queue.FifoQueue;
 import org.opennms.core.queue.FifoQueueImpl;
-import org.opennms.core.utils.LogUtils;
 import org.opennms.netmgt.config.OpennmsServerConfigFactory;
 import org.opennms.netmgt.config.XmlrpcdConfigFactory;
 import org.opennms.netmgt.daemon.AbstractServiceDaemon;
 import org.opennms.netmgt.xml.event.Event;
-
 import org.opennms.netmgt.config.xmlrpcd.XmlrpcServer;
 import org.opennms.netmgt.config.xmlrpcd.ExternalServers;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 /**
  * <p>
  * The Xmlrpcd receives events selectively and sends notification to an external
@@ -57,6 +58,9 @@ import org.opennms.netmgt.config.xmlrpcd.ExternalServers;
  * @author <A HREF="mailto:jamesz@opennms.com">James Zuo </A>
  */
 public class Xmlrpcd extends AbstractServiceDaemon {
+    
+    public static final Logger LOG = LoggerFactory.getLogger(Xmlrpcd.class);
+    
     /**
      * The singleton instance.
      */
@@ -65,18 +69,18 @@ public class Xmlrpcd extends AbstractServiceDaemon {
     /**
      * The communication queues -- ArrayList of FifoQueues
      */
-    private ArrayList<FifoQueue<Event>> m_eventlogQs = new ArrayList<FifoQueue<Event>>();
+    private List<FifoQueue<Event>> m_eventlogQs = new ArrayList<FifoQueue<Event>>();
 
     /**
      * The queue processing threads -- ArrayList of EventQueueProcessors
      */
-    private ArrayList<EventQueueProcessor> m_processors = new ArrayList<EventQueueProcessor>();
+    private List<EventQueueProcessor> m_processors = new ArrayList<EventQueueProcessor>();
 
     /**
      * The class instance used to receive new events from for the system.
      *  -- ArrayList of BroadcastEventProcessors
      */
-    private ArrayList<BroadcastEventProcessor> m_eventReceivers = new ArrayList<BroadcastEventProcessor>();
+    private List<BroadcastEventProcessor> m_eventReceivers = new ArrayList<BroadcastEventProcessor>();
 
     private OpennmsServerConfigFactory m_serverConfig;
 
@@ -89,20 +93,21 @@ public class Xmlrpcd extends AbstractServiceDaemon {
      * XMLRPC server via XMLRPC protocol.
      */
     public Xmlrpcd() {
-    	super("OpenNMS.Xmlrpcd");
+    	super("xmlrpcd");
     }
 
     /**
      * <p>onInit</p>
      */
+    @Override
     protected void onInit() {
 
 
-        LogUtils.debugf(this, "start: Creating the xmlrpc event queue processor");
+        LOG.debug("start: Creating the xmlrpc event queue processor");
 
         // set up the event queue processor
         try {
-            LogUtils.debugf(this, "start: Initializing the xmlrpcd config factory");
+            LOG.debug("start: Initializing the xmlrpcd config factory");
 
             final boolean verifyServer = getServerConfig().verifyServer();
             String localServer = null;
@@ -126,17 +131,8 @@ public class Xmlrpcd extends AbstractServiceDaemon {
                 i++;
             }
 
-        } catch (final MarshalException e) {
-            LogUtils.errorf(this, e, "Failed to load configuration");
-            throw new UndeclaredThrowableException(e);
-        } catch (final ValidationException e) {
-            LogUtils.errorf(this, e, "Failed to load configuration");
-            throw new UndeclaredThrowableException(e);
-        } catch (final IOException e) {
-            LogUtils.errorf(this, e, "Failed to load configuration");
-            throw new UndeclaredThrowableException(e);
         } catch (final Throwable t) {
-            LogUtils.errorf(this, t, "Failed to load configuration");
+            LOG.error("Failed to load configuration", t);
             throw new UndeclaredThrowableException(t);
         }
     }
@@ -216,57 +212,71 @@ public class Xmlrpcd extends AbstractServiceDaemon {
     /**
      * <p>onStart</p>
      */
+    @Override
     protected void onStart() {
-        LogUtils.debugf(this, "start: Initializing the xmlrpcd config factory");
+        LOG.debug("start: Initializing the xmlrpcd config factory");
         
         for (final EventQueueProcessor proc : m_processors) {
         	proc.start();
         }
 
-        LogUtils.debugf(this, "start: xmlrpcd ready to process events");
+        LOG.debug("start: xmlrpcd ready to process events");
     }
 
     /**
      * <p>onPause</p>
      */
+    @Override
     protected void onPause() {
-        LogUtils.debugf(this, "pause: Calling pause on processor");
+        LOG.debug("pause: Calling pause on processor");
 
         for (final EventQueueProcessor proc : m_processors) {
             proc.pause();
         }
 
-        LogUtils.debugf(this, "pause: Processor paused");
+        LOG.debug("pause: Processor paused");
     }
     
     /**
      * <p>onResume</p>
      */
+    @Override
     protected void onResume() {
-        LogUtils.debugf(this, "resume: Calling resume on processor");
+        LOG.debug("resume: Calling resume on processor");
 
         for (final EventQueueProcessor proc : m_processors) {
             proc.resume();
         }
 
-        LogUtils.debugf(this, "resume: Processor resumed");
+        LOG.debug("resume: Processor resumed");
     }
 
     /**
      * <p>onStop</p>
      */
+    @Override
     protected void onStop() {
         // shutdown and wait on the background processing thread to exit.
     	// LogUtils.debugf(this, "exit: closing communication paths.");
 
-        LogUtils.debugf(this, "stop: Calling stop on processor");
+        LOG.debug("stop: Calling stop on processor");
 
         // interrupt the processor daemon thread
         for (final EventQueueProcessor proc : m_processors) {
             proc.stop();
+            while (true) {
+                if (proc.getStatus() == STOPPED) {
+                    break;
+                }
+                try {
+                    Thread.sleep(20);
+                } catch (final InterruptedException e) {
+                    // already shutting down, eat the exception
+                }
+            }
         }
         
-        LogUtils.debugf(this, "stop: Processor stopped");
+        LOG.debug("stop: Processor stopped");
     }
 
     /**

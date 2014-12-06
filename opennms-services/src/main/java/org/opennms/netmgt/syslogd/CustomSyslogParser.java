@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2010-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2010-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -32,11 +32,13 @@ import java.util.Date;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.opennms.core.utils.LogUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.opennms.netmgt.config.SyslogdConfig;
 import org.opennms.netmgt.config.SyslogdConfigFactory;
 
 public class CustomSyslogParser extends SyslogParser {
+    private static final Logger LOG = LoggerFactory.getLogger(CustomSyslogParser.class);
     private static final Pattern m_messageIdPattern = Pattern.compile("^((\\S+):\\s*)");
     private static final Pattern m_datePattern = Pattern.compile("^((\\d\\d\\d\\d-\\d\\d-\\d\\d)\\s+)");
     private static final Pattern m_oldDatePattern = Pattern.compile("^\\s*(\\S\\S\\S\\s+\\d{1,2}\\s+\\d\\d:\\d\\d:\\d\\d)\\s+");
@@ -62,6 +64,7 @@ public class CustomSyslogParser extends SyslogParser {
         return new CustomSyslogParser(text);
     }
 
+    @Override
     public SyslogMessage parse() throws SyslogParserException {
         final SyslogMessage syslogMessage = new SyslogMessage();
 
@@ -71,7 +74,7 @@ public class CustomSyslogParser extends SyslogParser {
         int rbIdx = message.indexOf('>');
 
         if (lbIdx < 0 || rbIdx < 0 || lbIdx >= (rbIdx - 1)) {
-            LogUtils.warnf(this, "Syslogd received an unparsable message!");
+            LOG.warn("Syslogd received an unparsable message!");
         }
 
         int priCode = 0;
@@ -80,11 +83,11 @@ public class CustomSyslogParser extends SyslogParser {
         try {
             priCode = Integer.parseInt(priStr);
         } catch (final NumberFormatException ex) {
-            LogUtils.debugf(this, "ERROR Bad priority code '%s'", priStr);
+            LOG.debug("ERROR Bad priority code '{}'", priStr);
 
         }
 
-        LogUtils.tracef(this, "priority code = %d", priCode);
+        LOG.trace("priority code = {}", priCode);
 
         syslogMessage.setFacility(SyslogFacility.getFacilityForCode(priCode));
         syslogMessage.setSeverity(SyslogSeverity.getSeverityForCode(priCode));
@@ -94,22 +97,22 @@ public class CustomSyslogParser extends SyslogParser {
         final Matcher idMatcher = m_messageIdPattern.matcher(message);
         if (idMatcher.find()) {
             final String messageId = idMatcher.group(2);
-            LogUtils.tracef(this, "found message ID '%s'", messageId);
+            LOG.trace("found message ID '{}'", messageId);
             syslogMessage.setMessageID(messageId);
             message = message.substring(idMatcher.group(1).length() - 1);
         }
 
-        LogUtils.tracef(this, "message = %s", message);
+        LOG.trace("message = {}", message);
         
         Matcher oldDateMatcher = m_oldDatePattern.matcher(message);
         if (!oldDateMatcher.find()) {
             oldDateMatcher = null;
         }
-        LogUtils.tracef(this, "stdMsg = %s", Boolean.toString(oldDateMatcher != null));
+        LOG.trace("stdMsg = {}", Boolean.toString(oldDateMatcher != null));
         
         if (!this.find()) {
             if (traceEnabled()) {
-                LogUtils.tracef(this, "Lenient Syslog pattern '%s' did not match '%s'", getPattern(), getText());
+                LOG.trace("Lenient Syslog pattern '{}' did not match '{}'", getPattern(), getText());
             }
             return null;
         }
@@ -120,13 +123,13 @@ public class CustomSyslogParser extends SyslogParser {
             final Matcher stampMatcher = m_datePattern.matcher(message);
             if (stampMatcher.find()) {
                 timestamp = stampMatcher.group(2);
-                LogUtils.tracef(this, "found timestamp '%s'", timestamp);
+                LOG.trace("found timestamp '{}'", timestamp);
 //                message = message.substring(stampMatcher.group(1).length());
             } else {
                 try {
                     timestamp = SyslogTimeStamp.getInstance().format(new Date());
                 } catch (final IllegalArgumentException ex) {
-                    LogUtils.debugf(this, "ERROR INTERNAL DATE ERROR!");
+                    LOG.debug("ERROR INTERNAL DATE ERROR!");
                     timestamp = "";
                 }
             }
@@ -135,18 +138,16 @@ public class CustomSyslogParser extends SyslogParser {
             message = oldDateMatcher.replaceFirst("");
         }
 
-        LogUtils.tracef(this, "timestamp = %s", timestamp);
+        LOG.trace("timestamp = {}", timestamp);
         syslogMessage.setDate(parseDate(timestamp));
         
         // These 2 debugs will aid in analyzing the regexes as syslog seems
         // to differ a lot depending on implementation or message structure.
 
-        if (LogUtils.isTraceEnabled(this)) {
-            LogUtils.tracef(this, "message = %s", message);
-            LogUtils.tracef(this, "pattern = %s", m_forwardingPattern);
-            LogUtils.tracef(this, "host group = %d", m_matchingGroupHost);
-            LogUtils.tracef(this, "message group = %d", m_matchingGroupMessage);
-        }
+        LOG.trace("message = {}", message);
+        LOG.trace("pattern = {}", m_forwardingPattern);
+        LOG.trace("host group = {}", m_matchingGroupHost);
+        LOG.trace("message group = {}", m_matchingGroupMessage);
 
         // We will also here find out if, the host needs to
         // be replaced, the message matched to a UEI, and
@@ -169,17 +170,15 @@ public class CustomSyslogParser extends SyslogParser {
             final String matchedMessage = m.group(m_matchingGroupMessage);
             syslogMessage.setMatchedMessage(matchedMessage);
 
-            if (LogUtils.isTraceEnabled(this)) {
-                LogUtils.tracef(this, "Syslog message '%s' matched regexp '%s'", message, m_forwardingPattern);
-                LogUtils.tracef(this, "Found host '%s'", m.group(m_matchingGroupHost));
-                LogUtils.tracef(this, "Found message '%s'", matchedMessage);
-            }
+            LOG.trace("Syslog message '{}' matched regexp '{}'", message, m_forwardingPattern);
+            LOG.trace("Found host '{}'", m.group(m_matchingGroupHost));
+            LOG.trace("Found message '{}'", matchedMessage);
 
             syslogMessage.setHostName(m.group(m_matchingGroupHost));
             
             message = matchedMessage;
         } else {
-            LogUtils.debugf(this, "Regexp not matched: %s", message);            
+            LOG.debug("Regexp not matched: {}", message);
             return null;
         }
 
@@ -200,7 +199,7 @@ public class CustomSyslogParser extends SyslogParser {
             try {
                 processId = Integer.parseInt(processIdStr);
             } catch (final NumberFormatException ex) {
-                LogUtils.debugf(this, "Bad process id '%s'", processIdStr);
+                LOG.debug("Bad process id '{}'", processIdStr);
                 processId = 0;
             }
         } else if (lbIdx < 0 && rbIdx < 0 && colonIdx > 0 && spaceIdx == (colonIdx + 1)) {

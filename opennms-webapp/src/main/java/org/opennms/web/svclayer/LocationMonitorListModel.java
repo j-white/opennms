@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2007-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2007-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -41,6 +41,7 @@ import java.util.Map.Entry;
 import org.opennms.netmgt.model.OnmsLocationMonitor;
 import org.opennms.netmgt.model.OnmsMonitoringLocationDefinition;
 import org.opennms.netmgt.model.OnmsLocationMonitor.MonitorStatus;
+import org.opennms.netmgt.poller.remote.PollerBackEnd;
 import org.springframework.validation.Errors;
 
 /**
@@ -51,8 +52,6 @@ import org.springframework.validation.Errors;
  * @since 1.8.1
  */
 public class LocationMonitorListModel {
-    private static final String HOST_ADDRESS_KEY = "org.opennms.netmgt.poller.remote.hostAddress";
-    private static final String HOST_NAME_KEY = "org.opennms.netmgt.poller.remote.hostName";
 
     private Errors m_errors;
     private List<LocationMonitorModel> m_locationMonitors;
@@ -118,6 +117,8 @@ public class LocationMonitorListModel {
         private String m_name;
         private String m_hostName;
         private String m_ipAddress;
+        private String m_connectionHostName;
+        private String m_connectionIpAddress;
         private MonitorStatus m_status;
         private Date m_lastCheckInTime;
         private Map<String, String> m_additionalDetails;
@@ -144,20 +145,28 @@ public class LocationMonitorListModel {
             
             setDefinitionName(monitor.getDefinitionName());
             setId(monitor.getId());
-            setHostName(monitor.getDetails().get(HOST_NAME_KEY));
-            setIpAddress(monitor.getDetails().get(HOST_ADDRESS_KEY));
+            setHostName(monitor.getDetails().get(PollerBackEnd.HOST_NAME_KEY));
+            setIpAddress(monitor.getDetails().get(PollerBackEnd.HOST_ADDRESS_KEY));
+            setConnectionHostName(monitor.getDetails().get(PollerBackEnd.CONNECTION_HOST_NAME_KEY));
+            setConnectionIpAddress(monitor.getDetails().get(PollerBackEnd.CONNECTION_HOST_ADDRESS_KEY));
             setStatus(monitor.getStatus());
             setLastCheckInTime(monitor.getLastCheckInTime());
             
             List<Entry<String, String>> details = new ArrayList<Entry<String, String>>(monitor.getDetails().entrySet());
             Collections.sort(details, new Comparator<Entry<String, String>>() {
+                @Override
                 public int compare(Entry<String, String> one, Entry<String, String> two) {
                     return one.getKey().compareToIgnoreCase(two.getKey());
                 }
                 
             });
             for (Entry<String, String> detail : details) {
-                if (!detail.getKey().equals(HOST_NAME_KEY) && !detail.getKey().equals(HOST_ADDRESS_KEY)) {
+                if (
+                    !detail.getKey().equals(PollerBackEnd.HOST_NAME_KEY) && 
+                    !detail.getKey().equals(PollerBackEnd.HOST_ADDRESS_KEY) &&
+                    !detail.getKey().equals(PollerBackEnd.CONNECTION_HOST_NAME_KEY) &&
+                    !detail.getKey().equals(PollerBackEnd.CONNECTION_HOST_ADDRESS_KEY)
+                 ) {
                     addAdditionalDetail(detail.getKey(), detail.getValue());
                 }
             }
@@ -202,6 +211,14 @@ public class LocationMonitorListModel {
             m_hostName = hostName;
         }
 
+        public String getConnectionHostName() {
+            return m_connectionHostName;
+        }
+
+        public void setConnectionHostName(String hostName) {
+            m_connectionHostName = hostName;
+        }
+
         public int getId() {
             return m_id;
         }
@@ -216,6 +233,14 @@ public class LocationMonitorListModel {
 
         public void setIpAddress(String ipAddress) {
             m_ipAddress = ipAddress;
+        }
+
+        public String getConnectionIpAddress() {
+            return m_connectionIpAddress;
+        }
+
+        public void setConnectionIpAddress(String ipAddress) {
+            m_connectionIpAddress = ipAddress;
         }
 
         public Date getLastCheckInTime() {

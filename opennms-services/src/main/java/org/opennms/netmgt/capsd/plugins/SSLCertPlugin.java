@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2012-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -36,16 +36,17 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.NoRouteToHostException;
 import java.net.Socket;
-import java.security.cert.Certificate;
 import java.util.Map;
-import javax.net.ssl.SSLSession;
+
 import javax.net.ssl.SSLSocket;
+
 import org.opennms.core.utils.InetAddressUtils;
-import org.opennms.core.utils.LogUtils;
 import org.opennms.core.utils.ParameterMap;
 import org.opennms.core.utils.SocketWrapper;
 import org.opennms.core.utils.SslSocketWrapper;
 import org.opennms.netmgt.capsd.AbstractPlugin;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * <P>
@@ -58,6 +59,8 @@ import org.opennms.netmgt.capsd.AbstractPlugin;
  * @author <a href="mailto:ronald.roskens@gmail.com">Ronald Roskens</a>
  */
 public final class SSLCertPlugin extends AbstractPlugin {
+    
+    private static final Logger LOG = LoggerFactory.getLogger(SSLCertPlugin.class);
 
     /**
      * The protocol supported by the plugin
@@ -89,6 +92,7 @@ public final class SSLCertPlugin extends AbstractPlugin {
      *
      * @return The protocol name for this plugin.
      */
+    @Override
     public String getProtocolName() {
         return PROTOCOL_NAME;
     }
@@ -134,32 +138,32 @@ public final class SSLCertPlugin extends AbstractPlugin {
                 socket = new Socket();
                 socket.connect(new InetSocketAddress(address, port), timeout);
                 socket.setSoTimeout(timeout);
-                LogUtils.debugf(this, "Connected to host: %s on port: %s", address, port);
+                LOG.debug("Connected to host: {} on port: {}", address, port);
                 SSLSocket sslSocket = (SSLSocket) getSocketWrapper().wrapSocket(socket);
                 hasSSLCert = sslSocket.getSession().isValid();
             } catch (ConnectException e) {
                 // Connection refused!! Continue to retry.
                 //
-                LogUtils.debugf(this, "Connection refused to %s:%s", InetAddressUtils.str(address), port);
+                LOG.debug("Connection refused to {}:{}", InetAddressUtils.str(address), port);
                 hasSSLCert = false;
             } catch (NoRouteToHostException e) {
                 // No Route to host!!!
                 //
                 e.fillInStackTrace();
-                LogUtils.infof(this, e, "Could not connect to host %s, no route to host", InetAddressUtils.str(address));
+                LOG.info("Could not connect to host {}, no route to host", InetAddressUtils.str(address), e);
                 hasSSLCert = false;
                 throw new UndeclaredThrowableException(e);
             } catch (InterruptedIOException e) {
                 // This is an expected exception
                 //
-                LogUtils.debugf(this, "Did not connect to host within timeout: %d, attempt: %d", timeout, attempts);
+                LOG.debug("Did not connect to host within timeout: {}, attempt: {}", timeout, attempts);
                 hasSSLCert = false;
             } catch (IOException e) {
-                LogUtils.infof(this, e, "An expected I/O exception occured connecting to host %s on port %d", InetAddressUtils.str(address), port);
+                LOG.info("An expected I/O exception occured connecting to host {} on port {}", InetAddressUtils.str(address), port, e);
                 hasSSLCert = false;
             } catch (Throwable t) {
                 hasSSLCert = false;
-                LogUtils.warnf(this, t, "An undeclared throwable exception was caught connecting to host %s on port %d", InetAddressUtils.str(address), port);
+                LOG.warn("An undeclared throwable exception was caught connecting to host {} on port {}", InetAddressUtils.str(address), port, t);
             } finally {
                 try {
                     if (socket != null) {

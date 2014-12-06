@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2007-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2007-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -41,7 +41,8 @@ import javax.sql.DataSource;
 
 import org.opennms.core.db.DataSourceFactory;
 import org.opennms.core.utils.DBUtils;
-import org.opennms.core.utils.ThreadCategory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * <p>Transaction class.</p>
@@ -50,6 +51,8 @@ import org.opennms.core.utils.ThreadCategory;
  * @version $Id: $
  */
 public class Transaction {
+	
+	public static final Logger LOG = LoggerFactory.getLogger(Transaction.class);
 	
 	private static ThreadLocal<Transaction> s_threadTX = new ThreadLocal<Transaction>();
 
@@ -70,20 +73,16 @@ public class Transaction {
 	 */
 	public static void begin() {
         
-        log().debug("About to begin Transaction for "+Thread.currentThread());
+        LOG.debug("About to begin Transaction for {}", Thread.currentThread());
 		Transaction tx = s_threadTX.get();
 		if (tx != null) {
 			throw new IllegalStateException("Cannot begin a transaction.. one has already been begun");
 		}
-        log().debug("Began Transaction for "+Thread.currentThread());
+        LOG.debug("Began Transaction for {}", Thread.currentThread());
 		s_threadTX.set(new Transaction());
 		
 	}
     
-    private static ThreadCategory log() {
-        return ThreadCategory.getInstance(Transaction.class);
-    }
-
     /**
      * <p>getConnection</p>
      *
@@ -128,11 +127,11 @@ public class Transaction {
      * @throws java.sql.SQLException if any.
      */
     public static void end() throws SQLException {
-        log().debug("Ending transaction for "+Thread.currentThread());
+        LOG.debug("Ending transaction for {}", Thread.currentThread());
         try {
             Transaction tx = getTX();
             tx.doEnd();
-            log().debug((tx.m_rollbackOnly ? "Rolled Back" : "Committed") + " transaction for "+Thread.currentThread());
+            LOG.debug("{} transaction for {}", (tx.m_rollbackOnly ? "Rolled Back" : "Committed"), Thread.currentThread());
         } finally {
             clearTX();
         }
@@ -178,7 +177,7 @@ public class Transaction {
 
     private Connection doGetConnection(String dsName) throws SQLException {
         if (!m_connections.containsKey(dsName)) {
-            DataSource ds = DataSourceFactory.getDataSource(dsName);
+            DataSource ds = DataSourceFactory.getInstance(dsName);
             if (ds == null) {
                 throw new IllegalArgumentException("Could not find this datasource by using the DataSourceFactory: " + dsName);
             }
@@ -193,9 +192,12 @@ public class Transaction {
 
     /**
      * <p>finalize</p>
+     * @throws Throwable 
      */
-    public void finalize() {
+    @Override
+    protected void finalize() throws Throwable {
         m_dbUtils.cleanUp();
+        super.finalize();
     }
 
 }

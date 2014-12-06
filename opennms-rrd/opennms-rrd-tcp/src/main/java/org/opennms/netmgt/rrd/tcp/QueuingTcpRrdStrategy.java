@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2010-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2010-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -40,7 +40,8 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
-import org.opennms.core.utils.ThreadCategory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.opennms.netmgt.rrd.RrdDataSource;
 import org.opennms.netmgt.rrd.RrdGraphDetails;
 import org.opennms.netmgt.rrd.RrdStrategy;
@@ -58,9 +59,9 @@ import org.opennms.netmgt.rrd.tcp.TcpRrdStrategy.RrdDefinition;
  * @version $Id: $
  */
 public class QueuingTcpRrdStrategy implements RrdStrategy<TcpRrdStrategy.RrdDefinition,String> {
+    private static final Logger LOG = LoggerFactory.getLogger(QueuingTcpRrdStrategy.class);
 
     private final BlockingQueue<PerformanceDataReading> m_queue = new LinkedBlockingQueue<PerformanceDataReading>(50000);
-    private final ConsumerThread m_consumerThread;
     private final TcpRrdStrategy m_delegate;
     private int m_skippedReadings = 0;
 
@@ -93,6 +94,7 @@ public class QueuingTcpRrdStrategy implements RrdStrategy<TcpRrdStrategy.RrdDefi
             this.setName(this.getClass().getSimpleName());
         }
 
+        @Override
         public void run() {
             try {
                 while (true) {
@@ -108,9 +110,9 @@ public class QueuingTcpRrdStrategy implements RrdStrategy<TcpRrdStrategy.RrdDefi
                     }
                 }
             } catch (InterruptedException e) {
-                ThreadCategory.getInstance(this.getClass()).warn("InterruptedException caught in QueuingTcpRrdStrategy$ConsumerThread, closing thread");
+                LOG.warn("InterruptedException caught in QueuingTcpRrdStrategy$ConsumerThread, closing thread");
             } catch (Throwable e) {
-                ThreadCategory.getInstance(this.getClass()).fatal("Unexpected exception caught in QueuingTcpRrdStrategy$ConsumerThread, closing thread", e);
+                LOG.error("Unexpected exception caught in QueuingTcpRrdStrategy$ConsumerThread, closing thread", e);
             }
         }
     }
@@ -122,11 +124,12 @@ public class QueuingTcpRrdStrategy implements RrdStrategy<TcpRrdStrategy.RrdDefi
      */
     public QueuingTcpRrdStrategy(TcpRrdStrategy delegate) {
         m_delegate = delegate;
-        m_consumerThread = new ConsumerThread(delegate, m_queue);
-        m_consumerThread.start();
+        ConsumerThread consumerThread = new ConsumerThread(delegate, m_queue);
+        consumerThread.start();
     }
 
     /** {@inheritDoc} */
+    @Override
     public void setConfigurationProperties(Properties configurationParameters) {
         m_delegate.setConfigurationProperties(configurationParameters);
     }
@@ -136,11 +139,13 @@ public class QueuingTcpRrdStrategy implements RrdStrategy<TcpRrdStrategy.RrdDefi
      *
      * @return a {@link java.lang.String} object.
      */
+    @Override
     public String getDefaultFileExtension() {
         return m_delegate.getDefaultFileExtension();
     }
 
     /** {@inheritDoc} */
+    @Override
     public TcpRrdStrategy.RrdDefinition createDefinition(String creator, String directory, String rrdName, int step, List<RrdDataSource> dataSources, List<String> rraList) throws Exception {
         return new TcpRrdStrategy.RrdDefinition(directory, rrdName);
     }
@@ -151,21 +156,24 @@ public class QueuingTcpRrdStrategy implements RrdStrategy<TcpRrdStrategy.RrdDefi
      * @param rrdDef a {@link org.opennms.netmgt.rrd.tcp.TcpRrdStrategy.RrdDefinition} object.
      * @throws java.lang.Exception if any.
      */
+    @Override
 	public void createFile(RrdDefinition rrdDef,
 			Map<String, String> attributeMappings) throws Exception {
 		// done nothing
     }
 
     /** {@inheritDoc} */
+    @Override
     public String openFile(String fileName) throws Exception {
         return fileName;
     }
 
     /** {@inheritDoc} */
+    @Override
     public void updateFile(String fileName, String owner, String data) throws Exception {
         if (m_queue.offer(new PerformanceDataReading(fileName, owner, data), 500, TimeUnit.MILLISECONDS)) {
             if (m_skippedReadings > 0) {
-                ThreadCategory.getInstance().warn("Skipped " + m_skippedReadings + " performance data message(s) because of queue overflow");
+                LOG.warn("Skipped {} performance data message(s) because of queue overflow", m_skippedReadings);
                 m_skippedReadings = 0;
             }
         } else {
@@ -179,31 +187,37 @@ public class QueuingTcpRrdStrategy implements RrdStrategy<TcpRrdStrategy.RrdDefi
      * @param rrd a {@link java.lang.String} object.
      * @throws java.lang.Exception if any.
      */
+    @Override
     public void closeFile(String rrd) throws Exception {
         // Do nothing
     }
 
     /** {@inheritDoc} */
+    @Override
     public Double fetchLastValue(String rrdFile, String ds, int interval) throws NumberFormatException {
         return m_delegate.fetchLastValue(rrdFile, ds, interval);
     }
 
     /** {@inheritDoc} */
+    @Override
     public Double fetchLastValue(String rrdFile, String ds, String consolidationFunction, int interval) throws NumberFormatException {
         return m_delegate.fetchLastValue(rrdFile, ds, consolidationFunction, interval);
     }
 
     /** {@inheritDoc} */
+    @Override
     public Double fetchLastValueInRange(String rrdFile, String ds, int interval, int range) throws NumberFormatException {
         return m_delegate.fetchLastValueInRange(rrdFile, ds, interval, range);
     }
 
     /** {@inheritDoc} */
+    @Override
     public InputStream createGraph(String command, File workDir) throws IOException {
         return m_delegate.createGraph(command, workDir);
     }
 
     /** {@inheritDoc} */
+    @Override
     public RrdGraphDetails createGraphReturnDetails(String command, File workDir) throws IOException {
         return m_delegate.createGraphReturnDetails(command, workDir);
     }
@@ -213,6 +227,7 @@ public class QueuingTcpRrdStrategy implements RrdStrategy<TcpRrdStrategy.RrdDefi
      *
      * @return a int.
      */
+    @Override
     public int getGraphLeftOffset() {
         return m_delegate.getGraphLeftOffset();
     }
@@ -222,6 +237,7 @@ public class QueuingTcpRrdStrategy implements RrdStrategy<TcpRrdStrategy.RrdDefi
      *
      * @return a int.
      */
+    @Override
     public int getGraphRightOffset() {
         return m_delegate.getGraphRightOffset();
     }
@@ -231,6 +247,7 @@ public class QueuingTcpRrdStrategy implements RrdStrategy<TcpRrdStrategy.RrdDefi
      *
      * @return a int.
      */
+    @Override
     public int getGraphTopOffsetWithText() {
         return m_delegate.getGraphTopOffsetWithText();
     }
@@ -240,11 +257,13 @@ public class QueuingTcpRrdStrategy implements RrdStrategy<TcpRrdStrategy.RrdDefi
      *
      * @return a {@link java.lang.String} object.
      */
+    @Override
     public String getStats() {
         return m_delegate.getStats();
     }
 
     /** {@inheritDoc} */
+    @Override
     public void promoteEnqueuedFiles(Collection<String> rrdFiles) {
         m_delegate.promoteEnqueuedFiles(rrdFiles);
     }

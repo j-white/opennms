@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2009-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2009-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -36,7 +36,6 @@ import java.io.IOException;
 import java.sql.Connection;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -54,11 +53,12 @@ import net.sf.jasperreports.engine.JasperReport;
 import net.sf.jasperreports.engine.export.JRCsvExporter;
 
 import org.opennms.core.db.DataSourceFactory;
-import org.opennms.core.utils.LogUtils;
 import org.opennms.netmgt.config.reportd.Parameter;
 import org.opennms.netmgt.config.reportd.Report;
-import org.opennms.netmgt.dao.ReportCatalogDao;
+import org.opennms.netmgt.dao.api.ReportCatalogDao;
 import org.opennms.netmgt.model.ReportCatalogEntry;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.util.Assert;
 
@@ -69,6 +69,10 @@ import org.springframework.util.Assert;
  * @version $Id: $
  */
 public class DefaultReportService implements ReportService,InitializingBean {
+	
+	
+	private static final Logger LOG = LoggerFactory
+			.getLogger(DefaultReportService.class);
     
     private enum Format { pdf,html,xml,xls,csv };
 
@@ -76,6 +80,7 @@ public class DefaultReportService implements ReportService,InitializingBean {
 
     /** {@inheritDoc} 
      * @throws ReportRunException */
+    @Override
     public synchronized String runReport(Report report,String reportDirectory) throws ReportRunException {
 
         String outputFile = null;
@@ -85,10 +90,10 @@ public class DefaultReportService implements ReportService,InitializingBean {
             outputFile = saveReport(print,report,outputFile);    
             
         } catch (JRException e) {
-            LogUtils.errorf(this, e, "Error running report: %s", e.getMessage());
+            LOG.error("Error running report: {}", e.getMessage(), e);
             throw new ReportRunException("Caught JRException: " + e.getMessage());
         }  catch (Throwable e){
-            LogUtils.errorf(this, e, "Unexpected exception: %s", e.getMessage());
+            LOG.error("Unexpected exception: {}", e.getMessage(), e);
             throw new ReportRunException("Caught unexpected " + e.getClass().getName() + ": " + e.getMessage());
         }        
  
@@ -99,7 +104,7 @@ public class DefaultReportService implements ReportService,InitializingBean {
     /**
      * <p>getReportCatalogDao</p>
      *
-     * @return a {@link org.opennms.netmgt.dao.ReportCatalogDao} object.
+     * @return a {@link org.opennms.netmgt.dao.api.ReportCatalogDao} object.
      */
     public ReportCatalogDao getReportCatalogDao() {
         return m_reportCatalogDao;
@@ -108,7 +113,7 @@ public class DefaultReportService implements ReportService,InitializingBean {
     /**
      * <p>setReportCatalogDao</p>
      *
-     * @param reportCatalogDao a {@link org.opennms.netmgt.dao.ReportCatalogDao} object.
+     * @param reportCatalogDao a {@link org.opennms.netmgt.dao.api.ReportCatalogDao} object.
      */
     public void setReportCatalogDao(ReportCatalogDao reportCatalogDao) {
         this.m_reportCatalogDao = reportCatalogDao;
@@ -163,7 +168,7 @@ public class DefaultReportService implements ReportService,InitializingBean {
             reportName = destFileName;
             break;
         default:
-            LogUtils.errorf(this, "Error Running Report: Unknown Format: %s", report.getReportFormat());
+            LOG.error("Error Running Report: Unknown Format: {}", report.getReportFormat());
         }    
         
         return reportName;
@@ -181,7 +186,7 @@ public class DefaultReportService implements ReportService,InitializingBean {
                                                                        File.separator + report.getReportTemplate() );
         
         if(report.getReportEngine().equals("jdbc")){
-            Connection connection = DataSourceFactory.getDataSource().getConnection();
+            Connection connection = DataSourceFactory.getInstance().getConnection();
             jasperPrint = JasperFillManager.fillReport(jasperReport,
                                                        paramListToMap(report.getParameterCollection()),
                                                        connection );
@@ -190,11 +195,11 @@ public class DefaultReportService implements ReportService,InitializingBean {
  
 
         else if(report.getReportEngine().equals("opennms")){
-            LogUtils.errorf(this, "Sorry the OpenNMS Data source engine is not yet available");
+            LOG.error("Sorry the OpenNMS Data source engine is not yet available");
             jasperPrint = null;
         }
         else{
-            LogUtils.errorf(this,"Unknown report engine: %s ", report.getReportEngine());
+            LOG.error("Unknown report engine: {} ", report.getReportEngine());
             jasperPrint = null;
         }
         
@@ -221,7 +226,7 @@ public class DefaultReportService implements ReportService,InitializingBean {
                 reportArchive.close();
             }
             catch (final Exception e) {
-                LogUtils.warnf(this, e, "unable to create %s", zipFile);
+                LOG.warn("unable to create {}", zipFile, e);
             }
 
         }
@@ -244,12 +249,11 @@ public class DefaultReportService implements ReportService,InitializingBean {
     }
     
     
-    private Map<String,String> paramListToMap(List<Parameter> parameters){
-        Map<String,String> parmMap = new HashMap<String, String>();
-
-        for(Parameter parm : parameters)
+    private Map<String, Object> paramListToMap(List<Parameter> parameters){
+        Map<String,Object> parmMap = new HashMap<>();
+        for(Parameter parm : parameters) {
             parmMap.put(parm.getName(), parm.getValue());
-        
+        }
         return parmMap;
     }
 

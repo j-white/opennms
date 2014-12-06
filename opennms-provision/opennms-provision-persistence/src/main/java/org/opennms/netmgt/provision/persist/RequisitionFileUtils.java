@@ -1,3 +1,31 @@
+/*******************************************************************************
+ * This file is part of OpenNMS(R).
+ *
+ * Copyright (C) 2012-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
+ *
+ * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
+ *
+ * OpenNMS(R) is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published
+ * by the Free Software Foundation, either version 3 of the License,
+ * or (at your option) any later version.
+ *
+ * OpenNMS(R) is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with OpenNMS(R).  If not, see:
+ *      http://www.gnu.org/licenses/
+ *
+ * For more information contact:
+ *     OpenNMS(R) Licensing <license@opennms.org>
+ *     http://www.opennms.org/
+ *     http://www.opennms.com/
+ *******************************************************************************/
+
 package org.opennms.netmgt.provision.persist;
 
 import java.io.File;
@@ -9,14 +37,17 @@ import java.util.Date;
 import java.util.List;
 
 import org.apache.commons.io.FileUtils;
-import org.opennms.core.utils.LogUtils;
 import org.opennms.core.xml.JaxbUtils;
 import org.opennms.netmgt.provision.persist.foreignsource.ForeignSource;
 import org.opennms.netmgt.provision.persist.requisition.Requisition;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 
-public class RequisitionFileUtils {
+public abstract class RequisitionFileUtils {
+    
+    private static final Logger LOG = LoggerFactory.getLogger(RequisitionFileUtils.class);
 
     static void createPath(final File fsPath) throws ForeignSourceRepositoryException {
         if (!fsPath.exists()) {
@@ -61,19 +92,19 @@ public class RequisitionFileUtils {
     public static File createSnapshot(final ForeignSourceRepository repository, final String foreignSource, final Date date) {
         final URL url = repository.getRequisitionURL(foreignSource);
         if (url == null) {
-            LogUtils.warnf(RequisitionFileUtils.class, "Unable to get requisition URL for foreign source %s", foreignSource);
+            LOG.warn("Unable to get requisition URL for foreign source {}", foreignSource);
             return null;
         }
 
         final String sourceFileName = url.getFile();
         if (sourceFileName == null) {
-            LogUtils.warnf(RequisitionFileUtils.class, "Trying to create snapshot for %s, but getFile() doesn't return a value", url);
+            LOG.warn("Trying to create snapshot for {}, but getFile() doesn't return a value", url);
             return null;
         }
         final File sourceFile = new File(sourceFileName);
         
         if (!sourceFile.exists()) {
-            LogUtils.warnf(RequisitionFileUtils.class, "Trying to create snapshot for %s, but %s does not exist.", url, sourceFileName);
+            LOG.warn("Trying to create snapshot for {}, but {} does not exist.", url, sourceFileName);
             return null;
         }
 
@@ -83,7 +114,7 @@ public class RequisitionFileUtils {
             FileUtils.copyFile(sourceFile, targetFile, true);
             return targetFile;
         } catch (final IOException e) {
-            LogUtils.warnf(RequisitionFileUtils.class, e, "Failed to copy %s to %s", sourceFileName, targetFileName);
+            LOG.warn("Failed to copy {} to {}", sourceFileName, targetFileName, e);
         }
 
         return null;
@@ -96,7 +127,7 @@ public class RequisitionFileUtils {
         try {
             url = repository.getRequisitionURL(foreignSource);
         } catch (final ForeignSourceRepositoryException e) {
-            LogUtils.debugf(RequisitionFileUtils.class, e, "Can't find snapshots for %s, an exception occurred getting the requisition URL!", foreignSource);
+            LOG.debug("Can't find snapshots for {}, an exception occurred getting the requisition URL!", foreignSource, e);
         }
 
         if (url != null) {
@@ -104,7 +135,7 @@ public class RequisitionFileUtils {
             try {
                 sourceFileName = URLDecoder.decode(url.getFile(), "utf-8");
             } catch (final java.io.UnsupportedEncodingException e) {
-                LogUtils.warnf(RequisitionFileUtils.class, e, "Failed to decode URL %s as a file.", url.getFile());
+                LOG.warn("Failed to decode URL {} as a file.", url.getFile(), e);
             }
             if (sourceFileName != null) {
                 final File sourceFile = new File(sourceFileName);
@@ -131,13 +162,13 @@ public class RequisitionFileUtils {
         try {
             final File resourceFile = resource.getFile();
             if (isSnapshot(requisition.getForeignSource(), resourceFile)) {
-                LogUtils.tracef(RequisitionFileUtils.class, "Deleting %s", resourceFile);
+                LOG.trace("Deleting {}", resourceFile);
                 if (!resourceFile.delete()) {
-                    LogUtils.debugf(RequisitionFileUtils.class, "Failed to delete %s", resourceFile);
+                    LOG.debug("Failed to delete {}", resourceFile);
                 }
             }
         } catch (final IOException e) {
-            LogUtils.debugf(RequisitionFileUtils.class, e, "Resource %s can't be turned into a file, skipping snapshot delete detection.", resource);
+            LOG.debug("Resource {} can't be turned into a file, skipping snapshot delete detection.", resource, e);
             return;
         }
         
@@ -146,8 +177,10 @@ public class RequisitionFileUtils {
     public static void deleteSnapshotsOlderThan(final ForeignSourceRepository repository, final String foreignSource, final Date date) {
         for (final File snapshotFile : findSnapshots(repository, foreignSource)) {
             if (!isNewer(snapshotFile, date)) {
-                LogUtils.tracef(RequisitionFileUtils.class, "Deleting %s", snapshotFile);
-                snapshotFile.delete();
+                LOG.trace("Deleting {}", snapshotFile);
+                if(!snapshotFile.delete()) {
+                	LOG.warn("Could not delete file: {}", snapshotFile.getPath());
+                }
             }
         }
     }
@@ -156,8 +189,10 @@ public class RequisitionFileUtils {
         for (final String foreignSource : repository.getActiveForeignSourceNames()) {
             final List<File> snapshots = findSnapshots(repository, foreignSource);
             for (final File snapshot : snapshots) {
-                LogUtils.tracef(RequisitionFileUtils.class, "Deleting %s", snapshot);
-                snapshot.delete();
+                LOG.trace("Deleting {}", snapshot);
+                if(!snapshot.delete()) {
+                	LOG.warn("Could not delete file: {}", snapshot.getPath());
+                }
             }
         }
     }
@@ -176,10 +211,10 @@ public class RequisitionFileUtils {
     /** return true if the snapshot file is newer than the supplied date **/
     public static boolean isNewer(final File snapshotFile, final Date date) {
         final String name = snapshotFile.getName();
-        final String timestamp = name.substring(name.lastIndexOf(".") + 1);
+        final String timestamp = name.substring(name.lastIndexOf('.') + 1);
         final Date snapshotDate = new Date(Long.valueOf(timestamp));
         final boolean isNewer = snapshotDate.after(date);
-        LogUtils.tracef(RequisitionFileUtils.class, "snapshot date = %s, comparison date = %s, snapshot date %s newer than comparison date", snapshotDate.getTime(), date.getTime(), (isNewer? "is" : "is not"));
+        LOG.trace("snapshot date = {}, comparison date = {}, snapshot date {} newer than comparison date", snapshotDate.getTime(), date.getTime(), (isNewer? "is" : "is not"));
         return isNewer;
     }
 

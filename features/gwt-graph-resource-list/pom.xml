@@ -5,23 +5,21 @@
   <parent>
     <artifactId>org.opennms.features</artifactId>
     <groupId>org.opennms</groupId>
-    <version>1.12.9-SNAPSHOT</version>
+    <version>15.0.0-SNAPSHOT</version>
   </parent>
   <groupId>org.opennms.features</groupId>
   <artifactId>org.opennms.features.gwt-graph-resources-list</artifactId>
   <packaging>jar</packaging>
-  <name>OpenNMS GWT Graph Resource List</name>
+  <name>OpenNMS Features GWT Graph Resource List</name>
   <dependencies>
     <dependency>
       <groupId>org.opennms.dependencies</groupId>
       <artifactId>gwt-dependencies</artifactId>
-      <version>${project.version}</version>
       <type>pom</type>
     </dependency>
     <dependency>
       <groupId>com.google.gwt</groupId>
       <artifactId>gwt-user</artifactId>
-      <version>${gwtVersion}</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
@@ -53,4 +51,15 @@
       </resource>
     </resources>
   </build>
+
+  <repositories>
+    <repository>
+      <snapshots><enabled>false</enabled></snapshots>
+      <releases><enabled>true</enabled></releases>
+      <id>opennms-repo</id>
+      <name>OpenNMS Repository</name>
+      <url>http://maven.opennms.org/content/groups/opennms.org-release</url>
+    </repository>
+  </repositories>
+
 </project>

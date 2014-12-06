@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2011-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2007-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -27,17 +27,6 @@
  *******************************************************************************/
 
 package org.opennms.protocols.nsclient.config;
-
-
-//
-//  This file is part of the OpenNMS(R) Application.
-//
-//  OpenNMS(R) is Copyright (C) 2006 The OpenNMS Group, Inc.  All rights reserved.
-//  OpenNMS(R) is a derivative work, containing both original code, included code and modified
-//  code that was published under the GNU General Public License. Copyrights for modified 
-//  and included code are below.
-//
-//  OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -53,11 +42,12 @@ import org.apache.commons.io.IOUtils;
 import org.exolab.castor.xml.MarshalException;
 import org.exolab.castor.xml.ValidationException;
 import org.opennms.core.utils.ConfigFileConstants;
-import org.opennms.core.utils.LogUtils;
 import org.opennms.core.xml.CastorUtils;
 import org.opennms.netmgt.config.nsclient.NsclientCollection;
 import org.opennms.netmgt.config.nsclient.NsclientDatacollectionConfig;
-import org.opennms.netmgt.model.RrdRepository;
+import org.opennms.netmgt.rrd.RrdRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * <p>NSClientDataCollectionConfigFactory class.</p>
@@ -65,6 +55,9 @@ import org.opennms.netmgt.model.RrdRepository;
  * @author <a href="mailto:cmiskell@opennms.org">Craig Miskell</a>
  */
 public class NSClientDataCollectionConfigFactory {
+	
+	private static final Logger LOG = LoggerFactory.getLogger(NSClientDataCollectionConfigFactory.class);
+
     private final ReadWriteLock m_globalLock = new ReentrantReadWriteLock();
     private final Lock m_readLock = m_globalLock.readLock();
     private final Lock m_writeLock = m_globalLock.writeLock();
@@ -107,7 +100,7 @@ public class NSClientDataCollectionConfigFactory {
      }
 
      private void initialize(final InputStream stream) throws MarshalException, ValidationException {
-         LogUtils.debugf(this, "initialize: initializing NSCLient collection config factory.");
+         LOG.debug("initialize: initializing NSCLient collection config factory.");
          m_config = CastorUtils.unmarshal(NsclientDatacollectionConfig.class, stream);
      }
 
@@ -173,8 +166,8 @@ public class NSClientDataCollectionConfigFactory {
       * @return a {@link org.opennms.netmgt.config.nsclient.NsclientCollection} object.
       */
      public NsclientCollection getNSClientCollection(final String collectionName) {
-         getReadLock().lock();
          try {
+             getReadLock().lock();
              NsclientCollection collection = null;
              for (final NsclientCollection coll : m_config.getNsclientCollection()) {
                  if (coll.getName().equalsIgnoreCase(collectionName)) {
@@ -196,11 +189,11 @@ public class NSClientDataCollectionConfigFactory {
       * <p>getRrdRepository</p>
       *
       * @param collectionName a {@link java.lang.String} object.
-      * @return a {@link org.opennms.netmgt.model.RrdRepository} object.
+      * @return a {@link org.opennms.netmgt.rrd.RrdRepository} object.
       */
      public RrdRepository getRrdRepository(final String collectionName) {
-         getReadLock().lock();
          try {
+             getReadLock().lock();
              final RrdRepository repo = new RrdRepository();
              repo.setRrdBaseDir(new File(getRrdPath()));
              repo.setRraList(getRRAList(collectionName));
@@ -219,8 +212,8 @@ public class NSClientDataCollectionConfigFactory {
       * @return a int.
       */
      public int getStep(final String cName) {
-         getReadLock().lock();
          try {
+             getReadLock().lock();
              final NsclientCollection collection = getNSClientCollection(cName);
              if (collection != null) {
                  return collection.getRrd().getStep();
@@ -239,8 +232,8 @@ public class NSClientDataCollectionConfigFactory {
       * @return a {@link java.util.List} object.
       */
      public List<String> getRRAList(final String cName) {
-         getReadLock().lock();
          try {
+             getReadLock().lock();
              final NsclientCollection collection = getNSClientCollection(cName);
              if (collection != null) {
                  return collection.getRrd().getRraCollection();
@@ -258,8 +251,8 @@ public class NSClientDataCollectionConfigFactory {
       * @return a {@link java.lang.String} object.
       */
      public String getRrdPath() {
-         getReadLock().lock();
          try {
+             getReadLock().lock();
              String rrdPath = m_config.getRrdRepository();
              if (rrdPath == null) {
                  throw new RuntimeException("Configuration error, failed to retrieve path to RRD repository.");
@@ -289,8 +282,8 @@ public class NSClientDataCollectionConfigFactory {
       */
      protected void updateFromFile() throws IOException, MarshalException, ValidationException {
          if (m_loadedFromFile) {
-             getWriteLock().lock();
              try {
+                 getWriteLock().lock();
                  File surveillanceViewsFile = ConfigFileConstants.getFile(ConfigFileConstants.NSCLIENT_COLLECTION_CONFIG_FILE_NAME);
                  if (m_lastModified != surveillanceViewsFile.lastModified()) {
                      this.reload();

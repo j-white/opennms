@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2011-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2011-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -33,12 +33,13 @@ import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.util.Map;
 
-import org.apache.log4j.Level;
 import org.opennms.core.utils.ParameterMap;
-import org.opennms.netmgt.model.PollStatus;
 import org.opennms.netmgt.poller.Distributable;
 import org.opennms.netmgt.poller.MonitoredService;
+import org.opennms.netmgt.poller.PollStatus;
 import org.opennms.netmgt.poller.monitors.AbstractServiceMonitor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.xbill.DNS.AAAARecord;
 import org.xbill.DNS.ARecord;
 import org.xbill.DNS.Lookup;
@@ -53,6 +54,9 @@ import org.xbill.DNS.Type;
  */
 @Distributable
 public class DNSResolutionMonitor extends AbstractServiceMonitor {
+    
+    
+    public static final Logger LOG = LoggerFactory.getLogger(DNSResolutionMonitor.class);
     
     public static final String RESOLUTION_TYPE_PARM = "resolution-type";
     public static final String RT_V4 = "v4";
@@ -79,7 +83,7 @@ public class DNSResolutionMonitor extends AbstractServiceMonitor {
             boolean v4found = false;
             boolean v6found = false;
             for(InetAddress addr : addrs) {
-                log().debug("Resolved " + nodeLabel + " to " + addr);
+                LOG.debug("Resolved {} to {}", nodeLabel, addr);
                 if (addr instanceof Inet4Address) {
                     v4found = true;
                 } else if(addr instanceof Inet6Address) {
@@ -88,18 +92,27 @@ public class DNSResolutionMonitor extends AbstractServiceMonitor {
             }
 
             if (!v4found && !v6found) {
-                return logDown(Level.INFO, "Unable to resolve " + nodeLabel);
+                String reason = "Unable to resolve " + nodeLabel;
+                LOG.debug(reason);
+                return PollStatus.unavailable(reason);
             } 
             if (requireV4 && !v4found) {
-                return logDown(Level.INFO, nodeLabel + " could only be resolved to an IPv6 address");
+                String reason = nodeLabel + " could only be resolved to an IPv6 address";
+                LOG.debug(reason);
+                return PollStatus.unavailable(reason);
             }
             if (requireV6 && !v6found) {
-                return logDown(Level.INFO, nodeLabel + " could only be resolved to an IPv4 address");
+                String reason = nodeLabel + " could only be resolved to an IPv4 address";
+                LOG.debug(reason);
+                return PollStatus.unavailable(reason);
             }
-            return logUp(Level.INFO, (double)(end - start), "Resolved " + nodeLabel + " correctly!");
+            LOG.debug("Resolved {} correctly!", nodeLabel);
+            return PollStatus.available((double)(end - start));
 
         } catch (TextParseException e) {
-            return logDown(Level.INFO,"Unable to resolve "+nodeLabel+": "+e.getMessage());
+            String reason = "Unable to resolve "+nodeLabel+": "+e.getMessage();
+            LOG.debug(reason);
+            return PollStatus.unavailable(reason);
         }
 
     }

@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2006-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -31,9 +31,9 @@ package org.opennms.web.svclayer.daemonstatus.support;
 import java.util.Collection;
 import java.util.Map;
 
-import org.opennms.netmgt.dao.DaemonStatusDao;
-import org.opennms.netmgt.dao.ServiceInfo;
+import org.opennms.netmgt.dao.api.DaemonStatusDao;
 import org.opennms.netmgt.model.ServiceDaemon;
+import org.opennms.netmgt.model.ServiceInfo;
 import org.opennms.web.svclayer.daemonstatus.DaemonStatusService;
 
 /**
@@ -50,7 +50,7 @@ public class DefaultDaemonStatusService implements DaemonStatusService {
 	/**
 	 * <p>Setter for the field <code>daemonStatusDao</code>.</p>
 	 *
-	 * @param daemonStatusDao a {@link org.opennms.netmgt.dao.DaemonStatusDao} object.
+	 * @param daemonStatusDao a {@link org.opennms.netmgt.dao.api.DaemonStatusDao} object.
 	 */
 	public void setDaemonStatusDao(DaemonStatusDao daemonStatusDao) {
 		this.daemonStatusDao = daemonStatusDao;
@@ -61,10 +61,10 @@ public class DefaultDaemonStatusService implements DaemonStatusService {
 	 *
 	 * @return a {@link java.util.Map} object.
 	 */
+        @Override
 	public Map<String, ServiceInfo> getCurrentDaemonStatus() {
 		// TODO Auto-generated method stub
-		Map<String, ServiceInfo> info = daemonStatusDao.getCurrentDaemonStatus();
-        return info;
+		return daemonStatusDao.getCurrentDaemonStatus();
 	}
 	
 	/**
@@ -72,6 +72,7 @@ public class DefaultDaemonStatusService implements DaemonStatusService {
 	 *
 	 * @return a {@link java.util.Collection} object.
 	 */
+        @Override
 	public Collection<ServiceInfo> getCurrentDaemonStatusColl() {
 		// TODO Auto-generated method stub
 		return daemonStatusDao.getCurrentDaemonStatus().values();
@@ -85,6 +86,7 @@ public class DefaultDaemonStatusService implements DaemonStatusService {
 	 * @param daemons an array of {@link java.lang.String} objects.
 	 * @return a {@link java.util.Map} object.
 	 */
+        @Override
 	public Map<String, ServiceInfo> performOperationOnDaemons(String operation, String[] daemons) {
 		// TODO Auto-generated method stub
 		for(int i = 0; i < daemons.length; i++){
@@ -104,6 +106,7 @@ public class DefaultDaemonStatusService implements DaemonStatusService {
 	}
 
 	/** {@inheritDoc} */
+        @Override
 	public Map<String, ServiceInfo> restartDaemon(String service) {
 		ServiceDaemon serviceDaemon = daemonStatusDao.getServiceHandle(service);
 		serviceDaemon.stop();
@@ -112,6 +115,7 @@ public class DefaultDaemonStatusService implements DaemonStatusService {
 	}
 
 	/** {@inheritDoc} */
+        @Override
 	public Map<String, ServiceInfo> startDaemon(String service) {
 		ServiceDaemon serviceDaemon = daemonStatusDao.getServiceHandle(service);
 		serviceDaemon.start();
@@ -119,6 +123,7 @@ public class DefaultDaemonStatusService implements DaemonStatusService {
 	}
 
 	/** {@inheritDoc} */
+        @Override
 	public Map<String, ServiceInfo> stopDaemon(String service) {
 		// TODO Auto-generated method stub
 		return getCurrentDaemonStatus();

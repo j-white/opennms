@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2008-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2006-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -42,11 +42,12 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 
-import org.opennms.core.utils.LogUtils;
-import org.opennms.core.utils.ThreadCategory;
+import org.opennms.netmgt.model.OnmsNode;
 import org.opennms.netmgt.provision.persist.requisition.Requisition;
-import org.opennms.netmgt.provision.service.RequisitionAccountant;
 import org.opennms.netmgt.provision.service.ProvisionService;
+import org.opennms.netmgt.provision.service.RequisitionAccountant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * This class tracks nodes that need to be deleted, inserted, or updated during
@@ -55,18 +56,9 @@ import org.opennms.netmgt.provision.service.ProvisionService;
  * @author david
  */
 public class ImportOperationsManager {
-	public static final class NullUpdateOperation extends UpdateOperation {
-		public NullUpdateOperation(final Integer nodeId, final String foreignSource, final String foreignId, final String nodeLabel, final String building, final String city, final ProvisionService provisionService) {
-			super(nodeId, foreignSource, foreignId, nodeLabel, building, city, provisionService);
-		}
+    private static final Logger LOG = LoggerFactory.getLogger(ImportOperationsManager.class);
 
-		@Override
-	    protected void doPersist() {
-			LogUtils.debugf(this, "Skipping persist for node %s: rescanExisting is false", getNode());
-		}
-	}
-
-	/**
+    /**
      * TODO: Seth 2012-03-08: These lists may consume a lot of RAM for large provisioning 
      * groups. We may need to figure out how to use flyweight objects instead of heavier 
      * {@link OnmsNode} objects in these lists. Our goal is to handle 50,000+ nodes per 
@@ -77,7 +69,7 @@ public class ImportOperationsManager {
     
     private final ProvisionService m_provisionService;
     private final Map<String, Integer> m_foreignIdToNodeMap;
-    private Boolean m_rescanExisting;
+    private String m_rescanExisting;
     
     private String m_foreignSource;
     
@@ -88,7 +80,7 @@ public class ImportOperationsManager {
      * @param provisionService a {@link org.opennms.netmgt.provision.service.ProvisionService} object.
      * @param rescanExisting TODO
      */
-    public ImportOperationsManager(Map<String, Integer> foreignIdToNodeMap, ProvisionService provisionService, final Boolean rescanExisting) {
+    public ImportOperationsManager(Map<String, Integer> foreignIdToNodeMap, ProvisionService provisionService, final String rescanExisting) {
         m_provisionService = provisionService;
         m_foreignIdToNodeMap = new HashMap<String, Integer>(foreignIdToNodeMap);
         m_rescanExisting = rescanExisting;
@@ -107,7 +99,7 @@ public class ImportOperationsManager {
         
         SaveOrUpdateOperation ret;
         if (nodeExists(foreignId)) {
-        	ret = updateNode(foreignId, nodeLabel, building, city);
+            ret = updateNode(foreignId, nodeLabel, building, city);
         } else {
             ret = insertNode(foreignId, nodeLabel, building, city);
         }        
@@ -125,13 +117,13 @@ public class ImportOperationsManager {
     }
 
     private SaveOrUpdateOperation updateNode(final String foreignId, final String nodeLabel, final String building, final String city) {
-    	final Integer nodeId = processForeignId(foreignId);
-    	final UpdateOperation updateOperation;
-    	if (m_rescanExisting) {
-            updateOperation = new UpdateOperation(nodeId, getForeignSource(), foreignId, nodeLabel, building, city, m_provisionService);
-    	} else {
-            updateOperation = new NullUpdateOperation(nodeId, getForeignSource(), foreignId, nodeLabel, building, city, m_provisionService);
-    	}
+        final Integer nodeId = processForeignId(foreignId);
+        final UpdateOperation updateOperation;
+        if (Boolean.valueOf(m_rescanExisting) || m_rescanExisting.equalsIgnoreCase("dbonly")) {
+            updateOperation = new UpdateOperation(nodeId, getForeignSource(), foreignId, nodeLabel, building, city, m_provisionService, m_rescanExisting);
+        } else {
+            updateOperation = new NullUpdateOperation(nodeId, getForeignSource(), foreignId, nodeLabel, building, city, m_provisionService, m_rescanExisting);
+        }
         m_updates.add(updateOperation);
         return updateOperation;
     }
@@ -186,16 +178,19 @@ public class ImportOperationsManager {
     	
     	private final Iterator<Entry<String, Integer>> m_foreignIdIterator = m_foreignIdToNodeMap.entrySet().iterator();
 
+            @Override
 		public boolean hasNext() {
 			return m_foreignIdIterator.hasNext();
 		}
 
+            @Override
 		public ImportOperation next() {
             Entry<String, Integer> entry = m_foreignIdIterator.next();
             return new DeleteOperation(entry.getValue(), getForeignSource(), entry.getKey(), m_provisionService);
 			
 		}
 
+            @Override
 		public void remove() {
 			m_foreignIdIterator.remove();
 		}
@@ -215,6 +210,7 @@ public class ImportOperationsManager {
     		m_iterIter = iters.iterator();
     	}
     	
+            @Override
 		public boolean hasNext() {
 			while((m_currentIter == null || !m_currentIter.hasNext()) && m_iterIter.hasNext()) {
 				m_currentIter = m_iterIter.next();
@@ -224,18 +220,22 @@ public class ImportOperationsManager {
 			return (m_currentIter == null ? false: m_currentIter.hasNext());
 		}
 
+            @Override
 		public ImportOperation next() {
 			return m_currentIter.next();
 		}
 
+            @Override
 		public void remove() {
 			m_currentIter.remove();
 		}
 
+            @Override
         public boolean hasMoreElements() {
             return hasNext();
         }
 
+            @Override
         public ImportOperation nextElement() {
             return next();
         }
@@ -256,7 +256,7 @@ public class ImportOperationsManager {
                 // loop util the await returns false
             }
         } catch (final InterruptedException e) {
-            log().error(msg, e);
+            LOG.error(msg, e);
             Thread.currentThread().interrupt();
         }
     }
@@ -273,16 +273,13 @@ public class ImportOperationsManager {
     @SuppressWarnings("unused")
     private Runnable sequence(final Executor pool, final Runnable a, final Runnable b) {
         return new Runnable() {
+            @Override
             public void run() {
                 a.run();
                 pool.execute(b);
             }
         };
     }
-
-	private ThreadCategory log() {
-		return ThreadCategory.getInstance(getClass());
-	}
 
     /**
      * <p>setForeignSource</p>
@@ -302,7 +299,7 @@ public class ImportOperationsManager {
         return m_foreignSource;
     }
 
-    public Boolean getRescanExisting() {
+    public String getRescanExisting() {
         return m_rescanExisting;
     }
     
@@ -318,6 +315,7 @@ public class ImportOperationsManager {
     @SuppressWarnings("unused")
     private Runnable persister(final ImportOperation oper) {
         Runnable r = new Runnable() {
+                @Override
         	public void run() {
         		oper.persist();
         	}
@@ -328,8 +326,9 @@ public class ImportOperationsManager {
     @SuppressWarnings("unused")
     private Runnable scanner(final ImportOperation oper) {
         return new Runnable() {
+            @Override
             public void run() {
-                log().info("Preprocess: "+oper);
+                LOG.info("Preprocess: {}", oper);
                 oper.scan();
             }
         };

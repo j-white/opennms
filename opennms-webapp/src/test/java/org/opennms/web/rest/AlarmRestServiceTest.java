@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2011-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2011-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -42,30 +42,74 @@ import java.util.NavigableSet;
 import java.util.TreeSet;
 
 import org.junit.Test;
+import org.junit.runner.RunWith;
 import org.opennms.core.test.MockLogAppender;
+import org.opennms.core.test.OpenNMSJUnit4ClassRunner;
+import org.opennms.core.test.db.annotations.JUnitTemporaryDatabase;
+import org.opennms.core.test.rest.AbstractSpringJerseyRestTestCase;
 import org.opennms.core.utils.InetAddressUtils;
-import org.opennms.netmgt.dao.AlarmDao;
 import org.opennms.netmgt.dao.DatabasePopulator;
-import org.opennms.netmgt.dao.DistPollerDao;
-import org.opennms.netmgt.dao.EventDao;
+import org.opennms.netmgt.dao.api.AlarmDao;
+import org.opennms.netmgt.dao.api.DistPollerDao;
+import org.opennms.netmgt.dao.api.EventDao;
 import org.opennms.netmgt.model.OnmsAlarm;
 import org.opennms.netmgt.model.OnmsEvent;
 import org.opennms.netmgt.model.OnmsSeverity;
+import org.opennms.test.JUnitConfigurationEnvironment;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.test.context.ContextConfiguration;
+import org.springframework.test.context.web.WebAppConfiguration;
+import org.springframework.transaction.TransactionStatus;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionCallbackWithoutResult;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.context.WebApplicationContext;
 import org.springframework.web.context.support.WebApplicationContextUtils;
 
+@RunWith(OpenNMSJUnit4ClassRunner.class)
+@WebAppConfiguration
+@ContextConfiguration(locations={
+        "classpath:/org/opennms/web/rest/applicationContext-test.xml",
+        "classpath:/META-INF/opennms/applicationContext-commonConfigs.xml",
+        "classpath:/META-INF/opennms/applicationContext-soa.xml",
+        "classpath:/META-INF/opennms/applicationContext-dao.xml",
+        "classpath*:/META-INF/opennms/component-service.xml",
+        "classpath*:/META-INF/opennms/component-dao.xml",
+        "classpath:/META-INF/opennms/applicationContext-reportingCore.xml",
+        "classpath:/META-INF/opennms/applicationContext-databasePopulator.xml",
+        "classpath:/org/opennms/web/svclayer/applicationContext-svclayer.xml",
+        "classpath:/META-INF/opennms/applicationContext-mockEventProxy.xml",
+        "classpath:/applicationContext-jersey-test.xml",
+        "classpath:/META-INF/opennms/applicationContext-reporting.xml",
+        "classpath:/META-INF/opennms/applicationContext-mock-usergroup.xml",
+        "classpath:/META-INF/opennms/applicationContext-minimal-conf.xml",
+        "file:src/main/webapp/WEB-INF/applicationContext-spring-security.xml",
+        "file:src/main/webapp/WEB-INF/applicationContext-jersey.xml"
+})
+@JUnitConfigurationEnvironment
+@JUnitTemporaryDatabase
 public class AlarmRestServiceTest extends AbstractSpringJerseyRestTestCase {
-    private DatabasePopulator m_databasePopulator;
+	@Autowired
+	TransactionTemplate m_template;
 
-    @Override
-    protected void afterServletStart() {
-        MockLogAppender.setupLogging(true, "DEBUG");
-        final WebApplicationContext context = WebApplicationContextUtils.getWebApplicationContext(getServletContext());
-        m_databasePopulator = context.getBean("databasePopulator", DatabasePopulator.class);
-        m_databasePopulator.populateDatabase();
-    }
+	private DatabasePopulator m_databasePopulator;
+
+	@Override
+	protected void afterServletStart() {
+		MockLogAppender.setupLogging(true, "DEBUG");
+		final WebApplicationContext context = WebApplicationContextUtils.getWebApplicationContext(getServletContext());
+		m_databasePopulator = context.getBean("databasePopulator", DatabasePopulator.class);
+		m_template.execute(new TransactionCallbackWithoutResult() {
+
+			@Override
+			protected void doInTransactionWithoutResult(TransactionStatus status) {
+				m_databasePopulator.populateDatabase();
+			}
+		});
+	}
 
     @Test
+    @JUnitTemporaryDatabase
     public void testAlarms() throws Exception {
         String xml = sendRequest(GET, "/alarms", parseParamData("orderBy=lastEventTime&order=desc&alarmAckUser=null&limit=1"), 200);
         assertTrue(xml.contains("This is a test alarm"));
@@ -76,6 +120,7 @@ public class AlarmRestServiceTest extends AbstractSpringJerseyRestTestCase {
     }
 
     @Test
+    @JUnitTemporaryDatabase
     public void testAlarmQueryByNode() throws Exception {
         String xml = sendRequest(GET, "/alarms", parseParamData("nodeId=6&limit=1"), 200);
         assertTrue(xml.contains("<alarms"));
@@ -88,6 +133,7 @@ public class AlarmRestServiceTest extends AbstractSpringJerseyRestTestCase {
     }
 
     @Test
+    @JUnitTemporaryDatabase
     public void testAlarmQueryBySeverityEquals() throws Exception {
         String xml = null;
 
@@ -99,6 +145,7 @@ public class AlarmRestServiceTest extends AbstractSpringJerseyRestTestCase {
     }
 
     @Test
+    @JUnitTemporaryDatabase
     public void testAlarmQueryBySeverityLessThan() throws Exception {
         String xml = null;
 
@@ -113,6 +160,7 @@ public class AlarmRestServiceTest extends AbstractSpringJerseyRestTestCase {
     }
 
     @Test
+    @JUnitTemporaryDatabase
     public void testAlarmQueryBySeverityGreaterThan() throws Exception {
         String xml = null;
 
@@ -127,6 +175,8 @@ public class AlarmRestServiceTest extends AbstractSpringJerseyRestTestCase {
     }
 
     @Test
+    @Transactional
+    @JUnitTemporaryDatabase
     public void testAlarmUpdates() throws Exception {
         createAlarm(OnmsSeverity.MAJOR);
 
@@ -154,7 +204,9 @@ public class AlarmRestServiceTest extends AbstractSpringJerseyRestTestCase {
         alarm.setAlarmAckUser(null);
         getAlarmDao().saveOrUpdate(alarm);
 
-        MockUserPrincipal.setName("foo");
+        // Log in as a normal REST user and attempt to resolve an alarm as a different user.
+        // This should fail.
+        setUser("foo", new String[] { "ROLE_REST" });
         Exception failure = null;
         try {
             sendPut("/alarms/" + alarmId, "ack=true&ackUser=bar", 303, "/alarms/" + alarmId);
@@ -177,6 +229,8 @@ public class AlarmRestServiceTest extends AbstractSpringJerseyRestTestCase {
     }
 
     @Test
+    @JUnitTemporaryDatabase
+    @Transactional
     public void testComplexQuery() throws Exception {
         String xml = null;
         final Map<String, String> parameters = new HashMap<String, String>();
@@ -224,7 +278,7 @@ public class AlarmRestServiceTest extends AbstractSpringJerseyRestTestCase {
         // assertFalse(xml.contains("<alarm severity=\"CRITICAL\" id=\"2\""));
         assertXpathDoesNotMatch(xml, "//alarm[@severity='CRITICAL' and @id='2']");
         // assertTrue(xml.contains("count=\"0\""));
-        assertXpathMatches(xml, "//alarms[@count='0']");
+        assertXpathMatches(xml, "//alarms[@totalCount='0']");
 
         // original requirements:
         // http://localhost:8980/opennms/rest/alarms?offset=00&limit=10&orderBy=lastEventTime&order=desc&lastEventTime=2011-08-19T11:11:11.000-07:00&comparator=gt&severity=MAJOR&comparator=eq&ackUser=myuser&comparator=eq
@@ -243,7 +297,7 @@ public class AlarmRestServiceTest extends AbstractSpringJerseyRestTestCase {
         parameters.put("query", "lastEventTime > '2011-08-19T11:11:11.000-07:00' AND severity > MAJOR AND alarmAckUser IS NULL");
         xml = sendRequest(GET, "/alarms", parameters, 200);
         // assertTrue(xml.contains("count=\"0\""));
-        assertXpathMatches(xml, "//alarms[@count='0']");
+        assertXpathMatches(xml, "//alarms[@totalCount='0']");
 
         // unacked - modified version:
         // http://localhost:8980/opennms/rest/alarms?offset=00&limit=10&orderBy=lastEventTime&order=desc&query=lastEventTime%20%3E%20'2011-08-19T11%3A11%3A11.000-07%3A00'%20AND%20severity%20%3C%20MAJOR%20AND%20alarmAckUser%20IS%20NULL

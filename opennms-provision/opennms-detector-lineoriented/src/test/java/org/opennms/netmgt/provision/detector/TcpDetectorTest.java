@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2008-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2008-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -76,7 +76,7 @@ public class TcpDetectorTest implements ApplicationContextAware {
     
     private void initializeDefaultDetector() {
         setServiceName("TCP");
-        setTimeout(1000);
+        setTimeout(500);
         setBanner(".*");
         
         initializeDetector();
@@ -84,7 +84,7 @@ public class TcpDetectorTest implements ApplicationContextAware {
     
     private void intializeNullBannerDetector() {
         setServiceName("TCP");
-        setTimeout(1000);
+        setTimeout(500);
         setBanner(null);
         
         initializeDetector();
@@ -105,6 +105,7 @@ public class TcpDetectorTest implements ApplicationContextAware {
         
         m_server = new SimpleServer() {
             
+            @Override
             public void onInit() {
                setBanner("Hello");
             }
@@ -117,6 +118,7 @@ public class TcpDetectorTest implements ApplicationContextAware {
         DetectFuture future = m_detector.isServiceDetected(m_server.getInetAddress());
         future.addListener(new DetectFutureListener<DetectFuture>() {
 
+            @Override
             public void operationComplete(DetectFuture future) {
                 TcpDetector detector = m_detector;
                 m_detector = null;
@@ -138,6 +140,7 @@ public class TcpDetectorTest implements ApplicationContextAware {
         
         m_server = new SimpleServer() {
             
+            @Override
             public void onInit() {
             	
             }
@@ -161,8 +164,9 @@ public class TcpDetectorTest implements ApplicationContextAware {
         
         m_server = new SimpleServer() {
             
+            @Override
             public void onInit() {
-                setTimeout(3000);
+                setTimeout(500);
             }
             
         };
@@ -184,8 +188,9 @@ public class TcpDetectorTest implements ApplicationContextAware {
         
         m_server = new SimpleServer() {
             
+            @Override
             public void onInit() {
-                setTimeout(3000);
+                setTimeout(500);
             }
             
         };
@@ -210,6 +215,7 @@ public class TcpDetectorTest implements ApplicationContextAware {
         
         m_server = new SimpleServer() {
             
+            @Override
             public void onInit() {
                setBanner("BLIP");
             }
@@ -238,6 +244,7 @@ public class TcpDetectorTest implements ApplicationContextAware {
         
         m_server = new SimpleServer() {
             
+            @Override
             public void onInit() {
                shutdownServer("Closing");
             }
@@ -264,6 +271,7 @@ public class TcpDetectorTest implements ApplicationContextAware {
         DetectFuture future = m_detector.isServiceDetected(InetAddress.getLocalHost());
         future.addListener(new DetectFutureListener<DetectFuture>() {
 
+            @Override
             public void operationComplete(DetectFuture future) {
                 TcpDetector detector = m_detector;
                 m_detector = null;

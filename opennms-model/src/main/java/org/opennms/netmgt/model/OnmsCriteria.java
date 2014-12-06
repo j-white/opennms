@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2006-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -27,6 +27,12 @@
  *******************************************************************************/
 
 package org.opennms.netmgt.model;
+
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.Serializable;
 
 import org.hibernate.Criteria;
 import org.hibernate.FetchMode;
@@ -40,12 +46,16 @@ import org.hibernate.transform.ResultTransformer;
 
 /**
  * <p>OnmsCriteria class.</p>
+ * 
+ * @deprecated Use the new org.opennms.core.criteria.Criteria objects instead since it is
+ * not tightly coupled to Hibernate ORM.
  *
  * @author ranger
- * @version $Id: $
  */
-public class OnmsCriteria {
-    
+public class OnmsCriteria implements Serializable {
+
+    private static final long serialVersionUID = 232519716244370358L;
+
     /** Constant <code>INNER_JOIN=Criteria.INNER_JOIN</code> */
     public static final int INNER_JOIN = Criteria.INNER_JOIN;
     /** Constant <code>LEFT_JOIN=Criteria.LEFT_JOIN</code> */
@@ -294,7 +304,22 @@ public class OnmsCriteria {
         return "OnmsCriteria( " + m_criteria + ") limit " + m_maxResults + " offset " + m_firstResult;
     }
 
-
+    /**
+     * This function can be used to copy an OnmsCriteria object so that additional Criterion
+     * objects can be added to it without altering the original.
+     */
+    public OnmsCriteria doClone() {
+        try {
+            ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+            ObjectOutputStream object = new ObjectOutputStream(bytes);
+            object.writeObject(this);
+            object.flush();
+            object.close();
+            return (OnmsCriteria)new ObjectInputStream(new ByteArrayInputStream(bytes.toByteArray())).readObject();
+        } catch(Throwable t) {
+            throw new HibernateException(t);
+        }
+    }
 
     /**
      * This is a subclass of Hibernate's DetachedCriteria, providing a few
@@ -305,7 +330,7 @@ public class OnmsCriteria {
      * 
      * @author <a href="mailto:dj@opennms.org">DJ Gregor</a>
      */
-    public static class OnmsDetachedCriteria extends DetachedCriteria {
+    public static class OnmsDetachedCriteria extends DetachedCriteria implements Cloneable {
         /**
          * 
          */
@@ -338,31 +363,38 @@ public class OnmsCriteria {
             return new OnmsCriteria.OnmsDetachedCriteria(entityName, alias);
         }
         
+        @SuppressWarnings("rawtypes") // Needs to have the same erasure as the Hibernate API
         public static OnmsCriteria.OnmsDetachedCriteria forClass(Class clazz) {
             return new OnmsCriteria.OnmsDetachedCriteria(clazz.getName());
         }
         
+        @SuppressWarnings("rawtypes") // Needs to have the same erasure as the Hibernate API
         public static OnmsCriteria.OnmsDetachedCriteria forClass(Class clazz, String alias) {
             return new OnmsCriteria.OnmsDetachedCriteria(clazz.getName() , alias);
         }
         
+        @Override
         public OnmsCriteria.OnmsDetachedCriteria createAlias(String associationPath, String alias, int joinType) {
             m_impl.createAlias(associationPath, alias, joinType);
             return this;
         }
 
+        @Override
         public OnmsCriteria.OnmsDetachedCriteria createCriteria(String associationPath, int joinType) {
             return new OnmsCriteria.OnmsDetachedCriteria(m_impl, m_impl.createCriteria(associationPath, joinType));
         }
         
+        @Override
         public OnmsCriteria.OnmsDetachedCriteria createCriteria(String associationPath, String alias) {
             return new OnmsCriteria.OnmsDetachedCriteria(m_impl, m_impl.createCriteria(associationPath));
         }
 
+        @Override
         public OnmsCriteria.OnmsDetachedCriteria createCriteria(String associationPath, String alias, int joinType) {
             return new OnmsCriteria.OnmsDetachedCriteria(m_impl, m_impl.createCriteria(associationPath, alias, joinType));
         }
 
+        @Override
         public OnmsCriteria.OnmsDetachedCriteria createCriteria(String associationPath) throws HibernateException {
             return new OnmsCriteria.OnmsDetachedCriteria(m_impl, m_impl.createCriteria(associationPath));
         }

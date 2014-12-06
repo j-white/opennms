@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2007-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2007-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -31,15 +31,16 @@ package org.opennms.web.svclayer.support;
 import java.util.List;
 import java.util.Set;
 
-import org.opennms.core.utils.ThreadCategory;
-import org.opennms.netmgt.dao.ResourceDao;
-import org.opennms.netmgt.dao.StatisticsReportDao;
+import org.opennms.netmgt.dao.api.ResourceDao;
+import org.opennms.netmgt.dao.api.StatisticsReportDao;
 import org.opennms.netmgt.model.OnmsResource;
 import org.opennms.netmgt.model.StatisticsReport;
 import org.opennms.netmgt.model.StatisticsReportData;
 import org.opennms.web.command.StatisticsReportCommand;
 import org.opennms.web.svclayer.StatisticsReportService;
 import org.opennms.web.svclayer.support.StatisticsReportModel.Datum;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.util.Assert;
 import org.springframework.validation.BindException;
@@ -52,6 +53,9 @@ import org.springframework.validation.BindException;
  * @since 1.8.1
  */
 public class DefaultStatisticsReportService implements StatisticsReportService, InitializingBean {
+	
+	private static final Logger LOG = LoggerFactory.getLogger(DefaultStatisticsReportService.class);
+
     private StatisticsReportDao m_statisticsReportDao;
     private ResourceDao m_resourceDao;
 
@@ -60,11 +64,13 @@ public class DefaultStatisticsReportService implements StatisticsReportService, 
      *
      * @return a {@link java.util.List} object.
      */
+    @Override
     public List<StatisticsReport> getStatisticsReports() {
         return m_statisticsReportDao.findAll();
     }
 
     /** {@inheritDoc} */
+    @Override
     public StatisticsReportModel getReport(StatisticsReportCommand command, BindException errors) {
         StatisticsReportModel model = new StatisticsReportModel();
         model.setErrors(errors);
@@ -87,7 +93,7 @@ public class DefaultStatisticsReportService implements StatisticsReportService, 
             d.setValue(reportDatum.getValue());
             OnmsResource resource = m_resourceDao.getResourceById(reportDatum.getResourceId());
             if (resource == null) {
-                ThreadCategory.getInstance(getClass()).warn("Could not find resource for statistics report: " + reportDatum.getResourceId());
+                LOG.warn("Could not find resource for statistics report: {}", reportDatum.getResourceId());
             } else {
                 d.setResource(resource);
             }
@@ -111,7 +117,7 @@ public class DefaultStatisticsReportService implements StatisticsReportService, 
     /**
      * <p>getStatisticsReportDao</p>
      *
-     * @return a {@link org.opennms.netmgt.dao.StatisticsReportDao} object.
+     * @return a {@link org.opennms.netmgt.dao.api.StatisticsReportDao} object.
      */
     public StatisticsReportDao getStatisticsReportDao() {
         return m_statisticsReportDao;
@@ -120,7 +126,7 @@ public class DefaultStatisticsReportService implements StatisticsReportService, 
     /**
      * <p>setStatisticsReportDao</p>
      *
-     * @param statisticsReportDao a {@link org.opennms.netmgt.dao.StatisticsReportDao} object.
+     * @param statisticsReportDao a {@link org.opennms.netmgt.dao.api.StatisticsReportDao} object.
      */
     public void setStatisticsReportDao(StatisticsReportDao statisticsReportDao) {
         m_statisticsReportDao = statisticsReportDao;
@@ -129,7 +135,7 @@ public class DefaultStatisticsReportService implements StatisticsReportService, 
     /**
      * <p>getResourceDao</p>
      *
-     * @return a {@link org.opennms.netmgt.dao.ResourceDao} object.
+     * @return a {@link org.opennms.netmgt.dao.api.ResourceDao} object.
      */
     public ResourceDao getResourceDao() {
         return m_resourceDao;
@@ -138,7 +144,7 @@ public class DefaultStatisticsReportService implements StatisticsReportService, 
     /**
      * <p>setResourceDao</p>
      *
-     * @param resourceDao a {@link org.opennms.netmgt.dao.ResourceDao} object.
+     * @param resourceDao a {@link org.opennms.netmgt.dao.api.ResourceDao} object.
      */
     public void setResourceDao(ResourceDao resourceDao) {
         m_resourceDao = resourceDao;

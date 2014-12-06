@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2007-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2007-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -29,6 +29,7 @@
 package org.opennms.netmgt.rrd;
 
 import java.io.InputStream;
+import java.util.Arrays;
 
 /**
  * Simple RrdGraphDetails implementation.
@@ -47,6 +48,7 @@ public class DefaultRrdGraphDetails implements RrdGraphDetails {
      *
      * @return a int.
      */
+    @Override
     public int getHeight() {
         return m_height;
     }
@@ -65,6 +67,7 @@ public class DefaultRrdGraphDetails implements RrdGraphDetails {
      *
      * @return a {@link java.io.InputStream} object.
      */
+    @Override
     public InputStream getInputStream() {
         return m_inputStream;
     }
@@ -83,6 +86,7 @@ public class DefaultRrdGraphDetails implements RrdGraphDetails {
      *
      * @return an array of {@link java.lang.String} objects.
      */
+    @Override
     public String[] getPrintLines() {
         return m_printLines;
     }
@@ -93,7 +97,7 @@ public class DefaultRrdGraphDetails implements RrdGraphDetails {
      * @param printLines an array of {@link java.lang.String} objects.
      */
     public void setPrintLines(String[] printLines) {
-        m_printLines = printLines;
+        m_printLines = Arrays.copyOf(printLines, printLines.length);
     }
     
     /**
@@ -101,6 +105,7 @@ public class DefaultRrdGraphDetails implements RrdGraphDetails {
      *
      * @return a int.
      */
+    @Override
     public int getWidth() {
         return m_width;
     }

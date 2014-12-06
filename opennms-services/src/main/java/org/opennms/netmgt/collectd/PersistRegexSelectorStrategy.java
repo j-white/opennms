@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2011-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2011-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -30,11 +30,12 @@ package org.opennms.netmgt.collectd;
 
 import java.util.List;
 
-import org.opennms.core.utils.ThreadCategory;
-import org.opennms.netmgt.config.collector.CollectionAttribute;
-import org.opennms.netmgt.config.collector.CollectionResource;
+import org.opennms.netmgt.collection.api.CollectionAttribute;
+import org.opennms.netmgt.collection.api.CollectionResource;
+import org.opennms.netmgt.collection.support.AbstractCollectionSetVisitor;
 import org.opennms.netmgt.config.datacollection.Parameter;
-
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.expression.Expression;
 import org.springframework.expression.ExpressionParser;
 import org.springframework.expression.spel.standard.SpelExpressionParser;
@@ -51,13 +52,15 @@ import org.springframework.expression.spel.support.StandardEvaluationContext;
  */
 public class PersistRegexSelectorStrategy implements PersistenceSelectorStrategy {
     
+    private static final Logger LOG = LoggerFactory.getLogger(PersistRegexSelectorStrategy.class);
+    
     public static final String MATCH_EXPRESSION = "match-expression";
     public static final String MATCH_STRATEGY = "match-strategy";
     public static final String MATCH_BEHAVIOR = "match-behavior";
 
     private List<Parameter> m_parameterCollection;
 
-    protected class EvaluatorContextVisitor extends AbstractCollectionSetVisitor {
+    protected static final class EvaluatorContextVisitor extends AbstractCollectionSetVisitor {
         private StandardEvaluationContext context;
 
         public EvaluatorContextVisitor() {
@@ -77,9 +80,9 @@ public class PersistRegexSelectorStrategy implements PersistenceSelectorStrategy
 
     @Override
     public boolean shouldPersist(CollectionResource resource) {
-        log().debug("shouldPersist: checking resource " + resource);
+        LOG.debug("shouldPersist: checking resource {}", resource);
         if (m_parameterCollection == null) {
-            log().warn("shouldPersist: no parameters defined; the resource will be persisted.");
+            LOG.warn("shouldPersist: no parameters defined; the resource will be persisted.");
             return true;
         }
         EvaluatorContextVisitor visitor = new EvaluatorContextVisitor();
@@ -92,9 +95,9 @@ public class PersistRegexSelectorStrategy implements PersistenceSelectorStrategy
                 try {
                     shouldPersist = exp.getValue(visitor.getEvaluationContext(), Boolean.class);
                 } catch (Exception e) {
-                    log().warn("shouldPersist: can't evaluate expression " + param.getValue() + " for resource " + resource + " because: " + e.getMessage());
+                    LOG.warn("shouldPersist: can't evaluate expression {} for resource {} because: {}", param.getValue(), resource, e.getMessage());
                 }
-                log().debug("shouldPersist: checking " + param.getValue() + " ? " + shouldPersist);
+                LOG.debug("shouldPersist: checking {} ? {}", param.getValue(), shouldPersist);
                 if (shouldPersist)
                     return true;
             }
@@ -105,10 +108,6 @@ public class PersistRegexSelectorStrategy implements PersistenceSelectorStrategy
     @Override
     public void setParameters(List<Parameter> parameterCollection) {
         m_parameterCollection = parameterCollection;
-    }
-
-    public ThreadCategory log() {
-        return ThreadCategory.getInstance(getClass());
     }
 
 }

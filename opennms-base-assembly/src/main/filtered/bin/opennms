@@ -43,7 +43,7 @@ OPENNMS_HOME="${install.dir}"
 OPENNMS_PIDFILE="${install.pid.file}"
 
 # Log directory for OpenNMS
-LOG_DIRECTORY="${install.daemonlogs.dir}"
+LOG_DIRECTORY="${install.logs.dir}"
 
 # Directory where init functions are likely stored (we also check a few other
 # directories, just in case)
@@ -64,11 +64,8 @@ STATUS_WAIT=5
 # Value of the -Xmx<size>m option passed to Java.
 JAVA_HEAP_SIZE=512
 
-# Additional options that should be passed to Java when starting OpenNMS.
-ADDITIONAL_MANAGER_OPTIONS=""
-
-# Classpath additions.  These go on the front of our classpath.
-ADDITIONAL_CLASSPATH=""
+# Additional options passed to Java when starting OpenNMS.
+# ADDITIONAL_MANAGER_OPTIONS=""
 
 # Use incremental garbage collection.
 USE_INCGC=""
@@ -114,7 +111,7 @@ fi
 show_help () {
 	cat <<END
 
-Usage: $0 [-n] [-t] [-p] [-o] [-c timeout] [-v] [-Q] <command> [<service>]
+Usage: $0 [-f] [-n] [-t] [-p] [-o] [-c timeout] [-v] [-Q] <command> [<service>]
  
   command options: start|stop|restart|status|check|pause|resume|kill
 
@@ -123,6 +120,7 @@ Usage: $0 [-n] [-t] [-p] [-o] [-c timeout] [-v] [-Q] <command> [<service>]
 
   The following options are available:
 
+      -f  Foreground mode. Don't fork & execute.
       -n  "No execute" mode.  Don't call Java to do anything.
       -t  Test mode.  Enable JPDA on port 8001.
       -p  Enable TIJMP profiling
@@ -259,19 +257,12 @@ END
 	return 0
 }
 
-checkLogDirs(){
+checkLogDir(){
 	local LOGDIR=$OPENNMS_HOME/logs
 
-	for dir in controller daemon webapp; do
-		if [ -f "$LOGDIR/$dir" ]; then
-			printf -- "ERROR: not sure what to do... $LOGDIR/$dir is a file, but it should be a directory or symlink.  Expect problems.  :)"
-			return 152
-		else
-			if [ ! -e "$LOGDIR/$dir" ]; then
-				mkdir -p "$LOGDIR/$dir"
-			fi
-		fi
-	done
+	if [ ! -e "$LOGDIR" ]; then
+		mkdir -p "$LOGDIR"
+	fi
 
 	return 0
 }
@@ -279,7 +270,7 @@ checkLogDirs(){
 doStart(){
 	checkXmlFiles || return $?
 	checkRpmFiles || return $?
-	checkLogDirs  || return $?
+	checkLogDir   || return $?
 
 	doStatus
 	status=$?
@@ -354,17 +345,24 @@ doStart(){
 	fi
 
 	if [ -z "$NOEXECUTE" ]; then
-		echo "------------------------------------------------------------------------------" >> "$REDIRECT"
-		date >> "$REDIRECT"
-		echo "begin ulimit settings:" >> "$REDIRECT"
-		ulimit -a >> "$REDIRECT"
-		echo "end ulimit settings" >> "$REDIRECT"
 		CMD="$JAVA_CMD -Djava.endorsed.dirs=$OPENNMS_HOME/lib/endorsed $APP_VM_PARMS -jar $BOOTSTRAP $APP_PARMS_CONTROLLER $APP_PARMS_BEFORE "$@" $APP_PARMS_AFTER"
-		echo "Executing command: $CMD" >> "$REDIRECT"
-		$CMD >>"$REDIRECT" 2>&1 &
-		OPENNMS_PID=$!
-		echo $OPENNMS_PID > "$OPENNMS_PIDFILE"
-		# disown # XXX specific to bash
+		if [ $BACKGROUND = 1 ]; then
+			echo "------------------------------------------------------------------------------" >> "$REDIRECT"
+			date >> "$REDIRECT"
+			echo "begin ulimit settings:" >> "$REDIRECT"
+			ulimit -a >> "$REDIRECT"
+			echo "end ulimit settings" >> "$REDIRECT"
+			echo "Executing command: $CMD" >> "$REDIRECT"
+			$CMD >>"$REDIRECT" 2>&1 &
+			OPENNMS_PID=$!
+			echo $OPENNMS_PID > "$OPENNMS_PIDFILE"
+		else
+			echo "running ulimit -a"
+			ulimit -a
+			echo "Executing command: $CMD"
+			$CMD
+			exit $?
+		fi
 	fi
 
 	if [ $START_TIMEOUT -eq 0 ]; then
@@ -540,17 +538,6 @@ cd "$OPENNMS_HOME" || { echo "could not \"cd $OPENNMS_HOME\"" >&2; exit 1; }
 # define needed for grep to find opennms easily
 JAVA_CMD="$OPENNMS_HOME/bin/runjava -r $RUNJAVA_OPTIONS --"
 
-#
-#if [ x"$ADDITIONAL_CLASSPATH" != x"" ]; then
-#	APP_CLASSPATH="$ADDITIONAL_CLASSPATH:$OPENNMS_HOME/etc"
-#else
-#	APP_CLASSPATH="$OPENNMS_HOME/etc"
-#fi
-#for jar in $OPENNMS_HOME/lib/*.jar; do
-#	APP_CLASSPATH="$APP_CLASSPATH:$jar"
-#done
-#
-
 BOOTSTRAP="$OPENNMS_HOME/lib/opennms_bootstrap.jar"
 
 #MANAGER_OPTIONS="-DOPENNMSLAUNCH"
@@ -565,6 +552,12 @@ MANAGER_OPTIONS="$MANAGER_OPTIONS -XX:+HeapDumpOnOutOfMemoryError"
 
 if [ -n "$USE_INCGC" -a "$USE_INCGC" = true ] ; then
 	MANAGER_OPTIONS="$MANAGER_OPTIONS -Xincgc"
+fi
+
+if echo "$ADDITIONAL_MANAGER_OPTIONS" | grep -- -DisThreadContextMapInheritable=true > /dev/null ; then
+    true # do nothing
+else
+    ADDITIONAL_MANAGER_OPTIONS="$ADDITIONAL_MANAGER_OPTIONS -DisThreadContextMapInheritable=true"
 fi
 
 if echo "$ADDITIONAL_MANAGER_OPTIONS" | grep MaxPermSize > /dev/null ; then
@@ -603,19 +596,23 @@ TPROFILE=0
 OPROFILE=0
 NOEXECUTE=""
 VERBOSE=0
+BACKGROUND=1
 
 NAME="opennms"
 
-while getopts c:ntvpoQ c; do
+while getopts c:fntvpoQ c; do
 	case $c in
 		c)
 			APP_PARMS_CONTROLLER="$APP_PARMS_CONTROLLER -t $OPTARG"
+			;;
+		f)
+			BACKGROUND=0
 			;;
 		n)
 			NOEXECUTE="foo"
 			;;
 		Q)
-				START_TIMEOUT=0
+			START_TIMEOUT=0
 			;;
 		t)
 			TEST=1

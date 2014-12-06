@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2005-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -51,9 +51,9 @@ import org.exolab.castor.xml.Marshaller;
 import org.exolab.castor.xml.ValidationException;
 import org.opennms.core.utils.WebSecurityUtils;
 import org.opennms.core.xml.CastorUtils;
-import org.opennms.netmgt.config.poller.BasicSchedule;
-import org.opennms.netmgt.config.poller.Outage;
-import org.opennms.netmgt.config.poller.Outages;
+import org.opennms.netmgt.config.poller.outages.BasicSchedule;
+import org.opennms.netmgt.config.poller.outages.Outage;
+import org.opennms.netmgt.config.poller.outages.Outages;
 
 /**
  * <p>ScheduleEditorServlet class.</p>
@@ -92,6 +92,7 @@ public class ScheduleEditorServlet extends HttpServlet {
         private Outages m_outages;
         private String m_fileName = null;
 
+        @Override
         public void loadSchedules() throws ServletException {
             if (m_fileName == null) {
                 throw new ServletException("Loading from outage factory not implemented yet!");
@@ -112,6 +113,7 @@ public class ScheduleEditorServlet extends HttpServlet {
             }
         }
 
+        @Override
         public void saveSchedules() throws ServletException {
             if (m_fileName == null) {
                 throw new ServletException("Saving to outage factory not implemented yet!");
@@ -132,6 +134,7 @@ public class ScheduleEditorServlet extends HttpServlet {
             }
         }
 
+        @Override
         public void deleteSchedule(int index) throws ServletException {
             List<Outage> outages = getOutages();
             outages.remove(index);
@@ -141,15 +144,18 @@ public class ScheduleEditorServlet extends HttpServlet {
             return m_outages.getOutageCollection();
         }
 
+        @Override
         public void addSchedule(BasicSchedule schedule) throws ServletException {
             Outage outage = (Outage)schedule;
             m_outages.addOutage(outage);
         }
 
+        @Override
         public void setSchedule(int index, BasicSchedule schedule) throws ServletException {
             m_outages.setOutage(index, (Outage)schedule);
         }
 
+        @Override
         public BasicSchedule createSchedule(String name, String type) {
             Outage outage = new Outage();
             outage.setName(name);
@@ -157,18 +163,22 @@ public class ScheduleEditorServlet extends HttpServlet {
             return outage;
         }
 
+        @Override
         public BasicSchedule getSchedule(int index) {
             return m_outages.getOutage(index);
         }
 
+        @Override
         public BasicSchedule[] getSchedule() {
             return m_outages.getOutage();
         }
 
+        @Override
         public String getFileName() {
             return m_fileName;
         }
 
+        @Override
         public void setFileName(String fileName) {
             m_fileName = fileName;
         }
@@ -180,6 +190,7 @@ public class ScheduleEditorServlet extends HttpServlet {
     }
     
     class NewScheduleOp implements ScheduleOp {
+        @Override
         public String doOp(HttpServletRequest request, HttpServletResponse response, ScheduleMapping map) throws ServletException {
             ScheduleManager schedMgr = getSchedMgr(request);
             
@@ -194,6 +205,7 @@ public class ScheduleEditorServlet extends HttpServlet {
     }
     
     class EditOp implements ScheduleOp {
+        @Override
         public String doOp(HttpServletRequest request, HttpServletResponse response, ScheduleMapping map) throws ServletException {
             ScheduleManager schedMgr = getSchedMgr(request);
             
@@ -207,6 +219,7 @@ public class ScheduleEditorServlet extends HttpServlet {
     }
     
     class DeleteOp implements ScheduleOp {
+        @Override
         public String doOp(HttpServletRequest request, HttpServletResponse response, ScheduleMapping map) throws ServletException {
             ScheduleManager schedMgr = getSchedMgr(request);
             
@@ -219,7 +232,8 @@ public class ScheduleEditorServlet extends HttpServlet {
         }
     }
     
-    class DisplayOp implements ScheduleOp {
+    static class DisplayOp implements ScheduleOp {
+        @Override
         public String doOp(HttpServletRequest request, HttpServletResponse response, ScheduleMapping map) throws ServletException {
             // FIXME: schedMgr isn't used
             //ScheduleManager schedMgr = getSchedMgr(request);
@@ -236,6 +250,7 @@ public class ScheduleEditorServlet extends HttpServlet {
         public SingleMapping(String view) {
             m_view = view;
         }
+        @Override
         public String get(String result) {
             return m_view;
         }
@@ -300,12 +315,14 @@ public class ScheduleEditorServlet extends HttpServlet {
     }
     
     /** {@inheritDoc} */
+    @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         process(request, response);
     }
     
     
     /** {@inheritDoc} */
+    @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         process(request, response);
     }

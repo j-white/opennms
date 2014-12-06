@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2009-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2009-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -59,6 +59,7 @@ public class OnmsWbemObjectImpl implements OnmsWbemObject {
     }
 
     /** {@inheritDoc} */
+    @Override
     public OnmsWbemObjectImpl wmiExecMethod(String methodName, List<?> params, List<?> namedValueSet) {
         return null; // TODO IMPLEMENT THIS METHOD
     }
@@ -68,6 +69,7 @@ public class OnmsWbemObjectImpl implements OnmsWbemObject {
      *
      * @return a {@link java.util.List} object.
      */
+    @Override
     public List<String> wmiInstances() {
         return null; // TODO IMPLEMENT THIS METHOD
     }
@@ -77,6 +79,7 @@ public class OnmsWbemObjectImpl implements OnmsWbemObject {
      *
      * @return a {@link java.lang.String} object.
      */
+    @Override
     public String wmiPut() {
         return ""; // TODO IMPLEMENT THIS METHOD
     }
@@ -87,6 +90,7 @@ public class OnmsWbemObjectImpl implements OnmsWbemObject {
      * @return a {@link org.opennms.protocols.wmi.wbem.OnmsWbemMethodSet} object.
      * @throws org.opennms.protocols.wmi.WmiException if any.
      */
+    @Override
     public OnmsWbemMethodSet getWmiMethods() throws WmiException {
         try {
             // Get the WbemMethodSet dispatcher.
@@ -105,6 +109,7 @@ public class OnmsWbemObjectImpl implements OnmsWbemObject {
      * @return a {@link org.opennms.protocols.wmi.wbem.OnmsWbemObjectPath} object.
      * @throws org.opennms.protocols.wmi.WmiException if any.
      */
+    @Override
     public OnmsWbemObjectPath getWmiPath() throws WmiException {
         try {
             // Get the WbemMethodSet dispatcher.
@@ -123,6 +128,7 @@ public class OnmsWbemObjectImpl implements OnmsWbemObject {
      * @return a {@link java.lang.String} object.
      * @throws org.opennms.protocols.wmi.WmiException if any.
      */
+    @Override
     public String getWmiObjectText() throws WmiException {
         try {
             return (wbemObjectDispatch.callMethodA("GetObjectText_", new Object[]{1}))[0].getObjectAsString2();
@@ -137,6 +143,7 @@ public class OnmsWbemObjectImpl implements OnmsWbemObject {
      * @return a {@link org.opennms.protocols.wmi.wbem.OnmsWbemPropertySet} object.
      * @throws org.opennms.protocols.wmi.WmiException if any.
      */
+    @Override
     public OnmsWbemPropertySet getWmiProperties() throws WmiException {
         try {
             // Get the WbemMethodSet dispatcher.

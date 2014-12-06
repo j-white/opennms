@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2004-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -39,29 +39,34 @@ import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
 
-import org.opennms.core.utils.LogUtils;
+import org.opennms.core.utils.InetAddressUtils;
 import org.opennms.core.utils.Querier;
 import org.opennms.core.utils.SingleResultQuerier;
-import org.opennms.netmgt.EventConstants;
+import org.opennms.netmgt.events.api.EventConstants;
+import org.opennms.netmgt.events.api.EventWriter;
+import org.opennms.netmgt.events.api.EventParameterUtils;
 import org.opennms.netmgt.mock.MockInterface;
 import org.opennms.netmgt.mock.MockNetwork;
 import org.opennms.netmgt.mock.MockNode;
+import org.opennms.netmgt.mock.MockPathOutage;
 import org.opennms.netmgt.mock.MockService;
 import org.opennms.netmgt.mock.MockVisitor;
 import org.opennms.netmgt.mock.MockVisitorAdapter;
 import org.opennms.netmgt.mock.Outage;
 import org.opennms.netmgt.model.OnmsSeverity;
-import org.opennms.netmgt.model.events.EventWriter;
-import org.opennms.netmgt.model.events.Parameter;
 import org.opennms.netmgt.xml.event.Event;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * This class provides additional utility methods on top of the basic {@link TemporaryDatabase}
+ * This class provides additional utility methods on top of the basic {@link TemporaryDatabasePostgreSQL}
  * class. For instance, it can be populated from a {@link MockNetwork}.
  * 
  * @author brozow
  */
-public class MockDatabase extends TemporaryDatabase implements EventWriter {
+public class MockDatabase extends TemporaryDatabasePostgreSQL implements EventWriter {
+    private static final Logger LOG = LoggerFactory.getLogger(MockDatabase.class);
+	
     public MockDatabase(String dbName) throws Exception {
         this(dbName, true);
     }
@@ -89,23 +94,31 @@ public class MockDatabase extends TemporaryDatabase implements EventWriter {
     public void populate(MockNetwork network) {
 
         MockVisitor dbCreater = new MockVisitorAdapter() {
+            @Override
             public void visitNode(MockNode node) {
                 writeNode(node);
             }
             
+            @Override
             public void visitInterface(MockInterface iface) {
                 writeInterface(iface);
             }
             
+            @Override
             public void visitService(MockService svc) {
                 writeService(svc);
+            }
+            
+            @Override
+            public void visitPathOutage(MockPathOutage out) {
+            	writePathOutage(out);
             }
         };
         network.visit(dbCreater);
         
         
         
-        getJdbcTemplate().queryForInt("SELECT setval('nodeNxtId', max(nodeid)) FROM node");
+        getJdbcTemplate().queryForObject("SELECT setval('nodeNxtId', max(nodeid)) FROM node", Integer.class);
         
     }
     
@@ -122,6 +135,7 @@ public class MockDatabase extends TemporaryDatabase implements EventWriter {
     }
 
     public void writeSnmpInterface(MockInterface iface) {
+        LOG.info("Inserting into snmpInterface {} {} {}", Integer.valueOf(iface.getNodeId()), iface.getIfAlias(), iface.getIfIndex() );
         Object[] values = { Integer.valueOf(iface.getNodeId()), iface.getIfAlias(), iface.getIfIndex() };
         update("insert into snmpInterface (nodeID, snmpifAlias, snmpIfIndex) values (?, ?, ?);", values);
     }
@@ -133,13 +147,19 @@ public class MockDatabase extends TemporaryDatabase implements EventWriter {
             svc.setId(getNextServiceId());
             Object[] svcValues = { svc.getId(), svcName };
             update("insert into service (serviceID, serviceName) values (?, ?);", svcValues);
-            LogUtils.infof(this, "Inserting service \"%s\" into database with ID %d", svcName, svc.getId());
+            LOG.info("Inserting service \"{}\" into database with ID {}", svcName, svc.getId());
         } else {
             svc.setId(serviceId);
         }
         String status = svc.getMgmtStatus().toDbString();
         Object[] values = { Integer.valueOf(svc.getNodeId()), str(svc.getAddress()), Integer.valueOf(svc.getId()), status };
         update("insert into ifServices (nodeID, ipAddr, serviceID, status) values (?, ?, ?, ?);", values);
+    }
+
+    public void writePathOutage(MockPathOutage out) {
+    	LOG.info("Inserting into pathoutage {} {} {}" ,out.getNodeId(), InetAddressUtils.str(out.getIpAddress()), out.getServiceName());
+    	Object[] values = { Integer.valueOf(out.getNodeId()), InetAddressUtils.str(out.getIpAddress()), out.getServiceName() };
+    	update("insert into pathoutage (nodeid, criticalpathip, criticalpathservicename) values (?, ?, ?);", values);
     }
 
     public String getNextOutageIdStatement() {
@@ -196,7 +216,7 @@ public class MockDatabase extends TemporaryDatabase implements EventWriter {
     }
 
     public void createOutage(MockService svc, Event svcLostEvent) {
-        createOutage(svc, svcLostEvent.getDbid(), convertEventTimeToTimeStamp(svcLostEvent.getTime()));
+        createOutage(svc, svcLostEvent.getDbid(), new Timestamp(svcLostEvent.getTime().getTime()));
     }
 
     public void createOutage(MockService svc, int eventId, Timestamp time) {
@@ -214,7 +234,7 @@ public class MockDatabase extends TemporaryDatabase implements EventWriter {
     }
     
     public void resolveOutage(MockService svc, Event svcRegainEvent) {
-        resolveOutage(svc, svcRegainEvent.getDbid(), convertEventTimeToTimeStamp(svcRegainEvent.getTime()));
+        resolveOutage(svc, svcRegainEvent.getDbid(), new Timestamp(svcRegainEvent.getTime().getTime()));
     }        
 
     public void resolveOutage(MockService svc, int eventId, Timestamp timestamp) {
@@ -228,18 +248,6 @@ public class MockDatabase extends TemporaryDatabase implements EventWriter {
                };
         
         update("UPDATE outages set svcRegainedEventID=?, ifRegainedService=? where (nodeid = ? AND ipAddr = ? AND serviceID = ? and (ifRegainedService IS NULL));", values);
-    }
-    
-
-    
-    public Timestamp convertEventTimeToTimeStamp(String time) {
-        try {
-            Date date = EventConstants.parseToDate(time);
-            Timestamp eventTime = new Timestamp(date.getTime());
-            return eventTime;
-        } catch (ParseException e) {
-            throw new RuntimeException("Invalid date format "+time, e);
-        }
     }
 
     /**
@@ -256,8 +264,8 @@ public class MockDatabase extends TemporaryDatabase implements EventWriter {
                 eventId,
                 e.getSource(),
                 e.getUei(),
-                convertEventTimeToTimeStamp(e.getCreationTime()),
-                convertEventTimeToTimeStamp(e.getTime()),
+                new Timestamp(e.getCreationTime().getTime()),
+                new Timestamp(e.getTime().getTime()),
                 Integer.valueOf(OnmsSeverity.get(e.getSeverity()).getId()),
                 (e.hasNodeid() ? new Long(e.getNodeid()) : null),
                 e.getInterface(),
@@ -267,7 +275,7 @@ public class MockDatabase extends TemporaryDatabase implements EventWriter {
                 "Y",
                 e.getTticket() == null ? "" : e.getTticket().getContent(),
                 Integer.valueOf(e.getTticket() == null ? "0" : e.getTticket().getState()),
-                Parameter.format(e),
+                EventParameterUtils.format(e),
                 e.getLogmsg() == null? null : e.getLogmsg().getContent()
         };
         e.setDbid(eventId.intValue());
@@ -347,6 +355,7 @@ public class MockDatabase extends TemporaryDatabase implements EventWriter {
         String critSql = (criteria == null ? "" : " where "+criteria);
         final List<Outage> outages = new LinkedList<Outage>();
         Querier loadExisting = new Querier(this, "select * from outages "+critSql) {
+            @Override
             public void processRow(ResultSet rs) throws SQLException {
                 Outage outage = new Outage(rs.getInt("nodeId"), rs.getString("ipAddr"), rs.getInt("serviceId"));
                 outage.setLostEvent(rs.getInt("svcLostEventID"), rs.getTimestamp("ifLostService"));
@@ -361,6 +370,7 @@ public class MockDatabase extends TemporaryDatabase implements EventWriter {
         loadExisting.execute(values);
         
         Querier setServiceNames = new Querier(this, "select * from service") {
+            @Override
             public void processRow(ResultSet rs) throws SQLException {
                 int serviceId = rs.getInt("serviceId");
                 String serviceName = rs.getString("serviceName");
@@ -438,6 +448,7 @@ public class MockDatabase extends TemporaryDatabase implements EventWriter {
     public Collection<Integer> findNoticesForEvent(Event event) {
         final List<Integer> notifyIds = new LinkedList<Integer>();
         Querier loadExisting = new Querier(this, "select notifyId from notifications where eventID = ?") {
+            @Override
             public void processRow(ResultSet rs) throws SQLException {
                 notifyIds.add(rs.getInt(1));
             }

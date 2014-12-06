@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2010-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2010-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -145,6 +145,7 @@ public class GWTServiceOutage implements Serializable, IsSerializable, Comparabl
     }
 
     /** {@inheritDoc} */
+        @Override
     public boolean equals(Object o) {
         if (!(o instanceof GWTServiceOutage))
             return false;
@@ -168,6 +169,7 @@ public class GWTServiceOutage implements Serializable, IsSerializable, Comparabl
      *
      * @return a int.
      */
+        @Override
     public int hashCode() {
         return new HashCodeBuilder().append(this.getMonitor()).append(this.getService()).append(this.getFrom()).append(this.getTo()).toHashcode();
     }
@@ -177,6 +179,7 @@ public class GWTServiceOutage implements Serializable, IsSerializable, Comparabl
      *
      * @return a {@link java.lang.String} object.
      */
+        @Override
     public String toString() {
         return "GWTServiceOutage[monitor=" + m_monitor + ",service=" + m_service + ",from=" + m_from + ",to=" + m_to + "]";
     }
@@ -187,6 +190,7 @@ public class GWTServiceOutage implements Serializable, IsSerializable, Comparabl
      * @param that a {@link org.opennms.features.poller.remote.gwt.client.GWTServiceOutage} object.
      * @return a int.
      */
+        @Override
     public int compareTo(final GWTServiceOutage that) {
         if (that == null) return -1;
         return new CompareToBuilder()

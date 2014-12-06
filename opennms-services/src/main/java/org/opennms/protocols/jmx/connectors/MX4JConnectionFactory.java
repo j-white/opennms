@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2005-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -38,9 +38,9 @@ import javax.management.remote.JMXConnectorFactory;
 import javax.management.remote.JMXServiceURL;
 
 import org.opennms.core.utils.InetAddressUtils;
-import org.opennms.core.utils.LogUtils;
 import org.opennms.core.utils.ParameterMap;
-import org.opennms.core.utils.ThreadCategory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 /*
@@ -56,9 +56,10 @@ import org.opennms.core.utils.ThreadCategory;
  * @author ranger
  * @version $Id: $
  */
-public class MX4JConnectionFactory {
+public abstract class MX4JConnectionFactory {
+	
+	private static final Logger LOG = LoggerFactory.getLogger(MX4JConnectionFactory.class);
   
-  static ThreadCategory log = ThreadCategory.getInstance(MX4JConnectionFactory.class);
 
   /**
    * <p>getMBeanServerConnection</p>
@@ -77,7 +78,7 @@ public class MX4JConnectionFactory {
       String protocol = ParameterMap.getKeyedString( propertiesMap, "protocol", "rmi");
       String urlPath =  ParameterMap.getKeyedString( propertiesMap, "urlPath",  "/jmxrmi");
       
-      log.debug("JMX: " + factory + " - service:" + protocol + "//" + InetAddressUtils.str(address) + ":" + port + urlPath);
+      LOG.debug("JMX: {} - service:{}//{}:{}{}", factory, protocol, InetAddressUtils.str(address), port, urlPath);
 
       if (factory == null || factory.equals("STANDARD")) {
           try {
@@ -90,7 +91,7 @@ public class MX4JConnectionFactory {
               
               connectionWrapper = new MX4JConnectionWrapper(connector, connection);
           } catch(Throwable e) {
-              LogUtils.errorf(MX4JConnectionFactory.class, e, "Unable to get MBeanServerConnection: %s", url);
+        	  LOG.error("Unable to get MBeanServerConnection: {}", url, e);
           }
       }
       else if (factory.equals("PASSWORD-CLEAR")) {
@@ -123,7 +124,7 @@ public class MX4JConnectionFactory {
               catch (SecurityException x)
               {
                   // Uh-oh ! Bad credentials 
-                  log.error("Security exception: bad credentials");
+            	  LOG.error("Security exception: bad credentials");
                   throw x;
               }
 
@@ -132,7 +133,7 @@ public class MX4JConnectionFactory {
               connectionWrapper = new MX4JConnectionWrapper(connector, connection);
               
           } catch(Throwable e) {
-              log.error("Unable to get MBeanServerConnection: " + url, e);
+		  LOG.error("Unable to get MBeanServerConnection: {}", url, e);
           }
       }
       /*

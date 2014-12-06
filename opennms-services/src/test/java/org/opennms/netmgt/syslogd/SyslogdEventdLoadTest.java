@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2011-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2010-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -47,7 +47,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.io.IOUtils;
-import org.apache.log4j.Level;
 import org.exolab.castor.xml.MarshalException;
 import org.exolab.castor.xml.ValidationException;
 import org.junit.After;
@@ -55,24 +54,25 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.opennms.core.concurrent.WaterfallExecutor;
+import org.opennms.core.spring.BeanUtils;
 import org.opennms.core.test.ConfigurationTestUtils;
 import org.opennms.core.test.MockLogAppender;
 import org.opennms.core.test.OpenNMSJUnit4ClassRunner;
 import org.opennms.core.test.db.annotations.JUnitTemporaryDatabase;
-import org.opennms.core.utils.BeanUtils;
 import org.opennms.core.utils.InetAddressUtils;
-import org.opennms.core.utils.LogUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.opennms.netmgt.config.SyslogdConfigFactory;
 import org.opennms.netmgt.config.syslogd.HideMessage;
 import org.opennms.netmgt.config.syslogd.Match;
 import org.opennms.netmgt.config.syslogd.UeiList;
 import org.opennms.netmgt.config.syslogd.UeiMatch;
 import org.opennms.netmgt.eventd.Eventd;
+import org.opennms.netmgt.events.api.EventIpcManager;
+import org.opennms.netmgt.events.api.EventListener;
+import org.opennms.netmgt.events.api.EventProxy;
+import org.opennms.netmgt.events.api.support.TcpEventProxy;
 import org.opennms.netmgt.model.events.EventBuilder;
-import org.opennms.netmgt.model.events.EventIpcManager;
-import org.opennms.netmgt.model.events.EventListener;
-import org.opennms.netmgt.model.events.EventProxy;
-import org.opennms.netmgt.utils.TcpEventProxy;
 import org.opennms.netmgt.xml.event.Event;
 import org.opennms.netmgt.xml.event.Events;
 import org.opennms.netmgt.xml.event.Log;
@@ -85,9 +85,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 @RunWith(OpenNMSJUnit4ClassRunner.class)
 @ContextConfiguration(locations={
+		"classpath:/META-INF/opennms/applicationContext-commonConfigs.xml",
         "classpath:/META-INF/opennms/applicationContext-soa.xml",
         "classpath:/META-INF/opennms/applicationContext-dao.xml",
-        "classpath:/META-INF/opennms/applicationContext-commonConfigs.xml",
         "classpath:/META-INF/opennms/applicationContext-daemon.xml",
         "classpath:/META-INF/opennms/applicationContext-setupIpLike-enabled.xml",
         "classpath:/META-INF/opennms/applicationContext-databasePopulator.xml",
@@ -98,6 +98,7 @@ import org.springframework.transaction.annotation.Transactional;
 @JUnitConfigurationEnvironment
 @JUnitTemporaryDatabase
 public class SyslogdEventdLoadTest implements InitializingBean {
+    private static final Logger LOG = LoggerFactory.getLogger(SyslogdEventdLoadTest.class);
 
     private EventCounter m_eventCounter;
     private static final String MATCH_PATTERN = "^.*\\s(19|20)\\d\\d([-/.])(0[1-9]|1[012])\\2(0[1-9]|[12][0-9]|3[01])(\\s+)(\\S+)(\\s)(\\S.+)";
@@ -159,7 +160,7 @@ public class SyslogdEventdLoadTest implements InitializingBean {
         if (m_syslogd != null) {
             m_syslogd.stop();
         }
-        MockLogAppender.assertNotGreaterOrEqual(Level.FATAL);
+        MockLogAppender.assertNoErrorOrGreater();
     }
 
     private void loadSyslogConfiguration(final String configuration) throws IOException, MarshalException, ValidationException {
@@ -183,7 +184,7 @@ public class SyslogdEventdLoadTest implements InitializingBean {
             m_syslogd.start();
         } catch (UndeclaredThrowableException ute) {
             if (ute.getCause() instanceof BindException) {
-                LogUtils.warnf(this, ute, "received a bind exception");
+                LOG.warn("received a bind exception", ute);
                 // continue, this was expected
             } else {
                 throw ute;
@@ -300,7 +301,7 @@ public class SyslogdEventdLoadTest implements InitializingBean {
                 .setLogDest("logndisplay")
                 .setLogMessage("A load test has been received as a Syslog Message")
                 .getEvent();
-//            LogUtils.debugf(this, "event = %s", thisEvent);
+//            LOG.debug("event = {}", thisEvent);
             events.addEvent(thisEvent);
         }
 
@@ -342,6 +343,7 @@ public class SyslogdEventdLoadTest implements InitializingBean {
         private AtomicInteger m_eventCount = new AtomicInteger(0);
         private int m_expectedCount = 0;
 
+        @Override
         public String getName() {
             return "eventCounter";
         }
@@ -351,13 +353,13 @@ public class SyslogdEventdLoadTest implements InitializingBean {
             final long start = System.currentTimeMillis();
             while (this.getCount() < m_expectedCount) {
                 if (System.currentTimeMillis() - start > time) {
-                    LogUtils.warnf(this, "waitForFinish timeout (%s) reached", time);
+                    LOG.warn("waitForFinish timeout ({}) reached", time);
                     break;
                 }
                 try {
                     Thread.sleep(50);
                 } catch (final InterruptedException e) {
-                    LogUtils.warnf(this, e, "thread was interrupted while sleeping");
+                    LOG.warn("thread was interrupted while sleeping", e);
                     Thread.currentThread().interrupt();
                 }
             }
@@ -375,6 +377,7 @@ public class SyslogdEventdLoadTest implements InitializingBean {
             m_expectedCount++;
         }
 
+        @Override
         public void onEvent(final Event e) {
             final int current = m_eventCount.incrementAndGet();
             if (current % 100 == 0) {

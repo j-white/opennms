@@ -2,22 +2,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2012-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -28,17 +28,17 @@
  *******************************************************************************/
 
 --%>
+
 <%@page language="java"
 	contentType="text/html"
 	session="true"
 	import="
 		java.io.*,
-		java.util.*, java.util.Map.Entry,
-		java.net.InetAddress, java.net.UnknownHostException,
+		java.util.*,
 		org.opennms.netmgt.config.*,
-		org.opennms.netmgt.config.notifications.*,
 		org.opennms.core.utils.BundleLists,
 		org.opennms.core.utils.ConfigFileConstants,
+		org.opennms.core.utils.InetAddressUtils,
 		org.opennms.netmgt.xml.eventconf.Event,
 		org.springframework.core.io.FileSystemResource
 	"
@@ -57,15 +57,7 @@
 	}
 %>
 <%
-    HttpSession user = request.getSession(true);
-
-    String hostName = "localhost";
-    try {
-	java.net.InetAddress localMachine = java.net.InetAddress.getLocalHost();
-        hostName = localMachine.getHostName();
-    } catch(java.net.UnknownHostException uhe) {
-	//handle exception
-    }
+    String hostName = InetAddressUtils.getLocalHostName();
 %>
 <jsp:include page="/includes/header.jsp" flush="false" >
   <jsp:param name="title" value="Send Event" />
@@ -197,7 +189,7 @@
 <form method="post" name="sendevent"
       id="form.sendevent"
       action="admin/postevent.jsp" >
-      <table width="50%" cellspacing="2" cellpadding="2" border="0">
+      <table width="50%">
         <tr>
           <td valign="top" align="left">
             <h4>Events</h4>
@@ -297,16 +289,13 @@
     public String buildEventSelect()
       throws IOException, FileNotFoundException
     {
-        List events = m_eventConfDao.getEventsByLabel();
+        List<Event> events = m_eventConfDao.getEventsByLabel();
         StringBuffer buffer = new StringBuffer();
 
         List<String> excludeList = getExcludeList();
 	TreeMap<String, String> sortedMap = new TreeMap<String, String>();
 
-        Iterator i = events.iterator();
-
-        while(i.hasNext()) {
-            org.opennms.netmgt.xml.eventconf.Event e = (org.opennms.netmgt.xml.eventconf.Event)i.next();
+        for (Event e : events) {
 
             String uei = e.getUei();
             //System.out.println(uei);

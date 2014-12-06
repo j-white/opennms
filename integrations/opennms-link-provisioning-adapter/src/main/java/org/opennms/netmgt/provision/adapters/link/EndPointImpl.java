@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2009-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2009-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -34,7 +34,8 @@
  */
 package org.opennms.netmgt.provision.adapters.link;
 
-import static org.opennms.core.utils.LogUtils.debugf;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.net.InetAddress;
 
@@ -44,6 +45,7 @@ import org.opennms.netmgt.snmp.SnmpObjId;
 import org.opennms.netmgt.snmp.SnmpUtils;
 import org.opennms.netmgt.snmp.SnmpValue;
 public class EndPointImpl implements EndPoint {
+    private static final Logger LOG = LoggerFactory.getLogger(EndPointImpl.class);
     private SnmpAgentConfig m_agentConfig;
     private InetAddress m_address;
     private String m_sysOid;
@@ -66,6 +68,7 @@ public class EndPointImpl implements EndPoint {
     }
 
     /** {@inheritDoc} */
+    @Override
     public SnmpValue get(String oid) {
         SnmpObjId objId = SnmpObjId.get(oid);
         return SnmpUtils.get(m_agentConfig, objId);
@@ -76,6 +79,7 @@ public class EndPointImpl implements EndPoint {
      *
      * @return a {@link java.net.InetAddress} object.
      */
+    @Override
     public InetAddress getAddress() {
         return m_address;
     }
@@ -94,6 +98,7 @@ public class EndPointImpl implements EndPoint {
      *
      * @return a {@link java.lang.String} object.
      */
+    @Override
     public String getSysOid() {
         return m_sysOid;
     }
@@ -112,6 +117,7 @@ public class EndPointImpl implements EndPoint {
      *
      * @return a boolean.
      */
+    @Override
     public boolean ping() {
         try {
             Number result = PingerFactory.getInstance().ping(getAddress());
@@ -119,7 +125,7 @@ public class EndPointImpl implements EndPoint {
                 return true;
             }
         } catch (Throwable e) {
-            debugf(this, e, "Ping failed for address %s", getAddress());
+            LOG.debug("Ping failed for address {}", getAddress(), e);
         }
         return false;
     }

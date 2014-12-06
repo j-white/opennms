@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2011-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2002-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -33,8 +33,10 @@ import static org.opennms.core.utils.InetAddressUtils.getInetAddress;
 import java.net.InetAddress;
 
 import org.opennms.core.utils.InetAddressUtils;
-import org.opennms.core.utils.LogUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.opennms.netmgt.provision.service.IPAddressTableTracker;
+import org.opennms.netmgt.snmp.NamedSnmpVar;
 import org.opennms.netmgt.snmp.SnmpObjId;
 import org.opennms.netmgt.snmp.SnmpResult;
 import org.opennms.netmgt.snmp.SnmpValue;
@@ -60,11 +62,12 @@ import org.opennms.netmgt.snmp.SnmpValue;
  * @see <A HREF="http://www.ietf.org/rfc/rfc1213.txt">RFC1213 </A>
  */
 public final class IpAddressTableEntry extends SnmpTableEntry {
+    private static final Logger LOG = LoggerFactory.getLogger(IpAddressTableEntry.class);
     // Lookup strings for specific table entries
 
-    public final static String IP_ADDRESS_IF_INDEX = "ipAddressIfIndex";
-    public final static String IP_ADDR_ENT_NETMASK = "ipAddressPrefix";
-    public final static String IP_ADDR_TYPE        = "ipAddressType";
+    public static final String IP_ADDRESS_IF_INDEX = "ipAddressIfIndex";
+    public static final String IP_ADDR_ENT_NETMASK = "ipAddressPrefix";
+    public static final String IP_ADDR_TYPE        = "ipAddressType";
 
     /**
      * <P>
@@ -125,11 +128,11 @@ public final class IpAddressTableEntry extends SnmpTableEntry {
      */
     public InetAddress getIpAddressNetMask() {
     	final SnmpValue value = getValue(IP_ADDR_ENT_NETMASK);
-    	// LogUtils.debugf(this, "getIpAddressNetMask: value = %s", value.toDisplayString());
+    	// LOG.debug("getIpAddressNetMask: value = {}", value.toDisplayString());
     	final SnmpObjId netmaskRef = value.toSnmpObjId().getInstance(IPAddressTableTracker.IP_ADDRESS_PREFIX_ORIGIN_INDEX);
 
     	if (netmaskRef == null) {
-    	    LogUtils.warnf(this, "Unable to get netmask reference from instance.");
+    	    LOG.warn("Unable to get netmask reference from instance.");
     	    return null;
     	}
 
@@ -144,9 +147,9 @@ public final class IpAddressTableEntry extends SnmpTableEntry {
     	} else if (addressType == IPAddressTableTracker.TYPE_IPV6) {
     	    return InetAddressUtils.convertCidrToInetAddressV6(mask);
     	} else if (addressType == IPAddressTableTracker.TYPE_IPV6Z) {
-    	    LogUtils.debugf(this, "Got an IPv6z address, returning %s", address);
+    	    LOG.debug("Got an IPv6z address, returning {}", address);
     	} else {
-    	    LogUtils.warnf(this, "Unsure how to handle IP address type (%d)", addressType);
+    	    LOG.warn("Unsure how to handle IP address type ({})", addressType);
     	}
         return address;
     }
@@ -154,13 +157,14 @@ public final class IpAddressTableEntry extends SnmpTableEntry {
     /**
      * This is a hack, we get the IP address from the instance information when storing one of the columns.  :P
      */
+    @Override
     public void storeResult(final SnmpResult result) {
     	final int[] instanceIds = result.getInstance().getIds();
     	final int addressType = instanceIds[1];
 		if (addressType == IPAddressTableTracker.TYPE_IPV4 || addressType == IPAddressTableTracker.TYPE_IPV6 || addressType == IPAddressTableTracker.TYPE_IPV6Z) {
 			m_inetAddress = InetAddressUtils.getInetAddress(instanceIds, 2, addressType);
 		} else {
-			LogUtils.warnf(this, "Unable to determine IP address type (%d)", addressType);
+			LOG.warn("Unable to determine IP address type ({})", addressType);
 		}
 
     	super.storeResult(result);

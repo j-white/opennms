@@ -2,22 +2,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2002-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -33,6 +33,7 @@
 	contentType="text/html"
 	session="true"
 	import="java.util.*,
+	    org.opennms.core.utils.InetAddressUtils,
 		org.opennms.web.admin.notification.noticeWizard.*,
 		org.opennms.web.api.Util,
         org.opennms.netmgt.filter.FilterDaoFactory,
@@ -43,7 +44,7 @@
 
 <%
    String newRule = request.getParameter("newRule");
-   String criticalIp = request.getParameter("criticalIp");
+   String criticalIp = InetAddressUtils.normalize(request.getParameter("criticalIp"));
    if (criticalIp == null) { criticalIp = ""; }
    String criticalSvc = request.getParameter("criticalSvc");
    String showNodes = request.getParameter("showNodes");
@@ -101,7 +102,7 @@
         <input type="hidden" name="criticalSvc" value="<%=criticalSvc%>"/>
         <input type="hidden" name="sourcePage" value="<%=NotificationWizardServlet.SOURCE_PAGE_VALIDATE_PATH_OUTAGE%>"/>
         <% if (showNodes != null && showNodes.equals("on")) { %>
-          <table width="50%" cellspacing="2" cellpadding="2" border="1">
+          <table width="50%" border="1">
             <tr bgcolor="#999999">
               <td>
                 <b>Node ID</b>
@@ -131,11 +132,8 @@
       throws FilterParseException
   {
           StringBuffer buffer = new StringBuffer();
-          SortedMap nodes = FilterDaoFactory.getInstance().getNodeMap(rule);
-          Iterator i = nodes.keySet().iterator();
-          while(i.hasNext())
-          {
-              Integer key = (Integer)i.next();
+          SortedMap<Integer,String> nodes = FilterDaoFactory.getInstance().getNodeMap(rule);
+          for (Integer key : nodes.keySet()) {
               buffer.append("<tr><td width=\"50%\" valign=\"top\">").append(key).append("</td>");
               buffer.append("<td width=\"50%\">");
               buffer.append(nodes.get(key));

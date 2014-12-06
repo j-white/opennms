@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2007-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2007-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -45,24 +45,27 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.opennms.core.utils.InetAddressUtils;
-import org.opennms.core.utils.IntSet;
-import org.opennms.core.utils.ThreadCategory;
+import org.opennms.netmgt.collection.api.StorageStrategy;
 import org.opennms.netmgt.config.CollectdConfigFactory;
 import org.opennms.netmgt.config.DataCollectionConfigDao;
-import org.opennms.netmgt.config.StorageStrategy;
 import org.opennms.netmgt.config.datacollection.ResourceType;
-import org.opennms.netmgt.dao.LocationMonitorDao;
-import org.opennms.netmgt.dao.NodeDao;
-import org.opennms.netmgt.dao.ResourceDao;
+import org.opennms.netmgt.dao.api.LocationMonitorDao;
+import org.opennms.netmgt.dao.api.NodeDao;
+import org.opennms.netmgt.dao.api.ResourceDao;
 import org.opennms.netmgt.model.OnmsIpInterface;
 import org.opennms.netmgt.model.OnmsLocationMonitor;
 import org.opennms.netmgt.model.OnmsNode;
 import org.opennms.netmgt.model.OnmsResource;
 import org.opennms.netmgt.model.OnmsResourceType;
+import org.opennms.netmgt.model.ResourceTypeUtils;
+import org.opennms.netmgt.rrd.RrdFileConstants;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.orm.ObjectRetrievalFailureException;
 import org.springframework.util.Assert;
@@ -75,20 +78,11 @@ import org.springframework.util.Assert;
  * @author <a href="mailto:dj@opennms.org">DJ Gregor</a>
  */
 public class DefaultResourceDao implements ResourceDao, InitializingBean {
-    /**
-     * File name to look for in a resource directory for string attributes.
-     */
-    public static final String STRINGS_PROPERTIES_FILE_NAME = "strings.properties";
+    
+    private static final Logger LOG = LoggerFactory.getLogger(DefaultResourceDao.class);
 
     /** Constant <code>INTERFACE_GRAPH_TYPE="interface"</code> */
     public static final String INTERFACE_GRAPH_TYPE = "interface";
-
-    /** Constant <code>RESPONSE_DIRECTORY="response"</code> */
-    public static final String RESPONSE_DIRECTORY = "response";
-    /** Constant <code>SNMP_DIRECTORY="snmp"</code> */
-    public static final String SNMP_DIRECTORY = "snmp";
-    
-    public static final String FOREIGN_SOURCE_DIRECTORY = "fs";
 
     private NodeDao m_nodeDao;
     private LocationMonitorDao m_locationMonitorDao;
@@ -158,7 +152,7 @@ public class DefaultResourceDao implements ResourceDao, InitializingBean {
     /**
      * <p>getNodeDao</p>
      *
-     * @return a {@link org.opennms.netmgt.dao.NodeDao} object.
+     * @return a {@link org.opennms.netmgt.dao.api.NodeDao} object.
      */
     public NodeDao getNodeDao() {
         return m_nodeDao;
@@ -167,7 +161,7 @@ public class DefaultResourceDao implements ResourceDao, InitializingBean {
     /**
      * <p>setNodeDao</p>
      *
-     * @param nodeDao a {@link org.opennms.netmgt.dao.NodeDao} object.
+     * @param nodeDao a {@link org.opennms.netmgt.dao.api.NodeDao} object.
      */
     public void setNodeDao(NodeDao nodeDao) {
         m_nodeDao = nodeDao;
@@ -194,7 +188,7 @@ public class DefaultResourceDao implements ResourceDao, InitializingBean {
     /**
      * <p>getLocationMonitorDao</p>
      *
-     * @return a {@link org.opennms.netmgt.dao.LocationMonitorDao} object.
+     * @return a {@link org.opennms.netmgt.dao.api.LocationMonitorDao} object.
      */
     public LocationMonitorDao getLocationMonitorDao() {
         return m_locationMonitorDao;
@@ -203,7 +197,7 @@ public class DefaultResourceDao implements ResourceDao, InitializingBean {
     /**
      * <p>setLocationMonitorDao</p>
      *
-     * @param locationMonitorDao a {@link org.opennms.netmgt.dao.LocationMonitorDao} object.
+     * @param locationMonitorDao a {@link org.opennms.netmgt.dao.api.LocationMonitorDao} object.
      */
     public void setLocationMonitorDao(LocationMonitorDao locationMonitorDao) {
         m_locationMonitorDao = locationMonitorDao;
@@ -326,9 +320,10 @@ public class DefaultResourceDao implements ResourceDao, InitializingBean {
     public Collection<OnmsResourceType> getResourceTypes() {
         if (isDataCollectionConfigChanged()) {
             try {
+                LOG.debug("The data collection configuration has been changed, reloading resource types.");
                 initResourceTypes();
             } catch (IOException e) {
-                log().error("Can't reload resource types.", e);
+                LOG.error("Can't reload resource types.", e);
             }
         }
         return m_resourceTypes.values();
@@ -368,7 +363,7 @@ public class DefaultResourceDao implements ResourceDao, InitializingBean {
                     resource = getChildResource(resource, resourceTypeName, resourceName);
                 }
             } catch (Throwable e) {
-                log().warn("Could not get resource for resource ID \"" + id + "\"", e);
+                LOG.warn("Could not get resource for resource ID \"{}\"", id, e);
                 return null;
             }
 
@@ -378,9 +373,7 @@ public class DefaultResourceDao implements ResourceDao, InitializingBean {
         m.appendTail(sb);
 
         if (sb.length() > 0) {
-            log().warn("resource ID '" + id + "' does not match pattern '"
-                                               + p.toString() + "' at '"
-                                               + sb + "'");
+            LOG.warn("resource ID '{}' does not match pattern '{}' at '{}'", id, p.toString(), sb);
             return null;
         } else {
             return resource;
@@ -460,7 +453,7 @@ public class DefaultResourceDao implements ResourceDao, InitializingBean {
         for (OnmsResource r : parentResource.getChildResources()) {
             if (resourceType.equals(r.getResourceType().getName())
                     && resource.equals(r.getName())) {
-                log().debug("getChildResource: returning resource " + r);
+                LOG.debug("getChildResource: returning resource {}", r);
                 return r;
             }
         }
@@ -476,9 +469,7 @@ public class DefaultResourceDao implements ResourceDao, InitializingBean {
      * @return a {@link java.util.List} object.
      */
     protected List<OnmsResource> getChildResourceList(OnmsResource parentResource) {
-        if (log().isDebugEnabled()) {
-            log().debug("DefaultResourceDao: getChildResourceList for " + parentResource.toString());
-        }
+        LOG.debug("DefaultResourceDao: getChildResourceList for {}", parentResource.toString());
         return parentResource.getChildResources();
     }
     
@@ -500,14 +491,13 @@ public class DefaultResourceDao implements ResourceDao, InitializingBean {
     protected List<OnmsResource> findNodeResources() {
         List<OnmsResource> resources = new LinkedList<OnmsResource>();
 
-        IntSet snmpNodes = findSnmpNodeDirectories();
+        Set<Integer> snmpNodes = findSnmpNodeDirectories();
         Set<String> nodeSources = findNodeSourceDirectories();
-
-        Set<String> responseTimeInterfaces = findChildrenMatchingFilter(new File(getRrdDirectory(), RESPONSE_DIRECTORY), RrdFileConstants.INTERFACE_DIRECTORY_FILTER);
-        Set<String> distributedResponseTimeInterfaces = findChildrenChildrenMatchingFilter(new File(new File(getRrdDirectory(), RESPONSE_DIRECTORY), "distributed"), RrdFileConstants.INTERFACE_DIRECTORY_FILTER);
+        Set<String> responseTimeInterfaces = findChildrenMatchingFilter(new File(getRrdDirectory(), ResourceTypeUtils.RESPONSE_DIRECTORY), RrdFileConstants.INTERFACE_DIRECTORY_FILTER);
+        Set<String> distributedResponseTimeInterfaces = findChildrenChildrenMatchingFilter(new File(new File(getRrdDirectory(), ResourceTypeUtils.RESPONSE_DIRECTORY), "distributed"), RrdFileConstants.INTERFACE_DIRECTORY_FILTER);
 
         List<OnmsNode> nodes = m_nodeDao.findAll();
-        IntSet nodesFound = new IntSet();
+        Set<Integer> nodesFound = new TreeSet<Integer>();
         for (OnmsNode node : nodes) {
             // Only returns non-deleted nodes to fix NMS-2977
             if (nodesFound.contains(node.getId()) || (node.getType() != null && node.getType().equals("D"))) {
@@ -531,12 +521,12 @@ public class DefaultResourceDao implements ResourceDao, InitializingBean {
             }
             boolean storeByFS = ResourceTypeUtils.isStoreByForeignSource();
             if (nodeSourcefound || (responseTimeFound && storeByFS)) {
-                log().debug("findNodeResources: adding resources for nodeSource " + node.getForeignSource() + ":" + node.getForeignId());
+                LOG.debug("findNodeResources: adding resource for {}:{}", node.getForeignSource(), node.getForeignId());
                 resources.add(m_nodeSourceResourceType.createChildResource(node.getForeignSource() + ":" + node.getForeignId()));
                 nodesFound.add(node.getId());
             }
             if (nodeIdfound || (responseTimeFound && !storeByFS)) {
-                log().debug("findNodeResources: adding resources for nodeId " + node.getId());
+                LOG.debug("findNodeResources: adding resources for nodeId {}", node.getId());
                 resources.add(m_nodeResourceType.createChildResource(node));
                 nodesFound.add(node.getId());
             }
@@ -553,7 +543,7 @@ public class DefaultResourceDao implements ResourceDao, InitializingBean {
     public List<OnmsResource> findDomainResources() {
         List<OnmsResource> resources = new LinkedList<OnmsResource>();
         
-        File snmp = new File(getRrdDirectory(), SNMP_DIRECTORY);
+        File snmp = new File(getRrdDirectory(), ResourceTypeUtils.SNMP_DIRECTORY);
 
         // Get all of the non-numeric directory names in the RRD directory; these
         // are the names of the domains that have performance data
@@ -600,11 +590,11 @@ public class DefaultResourceDao implements ResourceDao, InitializingBean {
      */
     protected OnmsResource getForeignSourceNodeEntityResource(String resource) {
         
-        File idDir = new File(getRrdDirectory(), SNMP_DIRECTORY + File.separator + ResourceTypeUtils.getRelativeNodeSourceDirectory(resource).toString());
+        File idDir = new File(getRrdDirectory(), ResourceTypeUtils.SNMP_DIRECTORY + File.separator + ResourceTypeUtils.getRelativeNodeSourceDirectory(resource).toString());
         if (idDir.isDirectory() && RrdFileConstants.NODESOURCE_DIRECTORY_FILTER.accept(idDir)) {
             return m_nodeSourceResourceType.createChildResource(resource);
         } else {
-           log().debug("resource " + resource + " not found by foreign source/foreignId. Trying as a node resource instead...");
+           LOG.debug("resource {} not found by foreign source/foreignId. Trying as a node resource instead...", resource);
            String[] ident = resource.split(":");
            OnmsNode node = m_nodeDao.findByForeignId(ident[0], ident[1]);
            if (node == null) {
@@ -625,7 +615,7 @@ public class DefaultResourceDao implements ResourceDao, InitializingBean {
      */
     protected OnmsResource getDomainEntityResource(String domain) {
         
-        File directory = new File(getRrdDirectory(), SNMP_DIRECTORY);
+        File directory = new File(getRrdDirectory(), ResourceTypeUtils.SNMP_DIRECTORY);
         File domainDir = new File(directory, domain);
         if (!domainDir.isDirectory()) {
             throw new ObjectRetrievalFailureException(OnmsResource.class, domain, "Domain not found due to domain RRD directory not existing or not a directory: " + domainDir.getAbsolutePath(), null);
@@ -638,10 +628,10 @@ public class DefaultResourceDao implements ResourceDao, InitializingBean {
         return m_domainResourceType.createChildResource(domain);
     }
 
-    private IntSet findSnmpNodeDirectories() {
-        IntSet nodes = new IntSet();
+    private Set<Integer> findSnmpNodeDirectories() {
+        Set<Integer> nodes = new TreeSet<Integer>();
         
-        File directory = new File(getRrdDirectory(), SNMP_DIRECTORY);
+        File directory = new File(getRrdDirectory(), ResourceTypeUtils.SNMP_DIRECTORY);
         File[] nodeDirs = directory.listFiles(RrdFileConstants.NODE_DIRECTORY_FILTER);
 
         if (nodeDirs == null || nodeDirs.length == 0) {
@@ -650,7 +640,7 @@ public class DefaultResourceDao implements ResourceDao, InitializingBean {
 
         for (File nodeDir : nodeDirs) {
             try {
-                int nodeId = Integer.parseInt(nodeDir.getName());
+                Integer nodeId = Integer.valueOf(nodeDir.getName());
                 nodes.add(nodeId);
             } catch (NumberFormatException e) {
                 // skip... don't add
@@ -667,8 +657,8 @@ public class DefaultResourceDao implements ResourceDao, InitializingBean {
      */
     protected Set<String> findNodeSourceDirectories() {
        Set<String> nodeSourceDirectories = new HashSet<String>();
-       File snmpDir = new File(getRrdDirectory(), SNMP_DIRECTORY);
-       File forSrcDir = new File(snmpDir, FOREIGN_SOURCE_DIRECTORY);
+       File snmpDir = new File(getRrdDirectory(), ResourceTypeUtils.SNMP_DIRECTORY);
+       File forSrcDir = new File(snmpDir, ResourceTypeUtils.FOREIGN_SOURCE_DIRECTORY);
        File[] sourceDirs = forSrcDir.listFiles(); // TODO There is no need to filter by RrdFileConstants.SOURCE_DIRECTORY_FILTER
        if (sourceDirs != null && sourceDirs.length > 0) {
            for (File sourceDir : sourceDirs) {
@@ -813,8 +803,5 @@ public class DefaultResourceDao implements ResourceDao, InitializingBean {
         resources.addAll(findNodeResources());
         resources.addAll(findDomainResources());
         return resources;
-    }
-    private static ThreadCategory log() {
-        return ThreadCategory.getInstance(DefaultResourceDao.class);
     }
 }

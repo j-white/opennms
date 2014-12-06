@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2004-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -31,9 +31,10 @@ package org.opennms.netmgt.poller.pollables;
 import java.net.InetAddress;
 import java.util.Date;
 
-import org.opennms.core.utils.ThreadCategory;
-import org.opennms.netmgt.model.PollStatus;
+import org.opennms.netmgt.poller.PollStatus;
 import org.opennms.netmgt.xml.event.Event;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 
@@ -42,10 +43,10 @@ import org.opennms.netmgt.xml.event.Event;
  * Represents a PollableNetwork
  *
  * @author <a href="mailto:brozow@opennms.org">Mathew Brozowski</a>
- * @version $Id: $
  */
 public class PollableNetwork extends PollableContainer {
-    
+    private static final Logger LOG = LoggerFactory.getLogger(PollableNetwork.class);
+
     private final PollContext m_context;
 
     /**
@@ -63,6 +64,7 @@ public class PollableNetwork extends PollableContainer {
      *
      * @return a {@link org.opennms.netmgt.poller.pollables.PollContext} object.
      */
+    @Override
     public PollContext getContext() {
         return m_context;
     }
@@ -165,12 +167,14 @@ public class PollableNetwork extends PollableContainer {
     }
 
     /** {@inheritDoc} */
+    @Override
     protected Object createMemberKey(PollableElement member) {
         PollableNode node = (PollableNode)member;
         return Integer.valueOf(node.getNodeId());
     }
     
     /** {@inheritDoc} */
+    @Override
     protected void visitThis(PollableVisitor v) {
         super.visitThis(v);
         v.visitNetwork(this);
@@ -178,38 +182,41 @@ public class PollableNetwork extends PollableContainer {
 
 
     /** {@inheritDoc} */
+    @Override
     public PollStatus pollRemainingMembers(PollableElement member) {
         return getMemberStatus();
     }
 
     /** {@inheritDoc} */
+    @Override
     public Event createDownEvent(Date date) {
         throw new UnsupportedOperationException("No down event for the network");
     }
     
     
     /** {@inheritDoc} */
+    @Override
     public Event createUpEvent(Date date) {
         throw new UnsupportedOperationException("No up event for the network");
     }
     
-    class DumpVisitor extends PollableVisitorAdaptor {
+    static class DumpVisitor extends PollableVisitorAdaptor {
         
-        private ThreadCategory m_log;
-
-        public DumpVisitor(ThreadCategory log) {
-            m_log = log;
-        }
+        private static final Logger LOG = LoggerFactory.getLogger(PollableNetwork.DumpVisitor.class);
+        
+        @Override
         public void visitNode(PollableNode pNode) {
-            m_log.debug(" nodeid=" + pNode.getNodeId() + " status=" + getStatusString(pNode));
+            LOG.debug(" nodeid={} status={}", pNode.getNodeId(), getStatusString(pNode));
         }
 
+        @Override
         public void visitInterface(PollableInterface pIf) {;
-            m_log.debug("     interface=" + pIf.getIpAddr() + " status=" + getStatusString(pIf));
+            LOG.debug("     interface={} status={}", pIf.getIpAddr(), getStatusString(pIf));
         }
 
+        @Override
         public void visitService(PollableService pSvc) {
-            m_log.debug("         service=" + pSvc.getSvcName() + " status=" + getStatusString(pSvc));
+            LOG.debug("         service={} status={}", pSvc.getSvcName(), getStatusString(pSvc));
         }
         
         private String getStatusString(PollableElement e) {
@@ -228,9 +235,8 @@ public class PollableNetwork extends PollableContainer {
      * <p>dump</p>
      */
     public void dump() {
-        final ThreadCategory log = ThreadCategory.getInstance(getClass());
 
-        DumpVisitor dumper = new DumpVisitor(log);
+        DumpVisitor dumper = new DumpVisitor();
         visit(dumper);
         
     }
@@ -238,16 +244,20 @@ public class PollableNetwork extends PollableContainer {
     /**
      * <p>delete</p>
      */
+    @Override
     public void delete() {
-        throw new UnsupportedOperationException("Can't delete the entire network");
+        LOG.warn("Can't delete the entire network.");
     }
+
     /** {@inheritDoc} */
+    @Override
     public PollStatus poll(PollableElement elem) {
         PollableElement member = findMemberWithDescendent(elem);
         return member.poll(elem);
     }
 
     /** {@inheritDoc} */
+    @Override
     public void processStatusChange(Date date) {
         // no need to process status changes for the network itself
         processMemberStatusChanges(date);
@@ -255,8 +265,10 @@ public class PollableNetwork extends PollableContainer {
     /**
      * <p>recalculateStatus</p>
      */
+    @Override
     public void recalculateStatus() {
         Iter iter = new Iter() {
+            @Override
             public void forEachElement(PollableElement elem) {
                 elem.recalculateStatus();
             }
@@ -266,9 +278,11 @@ public class PollableNetwork extends PollableContainer {
     /**
      * <p>resetStatusChanged</p>
      */
+    @Override
     public void resetStatusChanged() {
         super.resetStatusChanged();
         Iter iter = new Iter() {
+            @Override
             public void forEachElement(PollableElement elem) {
                 elem.resetStatusChanged();
             }
@@ -280,16 +294,19 @@ public class PollableNetwork extends PollableContainer {
      *
      * @return a {@link org.opennms.netmgt.poller.pollables.PollableElement} object.
      */
+    @Override
     public PollableElement getLockRoot() {
         return this;
     }
     
     /** {@inheritDoc} */
+    @Override
     public void obtainTreeLock(long timeout) {
     }
     /**
      * <p>releaseTreeLock</p>
      */
+    @Override
     public void releaseTreeLock() {
     }
 
@@ -298,6 +315,7 @@ public class PollableNetwork extends PollableContainer {
     public PollEvent extrapolateCause() {
 
         Iter iter = new Iter() {
+            @Override
             public void forEachElement(PollableElement elem) {
                 elem.extrapolateCause();
             }

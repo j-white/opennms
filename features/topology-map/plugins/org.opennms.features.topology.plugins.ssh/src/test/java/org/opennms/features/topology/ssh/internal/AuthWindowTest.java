@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2012-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -28,12 +28,15 @@
 
 package org.opennms.features.topology.ssh.internal;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 import org.junit.Before;
 import org.junit.Test;
 
-import com.vaadin.Application;
+import com.vaadin.server.VaadinRequest;
+import com.vaadin.ui.UI;
 import com.vaadin.ui.Window;
 
 public class AuthWindowTest {
@@ -57,7 +60,7 @@ public class AuthWindowTest {
 	AuthWindow emptyWindow;
 	AuthWindow invalidHostWindow;
 	Window mainWindow;
-	Application app;
+	UI app;
 
 	@SuppressWarnings("serial")
 	@Before
@@ -69,17 +72,16 @@ public class AuthWindowTest {
 		invalidHostWindow = new AuthWindow(invalidHost, testPort);
 
 		mainWindow = new Window();
-		app = new Application() { //Empty Application
+		app = new UI() { //Empty Application
 			@Override
-			public void init() {}
+			public void init(VaadinRequest request) {}
 		};
-		app.setMainWindow(mainWindow);
-		app.getMainWindow().addWindow(normalWindow);
-		app.getMainWindow().addWindow(noHostWindow);
-		app.getMainWindow().addWindow(noPortWindow);
-		app.getMainWindow().addWindow(emptyWindow);
-		app.getMainWindow().addWindow(invalidHostWindow);
-
+		app.addWindow(normalWindow);
+		app.addWindow(noHostWindow);
+		app.addWindow(noPortWindow);
+		app.addWindow(emptyWindow);
+		app.addWindow(invalidHostWindow);
+		UI.setCurrent(app);
 	}
 
 	@Test
@@ -106,15 +108,15 @@ public class AuthWindowTest {
 
 	@Test
 	public void testAttach(){
-		assertTrue(app.getMainWindow().getChildWindows().contains(normalWindow));
-		app.getMainWindow().removeWindow(normalWindow);
-		assertFalse(app.getMainWindow().getChildWindows().contains(normalWindow));
+		assertTrue(app.getWindows().contains(normalWindow));
+		app.removeWindow(normalWindow);
+		assertFalse(app.getWindows().contains(normalWindow));
 	}
 	
 	@Test
 	public void testShowSSHWindow() {
 		normalWindow.showSSHWindow();
-		assertFalse(app.getMainWindow().getChildWindows().contains(normalWindow));
+		assertFalse(app.getWindows().contains(normalWindow));
 	}
 
 }

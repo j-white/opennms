@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2011-2013 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2013 The OpenNMS Group, Inc.
+ * Copyright (C) 2009-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -59,40 +59,22 @@
 
 package org.opennms.netmgt.protocols.xmp.collector;
 
-import org.krupczak.xmp.Xmp;
 import org.krupczak.xmp.XmpVar;
-import org.opennms.netmgt.collectd.AbstractCollectionAttribute;
-import org.opennms.netmgt.config.collector.CollectionAttribute;
-import org.opennms.netmgt.config.collector.CollectionAttributeType;
-import org.opennms.netmgt.config.collector.CollectionResource;
-import org.opennms.netmgt.config.collector.ServiceParameters;
-public class XmpCollectionAttribute extends AbstractCollectionAttribute 
-implements CollectionAttribute 
-{
+import org.opennms.netmgt.collection.api.CollectionAttributeType;
+import org.opennms.netmgt.collection.support.AbstractCollectionAttribute;
+public class XmpCollectionAttribute extends AbstractCollectionAttribute {
     /* class variables and methods *********************** */
 
     /* instance variables ******************************** */
-    private XmpVar aVar;
-    private String alias;
-    private XmpCollectionResource resource;
-    private CollectionAttributeType attribType;
+    private final XmpVar aVar;
 
     /* constructors  ************************************* */
-    XmpCollectionAttribute() { aVar = null; }
-
-    XmpCollectionAttribute(XmpVar aVar, String alias, XmpCollectionResource res)
-    {
-        this.aVar = aVar;
-        this.alias = alias;
-        this.resource = res;
-    }
-
     XmpCollectionAttribute(XmpCollectionResource res, 
                            CollectionAttributeType attribType, 
-                           String alias, XmpVar aVar) 
+                           XmpVar aVar) 
                            {
-        this(aVar,alias,res);
-        this.attribType = attribType;
+        super(attribType, res);
+        this.aVar = aVar;
                            }
 
     /* private methods *********************************** */
@@ -100,55 +82,12 @@ implements CollectionAttribute
     /* public methods ************************************ */
 
     /**
-     * <p>getAttributeType</p>
-     *
-     * @return a {@link org.opennms.netmgt.config.collector.CollectionAttributeType} object.
-     */
-    public CollectionAttributeType getAttributeType() { return attribType; }
-
-    /**
-     * <p>setAttributeType</p>
-     *
-     * @param attribType a {@link org.opennms.netmgt.config.collector.CollectionAttributeType} object.
-     */
-    public void setAttributeType(CollectionAttributeType attribType)
-    {
-        this.attribType = attribType;
-    }
-
-    /**
-     * <p>getName</p>
-     *
-     * @return a {@link java.lang.String} object.
-     */
-    public String getName() 
-    { 
-        return new String(alias);
-    }
-
-    /**
-     * <p>Getter for the field <code>resource</code>.</p>
-     *
-     * @return a {@link org.opennms.netmgt.config.collector.CollectionResource} object.
-     */
-    public CollectionResource getResource() { return resource; }
-
-    /**
      * <p>getNumericValue</p>
      *
      * @return a {@link java.lang.String} object.
      */
+    @Override
     public String getNumericValue() { return aVar.getValue(); }
-
-    /**
-     * <p>getType</p>
-     *
-     * @return a {@link java.lang.String} object.
-     */
-    public String getType() { return Xmp.syntaxToString(aVar.xmpSyntax); }
-
-    /** {@inheritDoc} */
-    public boolean shouldPersist(ServiceParameters params) { return true; }
 
     //public void visit(CollectionSetVisitor visitor) { super(visitor); }
 
@@ -157,9 +96,10 @@ implements CollectionAttribute
      *
      * @return a {@link java.lang.String} object.
      */
+    @Override
     public String toString() 
     { 
-        return "XmpCollectionAttribute "+alias+"="+aVar.getValue()+" attribType="+attribType; 
+        return "XmpCollectionAttribute "+getName()+"="+aVar.getValue()+" attribType="+getAttributeType(); 
     }
 
     /**
@@ -167,6 +107,7 @@ implements CollectionAttribute
      *
      * @return a {@link java.lang.String} object.
      */
+    @Override
     public String getStringValue() { return aVar.getValue(); }
 
     @Override

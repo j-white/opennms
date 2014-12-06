@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2011-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2002-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -39,9 +39,9 @@ import java.net.UnknownHostException;
 import java.util.StringTokenizer;
 
 import org.opennms.core.utils.InetAddressUtils;
-import org.opennms.core.utils.ThreadCategory;
 import org.opennms.netmgt.config.dhcpd.DhcpdConfigFactory;
-import org.opennms.netmgt.utils.IpValidator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import edu.bucknell.net.JDHCP.DHCPMessage;
 
@@ -56,6 +56,9 @@ import edu.bucknell.net.JDHCP.DHCPMessage;
  * @version CVS 1.1.1.1
  */
 final class Poller {
+	
+	private static final Logger LOG = LoggerFactory.getLogger(Poller.class);
+
     /**
      * The hardware address (ex: 00:06:0D:BE:9C:B2)
      */
@@ -197,8 +200,10 @@ final class Poller {
      *
      * @throws java.lang.Throwable if any.
      */
+    @Override
     protected void finalize() throws Throwable {
         close();
+        super.finalize();
     }
 
     /**
@@ -210,17 +215,12 @@ final class Poller {
      *             daemon.
      */
     private Poller(long timeout) throws IOException {
-        ThreadCategory log = ThreadCategory.getInstance(this.getClass());
         DhcpdConfigFactory dcf = DhcpdConfigFactory.getInstance();
         try {
-            if (log.isDebugEnabled()) {
-                log.debug("Poller.ctor: opening socket connection with DHCP client daemon on port " + dcf.getPort());
-            }
+                LOG.debug("Poller.ctor: opening socket connection with DHCP client daemon on port {}", dcf.getPort());
             m_connection = new Socket(InetAddressUtils.addr("127.0.0.1"), dcf.getPort());
 
-            if (log.isDebugEnabled()) {
-                log.debug("Poller.ctor: setting socket timeout to " + timeout);
-            }
+                LOG.debug("Poller.ctor: setting socket timeout to {}", timeout);
             m_connection.setSoTimeout((int) timeout);
 
             // Establish input/output object streams
@@ -229,7 +229,7 @@ final class Poller {
             m_outs.reset();
             m_outs.flush();
         } catch (IOException ex) {
-            log.error("IO Exception during socket connection establishment with DHCP client daemon.", ex);
+            LOG.error("IO Exception during socket connection establishment with DHCP client daemon.", ex);
             if (m_connection != null) {
                 try {
                     m_ins.close();
@@ -240,7 +240,7 @@ final class Poller {
             }
             throw ex;
         } catch (Throwable t) {
-            log.error("Unexpected exception during socket connection establishment with DHCP client daemon.", t);
+            LOG.error("Unexpected exception during socket connection establishment with DHCP client daemon.", t);
             if (m_connection != null) {
                 try {
                     m_ins.close();
@@ -260,11 +260,8 @@ final class Poller {
      *             if the socket close() method fails.
      */
     public void close() {
-        ThreadCategory log = ThreadCategory.getInstance(Poller.class);
         try {
-            if (log.isDebugEnabled()) {
-                log.debug("Closing connection");
-            }
+                LOG.debug("Closing connection");
             m_ins.close();
             m_outs.close();
             m_connection.close();
@@ -309,7 +306,6 @@ final class Poller {
      *         otherwise.
      */
     static long isServer(InetAddress host, long timeout, int retries) throws IOException {
-        ThreadCategory log = ThreadCategory.getInstance(Poller.class);
 
         boolean isDhcpServer = false;
         // List of DHCP queries to try. The default when extended
@@ -324,44 +320,44 @@ final class Poller {
             } else {
                 extendedMode = Boolean.parseBoolean(s_extendedMode);
             }
-            if (log.isDebugEnabled()) {
-                log.debug("isServer: DHCP extended mode is " + extendedMode);
-            }
+                LOG.debug("isServer: DHCP extended mode is {}", extendedMode);
             
             String hwAddressStr = dcf.getMacAddress();
-            if (log.isDebugEnabled()) {
-                log.debug("isServer: DHCP query hardware/MAC address is " + hwAddressStr);
-            }
+                LOG.debug("isServer: DHCP query hardware/MAC address is {}", hwAddressStr);
             setHwAddress(hwAddressStr);
             
             String myIpStr = dcf.getMyIpAddress();
-            if (log.isDebugEnabled()) {
-                log.debug("isServer: DHCP relay agent address is " + myIpStr);
-            }
+                LOG.debug("isServer: DHCP relay agent address is {}", myIpStr);
             if (myIpStr == null || myIpStr.equals("") || myIpStr.equalsIgnoreCase("broadcast")) {
                 // do nothing
-            } else if (IpValidator.isIpValid(myIpStr)) {
-                s_myIpAddress = setIpAddress(myIpStr);
-                relayMode = true;
+            } else {
+                try {
+                    InetAddressUtils.toIpAddrBytes(myIpStr);
+                    s_myIpAddress = setIpAddress(myIpStr);
+                    relayMode = true;
+                } catch (IllegalArgumentException e) {
+                    LOG.warn("isServer: DHCP relay agent address is invalid: {}", myIpStr);
+                }
             }
             
             if (extendedMode == true) {
                 String requestStr = dcf.getRequestIpAddress();
-                if (log.isDebugEnabled()) {
-                    log.debug("isServer: REQUEST query target is " + requestStr);
-                }
+                    LOG.debug("isServer: REQUEST query target is {}", requestStr);
                 if (requestStr == null || requestStr.equals("") || requestStr.equalsIgnoreCase("targetSubnet")) {
                     // do nothing
                 } else if (requestStr.equalsIgnoreCase("targetHost")) {
                     targetOffset = false;
-                } else if (IpValidator.isIpValid(requestStr)) {
-                    s_requestIpAddress = setIpAddress(requestStr);
-                    reqTargetIp = false;
-                    targetOffset = false;
+                } else {
+                    try {
+                        InetAddressUtils.toIpAddrBytes(requestStr);
+                        s_requestIpAddress = setIpAddress(requestStr);
+                        reqTargetIp = false;
+                        targetOffset = false;
+                    } catch (IllegalArgumentException e) {
+                        LOG.warn("isServer: REQUEST query target is invalid: {}", requestStr);
+                    }
                 }
-                if (log.isDebugEnabled()) {
-                    log.debug("REQUEST query options are: reqTargetIp = " + reqTargetIp + ", targetOffset = " + targetOffset);
-                }
+                    LOG.debug("REQUEST query options are: reqTargetIp = {}, targetOffset = {}", reqTargetIp, targetOffset);
             }
             paramsChecked = true;
         }
@@ -384,9 +380,7 @@ final class Poller {
 
                 int rt = retries;
                 while (rt >= 0 && !isDhcpServer) {
-                    if (log.isDebugEnabled()) {
-                        log.debug("isServer: sending DHCP " + typeName[i] + " query to host " + InetAddressUtils.str(host) + " with Xid: " + ping.getMessage().getXid());
-                    }
+                        LOG.debug("isServer: sending DHCP {} query to host {} with Xid: {}", typeName[i], InetAddressUtils.str(host), ping.getMessage().getXid());
                     
                     long start = System.currentTimeMillis();
                     p.m_outs.writeObject(ping);
@@ -404,28 +398,22 @@ final class Poller {
                             responseTime = System.currentTimeMillis() - start;
 
                             // DEBUG only
-                            if (log.isDebugEnabled()) {
-                                log.debug("isServer: got a DHCP response from host " + InetAddressUtils.str(resp.getAddress()) + " with Xid: " + resp.getMessage().getXid());
-                            }
+                                LOG.debug("isServer: got a DHCP response from host {} with Xid: {}", InetAddressUtils.str(resp.getAddress()), resp.getMessage().getXid());
 
                             if (host.equals(resp.getAddress()) && ping.getMessage().getXid() == resp.getMessage().getXid()) {
                                 // Inspect response message to see if it is a valid DHCP response
                                 byte[] type = resp.getMessage().getOption(MESSAGE_TYPE);
-                                if (log.isDebugEnabled()) {
                                     if (type[0] == DHCPMessage.OFFER) {
-                                        log.debug("isServer: got a DHCP OFFER response, validating...");
+                                        LOG.debug("isServer: got a DHCP OFFER response, validating...");
                                     } else if (type[0] == DHCPMessage.ACK) {
-                                        log.debug("isServer: got a DHCP ACK response, validating...");
+                                        LOG.debug("isServer: got a DHCP ACK response, validating...");
                                     } else if (type[0] == DHCPMessage.NAK) {
-                                        log.debug("isServer: got a DHCP NAK response, validating...");
+                                        LOG.debug("isServer: got a DHCP NAK response, validating...");
                                     }
-                                }
 
                                 // accept offer or ACK or NAK
                                 if (type[0] == DHCPMessage.OFFER || (extendedMode == true && (type[0] == DHCPMessage.ACK || type[0] == DHCPMessage.NAK))) {
-                                    if (log.isDebugEnabled()) {
-                                        log.debug("isServer: got a valid DHCP response. responseTime= " + responseTime + "ms");
-                                    }
+                                        LOG.debug("isServer: got a valid DHCP response. responseTime= {}ms", responseTime);
                                     
                                     isDhcpServer = true;
                                     break pollit;
@@ -437,31 +425,25 @@ final class Poller {
 
                     } while ((end - start) < timeout);
 
-                    if (log.isDebugEnabled()) {
                         if (!isDhcpServer) {
-                            log.debug("Timed out waiting for DHCP response, remaining retries: " + rt);
+                            LOG.debug("Timed out waiting for DHCP response, remaining retries: {}", rt);
                         }
-                    }
 
                     --rt;
                 }
             }
 
-            if (log.isDebugEnabled()) {
-                log.debug("Sending disconnect request");
-            }
+                LOG.debug("Sending disconnect request");
             p.m_outs.writeObject(getDisconnectRequest());
-            if (log.isDebugEnabled()) {
-                log.debug("wait half a sec before closing connection");
-            }
+                LOG.debug("wait half a sec before closing connection");
             Thread.sleep(500);
             p.close();
         } catch (IOException ex) {
-            log.error("IO Exception caught.", ex);
+            LOG.error("IO Exception caught.", ex);
             p.close();
             throw ex;
         } catch (Throwable t) {
-            log.error("Unexpected Exception caught.", t);
+            LOG.error("Unexpected Exception caught.", t);
             p.close();
             throw new UndeclaredThrowableException(t);
         }
@@ -478,15 +460,12 @@ final class Poller {
     // Converts the provided hardware address string (format=00:00:00:00:00:00)
     // to an array of bytes which can be passed in a DHCP DISCOVER packet.
     private static void setHwAddress(String hwAddressStr) {
-        ThreadCategory log = ThreadCategory.getInstance(Poller.class);
         // initialize the address
         s_hwAddress = DEFAULT_MAC_ADDRESS;
 
         StringTokenizer token = new StringTokenizer(hwAddressStr, ":");
         if (token.countTokens() != 6) {
-            if (log.isDebugEnabled()) {
-                log.debug("Invalid format for hwAddress " + hwAddressStr);
-            }
+                LOG.debug("Invalid format for hwAddress {}", hwAddressStr);
         }
         int temp;
         int i = 0;
@@ -496,9 +475,7 @@ final class Poller {
                 s_hwAddress[i] = (byte) temp;
                 i++;
             } catch (NumberFormatException ex) {
-                if (log.isDebugEnabled()) {
-                    log.debug("Invalid format for hwAddress, " + ex);
-                }
+                    LOG.debug("Invalid format for hwAddress, {}", ex);
             }
         }
     }

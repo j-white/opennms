@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2008-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2008-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -29,6 +29,7 @@
 package org.opennms.netmgt.provision.service.lifecycle;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -38,9 +39,11 @@ import org.apache.commons.lang.builder.ToStringBuilder;
 import org.opennms.core.tasks.BatchTask;
 import org.opennms.core.tasks.DefaultTaskCoordinator;
 import org.opennms.core.tasks.SequenceTask;
-import org.opennms.core.utils.LogUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 class DefaultLifeCycleInstance extends SequenceTask implements LifeCycleInstance {
+    private static final Logger LOG = LoggerFactory.getLogger(DefaultLifeCycleInstance.class);
     
     /*
      * Complications... 
@@ -85,12 +88,12 @@ class DefaultLifeCycleInstance extends SequenceTask implements LifeCycleInstance
         m_name = lifeCycleName;
         m_providers = providers;
 
-        LogUtils.debugf(this, "Set up default lifecycle instance");
+        LOG.debug("Set up default lifecycle instance");
 
         m_phases = new Phase[phaseNames.length];
         for(int i = 0; i < phaseNames.length; i++) {
             m_phases[i] = new Phase(this, this, phaseNames[i], m_providers);
-            LogUtils.debugf(this, "Adding phase %s to lifecycle", m_phases[i].getName());
+            LOG.debug("Adding phase {} to lifecycle", m_phases[i].getName());
             add(m_phases[i]);
         }
         
@@ -108,7 +111,7 @@ class DefaultLifeCycleInstance extends SequenceTask implements LifeCycleInstance
      * @param providers an array of {@link java.lang.Object} objects.
      */
     public DefaultLifeCycleInstance(LifeCycleRepository repository, DefaultTaskCoordinator coordinator, String lifeCycleName, String[] phaseNames, Object[] providers) {
-        this(null, repository, coordinator, lifeCycleName, phaseNames, providers);
+        this(null, repository, coordinator, lifeCycleName, Arrays.copyOf(phaseNames, phaseNames.length), Arrays.copyOf(providers, providers.length));
     }
 
     /**
@@ -116,6 +119,7 @@ class DefaultLifeCycleInstance extends SequenceTask implements LifeCycleInstance
      *
      * @return a {@link java.util.List} object.
      */
+    @Override
     public List<String> getPhaseNames() {
         List<String> phaseNames = new ArrayList<String>(m_phases.length);
         for(Phase phase : m_phases) {
@@ -129,11 +133,13 @@ class DefaultLifeCycleInstance extends SequenceTask implements LifeCycleInstance
      *
      * @return a {@link java.lang.String} object.
      */
+    @Override
     public String getName() {
         return m_name;
     }
 
     /** {@inheritDoc} */
+    @Override
     public Object getAttribute(String key) {
         return m_attributes.get(key);
     }
@@ -146,6 +152,7 @@ class DefaultLifeCycleInstance extends SequenceTask implements LifeCycleInstance
      * @param <T> a T object.
      * @return a T object.
      */
+    @Override
     public <T> T getAttribute(String key, T defaultValue) {
         if (getAttribute(key) == null) {
             return defaultValue;
@@ -168,17 +175,20 @@ class DefaultLifeCycleInstance extends SequenceTask implements LifeCycleInstance
     }
 
     /** {@inheritDoc} */
+    @Override
     public <T> T getAttribute(String key, Class<T> type) {
         return type.cast(getAttribute(key));
     }
 
     /** {@inheritDoc} */
+    @Override
     public LifeCycleInstance setAttribute(String key, Object value) {
         m_attributes.put(key, value);
         return this;
     }
     
     /** {@inheritDoc} */
+    @Override
     public <T> T findAttributeByType(Class<T> clazz) {
         T result = null;
         for(Entry<String, Object> entry : m_attributes.entrySet()) {
@@ -195,6 +205,7 @@ class DefaultLifeCycleInstance extends SequenceTask implements LifeCycleInstance
 
     
     /** {@inheritDoc} */
+    @Override
     public LifeCycleInstance createNestedLifeCycle(BatchTask containingPhase, String lifeCycleName) {
         return m_repository.createNestedLifeCycleInstance(containingPhase, lifeCycleName, m_providers);
     }
@@ -202,6 +213,7 @@ class DefaultLifeCycleInstance extends SequenceTask implements LifeCycleInstance
     /**
      * <p>trigger</p>
      */
+    @Override
     public void trigger() {
         if (m_containingPhase != null) {
             m_containingPhase.add(this);
@@ -215,6 +227,7 @@ class DefaultLifeCycleInstance extends SequenceTask implements LifeCycleInstance
      *
      * @return a {@link java.lang.String} object.
      */
+    @Override
     public String toString() {
         return new ToStringBuilder(this)
             .append("name", m_name)

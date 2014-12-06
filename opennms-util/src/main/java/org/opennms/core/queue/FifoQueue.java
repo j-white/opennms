@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2002-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -29,7 +29,7 @@
 package org.opennms.core.queue;
 
 /**
- * </p>
+ * <p>
  * This interface defines a queue that uses <em>F</em> irst <em>I</em>n,
  * <em>F</em> irst <em>O</em> ut semantics when adding and removing objects.
  * Each object that is added to the queue is effectively placed at the end of
@@ -45,11 +45,6 @@ public interface FifoQueue<T> {
      *
      * @param element
      *            The object to append to the queue.
-     * @exception org.opennms.core.queue.FifoQueueException
-     *                Thrown if a queue error occurs.
-     * @exception java.lang.InterruptedException
-     *                Thrown if the thread is interrupted.
-     * @param <T> a T object.
      * @throws org.opennms.core.queue.FifoQueueException if any.
      * @throws java.lang.InterruptedException if any.
      */
@@ -57,20 +52,13 @@ public interface FifoQueue<T> {
 
     /**
      * Inserts a new element into the queue. If the queue has reached an
-     * implementation limit and the <code>
-     * timeout</code> expires, then a false
+     * implementation limit and the <code>timeout</code> expires, then a false
      * value is returned to the caller.
      *
      * @param element
      *            The object to append to the queue.
      * @param timeout
      *            The time to wait on the insertion to succeed.
-     * @exception org.opennms.core.queue.FifoQueueException
-     *                Thrown if a queue error occurs.
-     * @exception java.lang.InterruptedException
-     *                Thrown if the thread is interrupted.
-     * @exception java.lang.UnsupportedOperationException
-     *                Thrown if the method is not supported.
      * @return True if the element was successfully added to the queue before
      *         the timeout expired, false otherwise.
      * @throws org.opennms.core.queue.FifoQueueException if any.
@@ -81,10 +69,6 @@ public interface FifoQueue<T> {
     /**
      * Removes the oldest element from the queue.
      *
-     * @exception org.opennms.core.queue.FifoQueueException
-     *                Thrown if a queue error occurs.
-     * @exception java.lang.InterruptedException
-     *                Thrown if the thread is interrupted.
      * @return The oldest object in the queue.
      * @throws org.opennms.core.queue.FifoQueueException if any.
      * @throws java.lang.InterruptedException if any.
@@ -98,12 +82,6 @@ public interface FifoQueue<T> {
      *
      * @param timeout
      *            The time to wait on an object to be available.
-     * @exception org.opennms.core.queue.FifoQueueException
-     *                Thrown if a queue error occurs.
-     * @exception java.lang.InterruptedException
-     *                Thrown if the thread is interrupted.
-     * @exception java.lang.UnsupportedOperationException
-     *                Thrown if the method is not supported.
      * @return The oldest object in the queue, or <code>null</code> if one is
      *         not available.
      * @throws org.opennms.core.queue.FifoQueueException if any.

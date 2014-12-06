@@ -3,11 +3,11 @@
   <parent>
     <groupId>org.opennms</groupId>
     <artifactId>opennms-enterprise-reporting</artifactId>
-    <version>1.12.9-SNAPSHOT</version>
+    <version>15.0.0-SNAPSHOT</version>
   </parent>
   <modelVersion>4.0.0</modelVersion>
   <artifactId>opennms-reportd</artifactId>
-  <name>OpenNMS Enterprise Report Daemon</name>
+  <name>OpenNMS Enterprise Reporting Daemon</name>
   <dependencies>
     <dependency>
       <groupId>org.opennms.core</groupId>
@@ -48,11 +48,20 @@
       <artifactId>jasper-dependencies</artifactId>
       <type>pom</type>
     </dependency>
-    <!-- runtime only dependencies -->
     <dependency>
-      <groupId>org.opennms</groupId>
-      <artifactId>opennms-services</artifactId>
-      <scope>runtime</scope>
+      <groupId>org.opennms.features.events</groupId>
+      <artifactId>org.opennms.features.events.api</artifactId>
     </dependency>
   </dependencies>
+
+  <repositories>
+    <repository>
+      <snapshots><enabled>false</enabled></snapshots>
+      <releases><enabled>true</enabled></releases>
+      <id>opennms-repo</id>
+      <name>OpenNMS Repository</name>
+      <url>http://maven.opennms.org/content/groups/opennms.org-release</url>
+    </repository>
+  </repositories>
+
 </project>

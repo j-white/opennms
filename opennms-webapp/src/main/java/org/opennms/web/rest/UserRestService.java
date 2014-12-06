@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2011-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2011-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -51,7 +51,9 @@ import javax.ws.rs.core.UriInfo;
 import org.opennms.netmgt.config.UserManager;
 import org.opennms.netmgt.model.OnmsUser;
 import org.opennms.netmgt.model.OnmsUserList;
-import org.opennms.web.springframework.security.Authentication;
+import org.opennms.web.api.Authentication;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeanWrapper;
 import org.springframework.beans.PropertyAccessorFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -74,6 +76,7 @@ import com.sun.jersey.spi.resource.PerRequest;
 @Path("users")
 @Transactional
 public class UserRestService extends OnmsRestService {
+    private static final Logger LOG = LoggerFactory.getLogger(UserRestService.class);
     private static final Comparator<OnmsUser> USER_COMPARATOR = new Comparator<OnmsUser>() {
         @Override public int compare(final OnmsUser a, final OnmsUser b) {
             return a.getUsername().compareTo(b.getUsername());
@@ -130,7 +133,7 @@ public class UserRestService extends OnmsRestService {
             if (!hasEditRights()) {
                 throw getException(Status.BAD_REQUEST, new RuntimeException(m_securityContext.getUserPrincipal().getName() + " does not have write access to users!"));
             }
-            log().debug("addUser: Adding user " + user);
+            LOG.debug("addUser: Adding user {}", user);
             m_userManager.save(user);
             return Response.seeOther(getRedirectUri(m_uriInfo, user.getUsername())).build();
         } catch (final Throwable t) {
@@ -156,7 +159,7 @@ public class UserRestService extends OnmsRestService {
                 throw getException(Status.BAD_REQUEST, t);
             }
             if (user == null) throw getException(Status.BAD_REQUEST, "updateUser: User does not exist: " + userCriteria);
-            log().debug("updateUser: updating user " + user);
+            LOG.debug("updateUser: updating user {}", user);
             final BeanWrapper wrapper = PropertyAccessorFactory.forBeanPropertyAccess(user);
             for(final String key : params.keySet()) {
                 if (wrapper.isWritableProperty(key)) {
@@ -166,7 +169,7 @@ public class UserRestService extends OnmsRestService {
                     wrapper.setPropertyValue(key, value);
                 }
             }
-            log().debug("updateUser: user " + user + " updated");
+            LOG.debug("updateUser: user {} updated", user);
             try {
                 m_userManager.save(user);
             } catch (final Throwable t) {
@@ -193,7 +196,7 @@ public class UserRestService extends OnmsRestService {
                 throw getException(Status.BAD_REQUEST, t);
             }
             if (user == null) throw getException(Status.BAD_REQUEST, "deleteUser: User does not exist: " + userCriteria);
-            log().debug("deleteUser: deleting user " + user);
+            LOG.debug("deleteUser: deleting user {}", user);
             try {
                 m_userManager.deleteUser(user.getUsername());
             } catch (final Throwable t) {
@@ -205,7 +208,7 @@ public class UserRestService extends OnmsRestService {
         }
     }
 
-    public boolean hasEditRights() {
+    private boolean hasEditRights() {
         if (m_securityContext.isUserInRole(Authentication.ROLE_ADMIN) || m_securityContext.isUserInRole(Authentication.ROLE_REST)) {
             return true;
         }
@@ -213,7 +216,7 @@ public class UserRestService extends OnmsRestService {
     }
 
     private OnmsUserList filterUserPasswords(final OnmsUserList users) {
-        Collections.sort(users, USER_COMPARATOR);
+        Collections.sort(users.getUsers(), USER_COMPARATOR);
         for (final OnmsUser user : users) {
             filterUserPassword(user);
         }
@@ -226,6 +229,7 @@ public class UserRestService extends OnmsRestService {
             // users may see their own password hash  :)
             if (!user.getUsername().equals(principal.getName())) {
                 user.setPassword("xxxxxxxx");
+                user.setPasswordSalted(false);
             }
         }
         return user;

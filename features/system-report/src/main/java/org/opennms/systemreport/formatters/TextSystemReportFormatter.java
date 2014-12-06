@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2010-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2010-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -30,12 +30,14 @@ package org.opennms.systemreport.formatters;
 
 import java.util.Map;
 
-import org.opennms.core.utils.LogUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.opennms.systemreport.SystemReportFormatter;
 import org.opennms.systemreport.SystemReportPlugin;
 import org.springframework.core.io.Resource;
 
 public class TextSystemReportFormatter extends AbstractSystemReportFormatter implements SystemReportFormatter {
+    private static final Logger LOG = LoggerFactory.getLogger(TextSystemReportFormatter.class);
 
     @Override
     public String getName() {
@@ -47,14 +49,17 @@ public class TextSystemReportFormatter extends AbstractSystemReportFormatter imp
         return "Simple human-readable indented text";
     }
     
+    @Override
     public String getContentType() {
         return "text/plain";
     }
 
+    @Override
     public String getExtension() {
         return "txt";
     }
 
+    @Override
     public boolean canStdout() {
         return true;
     }
@@ -62,7 +67,7 @@ public class TextSystemReportFormatter extends AbstractSystemReportFormatter imp
     @Override
     public void write(final SystemReportPlugin plugin) {
         if (!hasDisplayable(plugin)) return;
-        LogUtils.debugf(this, "write(%s)", plugin.getName());
+        LOG.debug("write({})", plugin.getName());
         try {
             final String title = plugin.getName() + " (" + plugin.getDescription() + "):" + "\n";
             getOutputStream().write(title.getBytes());
@@ -79,7 +84,7 @@ public class TextSystemReportFormatter extends AbstractSystemReportFormatter imp
                 getOutputStream().write(text.getBytes());
             }
         } catch (Throwable e) {
-            LogUtils.errorf(this, e, "Error writing plugin data.");
+            LOG.error("Error writing plugin data.", e);
         }
     }
 }

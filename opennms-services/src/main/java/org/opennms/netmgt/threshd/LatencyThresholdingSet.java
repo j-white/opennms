@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2009-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2009-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -33,11 +33,12 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 
-import org.opennms.netmgt.config.collector.CollectionAttribute;
-import org.opennms.netmgt.model.RrdRepository;
+import org.opennms.netmgt.collection.api.CollectionAttribute;
 import org.opennms.netmgt.poller.LatencyCollectionAttribute;
 import org.opennms.netmgt.poller.LatencyCollectionResource;
+import org.opennms.netmgt.rrd.RrdRepository;
 import org.opennms.netmgt.xml.event.Event;
 
 /**
@@ -54,7 +55,7 @@ public class LatencyThresholdingSet extends ThresholdingSet {
      * @param nodeId a int.
      * @param hostAddress a {@link java.lang.String} object.
      * @param serviceName a {@link java.lang.String} object.
-     * @param repository a {@link org.opennms.netmgt.model.RrdRepository} object.
+     * @param repository a {@link org.opennms.netmgt.rrd.RrdRepository} object.
      * @param interval a long.
      */
     public LatencyThresholdingSet(int nodeId, String hostAddress, String serviceName, RrdRepository repository) {
@@ -88,8 +89,9 @@ public class LatencyThresholdingSet extends ThresholdingSet {
     public List<Event> applyThresholds(String svcName, Map<String, Double> attributes) {
         LatencyCollectionResource latencyResource = new LatencyCollectionResource(svcName, m_hostAddress);
         Map<String, CollectionAttribute> attributesMap = new HashMap<String, CollectionAttribute>();
-        for (String ds : attributes.keySet()) {
-            attributesMap.put(ds, new LatencyCollectionAttribute(latencyResource, ds, attributes.get(ds)));
+        for (final Entry<String, Double> entry : attributes.entrySet()) {
+            final String ds = entry.getKey();
+            attributesMap.put(ds, new LatencyCollectionAttribute(latencyResource, ds, entry.getValue()));
         }
         //The timestamp is irrelevant; latency is never a COUNTER (which is the only reason the date is used).  
         //Yes, we have to know a little too much about the implementation details of CollectionResourceWrapper to say that, but

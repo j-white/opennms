@@ -1,46 +1,51 @@
 /*******************************************************************************
- * This file is part of the OpenNMS(R) Application.
+ * This file is part of OpenNMS(R).
  *
- * OpenNMS(R) is Copyright (C) 1999-2011 The OpenNMS Group, Inc.  All rights reserved.
+ * Copyright (C) 2006-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
+ *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 2 of the License, or
- * (at your option) any later version.
+ * it under the terms of the GNU Affero General Public License as published
+ * by the Free Software Foundation, either version 3 of the License,
+ * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- *     along with OpenNMS(R).  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU Affero General Public License
+ * along with OpenNMS(R).  If not, see:
+ *      http://www.gnu.org/licenses/
  *
- * For more information contact: 
+ * For more information contact:
  *     OpenNMS(R) Licensing <license@opennms.org>
  *     http://www.opennms.org/
  *     http://www.opennms.com/
  *******************************************************************************/
+
 package org.opennms.groovy.poller.remote;
 
 import groovy.swing.SwingBuilder;
 
-import java.awt.BorderLayout
-import java.awt.CardLayout
-import java.awt.FlowLayout
-import java.text.SimpleDateFormat
+import java.awt.BorderLayout;
+import java.awt.CardLayout;
+import java.awt.FlowLayout;
+import java.text.SimpleDateFormat;
 
-import javax.swing.BorderFactory
+import javax.swing.BorderFactory;
 import javax.swing.JFrame;
 import javax.swing.SwingUtilities;
 import javax.swing.table.TableModel;
 
-import org.opennms.core.utils.LogUtils;
-import org.opennms.netmgt.model.PollStatus;
-import org.opennms.netmgt.model.OnmsMonitoringLocationDefinition
+import org.opennms.netmgt.poller.PollStatus;
+import org.opennms.netmgt.model.OnmsMonitoringLocationDefinition;
 import org.opennms.poller.remote.MonitoringLocationListCellRenderer;
 import org.opennms.netmgt.poller.remote.PollerFrontEnd;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.InitializingBean;
 
 /**
@@ -51,7 +56,7 @@ import org.springframework.beans.factory.InitializingBean;
  */
 
 class GroovyPollerView implements InitializingBean {
-    
+    private static final Logger LOG = LoggerFactory.getLogger(GroovyPollerView.class);
     private static final String REGISTRATION = "registration";
     private static final String STATUS = "status";
 
@@ -90,7 +95,12 @@ class GroovyPollerView implements InitializingBean {
 		                    	label(text:'Current monitoring locations: ')
 		                    }
 		                    td {
-		                        m_monLocation = comboBox(items:getCurrentMonitoringLocations(), renderer:new MonitoringLocationListCellRenderer())
+                            def locations = getCurrentMonitoringLocations()
+                            if (locations.size() > 0) {
+		                            m_monLocation = comboBox(items:locations, renderer:new MonitoringLocationListCellRenderer())
+                            } else {
+                                label(text:'No monitoring locations found')
+                            }
 		                    }
 		                }
 		                tr {
@@ -127,16 +137,20 @@ class GroovyPollerView implements InitializingBean {
    }
    
    private void doRegistration() {
-       String loc = m_monLocation.selectedItem.name;
-       System.err.println("Registering for location "+loc)
-       m_frontEnd.register(loc);
+       String loc = m_monLocation?.selectedItem?.name;
+       if (loc == null) {
+           LOG.warn("Null monitoring location selected");
+       } else {
+          System.err.println("Registering for location " + loc)
+          m_frontEnd.register(loc);
+       }
    }
    
    private List getCurrentMonitoringLocations() {
 	   try {
 		   return m_frontEnd.getMonitoringLocations();
 	   } catch (final Exception e) {
-		   LogUtils.errorf(this, e, "an error occurred getting the list of monitoring locations");
+		   LOG.error("an error occurred getting the list of monitoring locations", e);
            System.exit(1);
 	   }
    }

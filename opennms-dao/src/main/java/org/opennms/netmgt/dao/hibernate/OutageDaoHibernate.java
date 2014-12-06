@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2006-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -38,7 +38,7 @@ import java.util.Set;
 
 import org.hibernate.HibernateException;
 import org.hibernate.Session;
-import org.opennms.netmgt.dao.OutageDao;
+import org.opennms.netmgt.dao.api.OutageDao;
 import org.opennms.netmgt.filter.FilterDaoFactory;
 import org.opennms.netmgt.model.OnmsMonitoredService;
 import org.opennms.netmgt.model.OnmsOutage;
@@ -60,6 +60,7 @@ public class OutageDaoHibernate extends AbstractDaoHibernate<OnmsOutage, Integer
      *
      * @return a {@link java.lang.Integer} object.
      */
+    @Override
     public Integer currentOutageCount() {
         return queryInt("select count(*) from OnmsOutage as o where o.ifRegainedService is null");
     }
@@ -69,15 +70,23 @@ public class OutageDaoHibernate extends AbstractDaoHibernate<OnmsOutage, Integer
      *
      * @return a {@link java.util.Collection} object.
      */
+    @Override
     public Collection<OnmsOutage> currentOutages() {
         return find("from OnmsOutage as o where o.ifRegainedService is null");
     }
 
+    @Override
+    public OnmsOutage currentOutageForService(OnmsMonitoredService service) {
+        return findUnique("from OnmsOutage as o where o.monitoredService = ? and o.ifRegainedService is null", service);
+    }
+
     /** {@inheritDoc} */
+    @Override
     public Collection<OnmsOutage> findAll(final Integer offset, final Integer limit) {
         return (Collection<OnmsOutage>)getHibernateTemplate().execute(new HibernateCallback<Collection<OnmsOutage>>() {
 
             @SuppressWarnings("unchecked")
+            @Override
             public Collection<OnmsOutage> doInHibernate(final Session session) throws HibernateException, SQLException {
                 return session.createCriteria(OnmsOutage.class)
                 .setFirstResult(offset)
@@ -89,6 +98,7 @@ public class OutageDaoHibernate extends AbstractDaoHibernate<OnmsOutage, Integer
     }
 
     /** {@inheritDoc} */
+    @Override
     public Collection<OnmsOutage> matchingCurrentOutages(final ServiceSelector selector) {
         final Set<InetAddress> matchingAddrs = new HashSet<InetAddress>(FilterDaoFactory.getInstance().getIPAddressList(selector.getFilterRule()));
         final Set<String> matchingSvcs = new HashSet<String>(selector.getServiceNames());
@@ -107,12 +117,14 @@ public class OutageDaoHibernate extends AbstractDaoHibernate<OnmsOutage, Integer
     }
 
     /** {@inheritDoc} */
+    @Override
     public int countOutagesByNode() {
         return getNodeOutageSummaries(0).size();
     }
 
     // final int nodeId, final String nodeLabel, final Date timeDown, final Date timeUp, final Date timeNow
     /** {@inheritDoc} */
+    @Override
     public List<OutageSummary> getNodeOutageSummaries(final int rows) {
         final List<OutageSummary> outages = findObjects(
             OutageSummary.class,

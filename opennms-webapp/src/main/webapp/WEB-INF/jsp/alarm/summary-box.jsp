@@ -2,22 +2,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2009-2013 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2013 The OpenNMS Group, Inc.
+ * Copyright (C) 2002-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -40,18 +40,18 @@
 <%@page language="java"
         contentType="text/html"
         session="true"
-        import="org.opennms.web.alarm.*" %>
+%>
 
 <%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c" %>
 
 <!-- alarm/summary-box.htm -->
 <c:url var="headingLink" value="alarm/list.htm"/>
-<h3 class="o-box"><a href="${headingLink}">Nodes w/Pending Problems</a></h3>
+<h3 class="o-box"><a href="${headingLink}">Nodes with Pending Problems</a></h3>
 <div class="boxWrapper">
   <c:choose>
     <c:when test="${empty summaries}">
       <p class="noBottomMargin">
-        There are no pending problems
+        There are no pending problems.
       </p>
     </c:when>
     <c:otherwise>
@@ -67,7 +67,7 @@
       <c:if test="${moreCount > 0}">
         <p class="noBottomMargin" align="right">
           <c:url var="moreLink" value="alarm/list.htm"/>
-          <a href="${moreLink}">all pending problems...</a>
+          <a href="${moreLink}">All pending problems...</a>
         </p>
       </c:if>
     </c:otherwise>

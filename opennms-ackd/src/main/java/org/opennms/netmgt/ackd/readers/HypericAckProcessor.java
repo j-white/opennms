@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2010-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2009-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -55,36 +55,25 @@ import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.events.StartElement;
 import javax.xml.stream.events.XMLEvent;
 
-import org.apache.http.HttpHost;
-import org.apache.http.HttpRequest;
-import org.apache.http.HttpRequestInterceptor;
-import org.apache.http.HttpResponse;
-import org.apache.http.auth.AuthScope;
-import org.apache.http.auth.AuthState;
-import org.apache.http.auth.Credentials;
-import org.apache.http.auth.UsernamePasswordCredentials;
-import org.apache.http.client.CredentialsProvider;
+import org.apache.commons.io.IOUtils;
+import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpUriRequest;
-import org.apache.http.client.protocol.ClientContext;
-import org.apache.http.impl.auth.BasicScheme;
-import org.apache.http.impl.client.DefaultHttpClient;
-import org.apache.http.params.CoreConnectionPNames;
-import org.apache.http.params.CoreProtocolPNames;
-import org.apache.http.protocol.ExecutionContext;
-import org.apache.http.protocol.HttpContext;
 import org.apache.http.util.EntityUtils;
-import org.hibernate.criterion.Restrictions;
-import org.opennms.core.utils.ThreadCategory;
+import org.opennms.core.criteria.Criteria;
+import org.opennms.core.criteria.restrictions.EqRestriction;
+import org.opennms.core.criteria.restrictions.GtRestriction;
+import org.opennms.core.web.HttpClientWrapper;
 import org.opennms.netmgt.config.ackd.Parameter;
-import org.opennms.netmgt.dao.AckdConfigurationDao;
-import org.opennms.netmgt.dao.AlarmDao;
+import org.opennms.netmgt.dao.api.AckdConfigurationDao;
+import org.opennms.netmgt.dao.api.AcknowledgmentDao;
+import org.opennms.netmgt.dao.api.AlarmDao;
 import org.opennms.netmgt.model.AckAction;
 import org.opennms.netmgt.model.OnmsAcknowledgment;
 import org.opennms.netmgt.model.OnmsAlarm;
-import org.opennms.netmgt.model.OnmsCriteria;
 import org.opennms.netmgt.model.OnmsSeverity;
-import org.opennms.netmgt.model.acknowledgments.AckService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * <p>HypericAckProcessor class.</p>
@@ -93,6 +82,7 @@ import org.opennms.netmgt.model.acknowledgments.AckService;
  * @version $Id: $
  */
 public class HypericAckProcessor implements AckProcessor {
+    private static final Logger LOG = LoggerFactory.getLogger(HypericAckProcessor.class);
 
     /** Constant <code>READER_NAME_HYPERIC="HypericReader"</code> */
     public static final String READER_NAME_HYPERIC = "HypericReader";
@@ -102,9 +92,9 @@ public class HypericAckProcessor implements AckProcessor {
     public static final int ALERTS_PER_HTTP_TRANSACTION = 200;
     // public static final String PARAMETER_HYPERIC_HOSTS = "hyperic-hosts";
 
-    private AckdConfigurationDao m_ackdDao;
+    private AckdConfigurationDao m_ackdConfigDao;
+    private AcknowledgmentDao m_ackDao;
     private AlarmDao m_alarmDao;
-    private AckService m_ackService;
 
     /**
      * <p>This class is used as the data bean for parsing XML responses from the Hyperic HQ
@@ -220,6 +210,7 @@ public class HypericAckProcessor implements AckProcessor {
             this.fixTime = fixTime;
         }
 
+        @Override
         public String toString() {
             StringBuffer retval = new StringBuffer();
             retval.append("{ ");
@@ -236,18 +227,15 @@ public class HypericAckProcessor implements AckProcessor {
         }
     }
 
-    private static ThreadCategory log() {
-        return ThreadCategory.getInstance(HypericAckProcessor.class);
-    }
-
     /// TODO Verify that this works properly
     /**
      * <p>reloadConfigs</p>
      */
+    @Override
     public void reloadConfigs() {
-        log().debug("reloadConfigs: reloading configuration...");
-        m_ackdDao.reloadConfiguration();
-        log().debug("reloadConfigs: configuration reloaded");
+        LOG.debug("reloadConfigs: reloading configuration...");
+        m_ackdConfigDao.reloadConfiguration();
+        LOG.debug("reloadConfigs: configuration reloaded");
     }
 
     /**
@@ -257,16 +245,16 @@ public class HypericAckProcessor implements AckProcessor {
      */
     public List<OnmsAlarm> fetchUnclearedHypericAlarms() {
         // Query for existing, unacknowledged alarms in OpenNMS that were generated based on Hyperic alerts
-        OnmsCriteria criteria = new OnmsCriteria(OnmsAlarm.class, "alarm");
+        Criteria criteria = new Criteria(OnmsAlarm.class);
 
         // criteria.add(Restrictions.isNull("alarmAckUser"));
 
         // Restrict to Hyperic alerts
-        criteria.add(Restrictions.eq("uei", "uei.opennms.org/external/hyperic/alert"));
+        criteria.addRestriction(new EqRestriction("uei", "uei.opennms.org/external/hyperic/alert"));
 
         // Only consider alarms that are above severity NORMAL
         // {@see org.opennms.netmgt.model.OnmsSeverity}
-        criteria.add(Restrictions.gt("severity", OnmsSeverity.NORMAL));
+        criteria.addRestriction(new GtRestriction("severity", OnmsSeverity.NORMAL));
 
         // TODO Figure out how to query by parameters (maybe necessary)
 
@@ -287,7 +275,7 @@ public class HypericAckProcessor implements AckProcessor {
             throw new IllegalArgumentException("Cannot search for blank Hyperic platform IDs inside the ackd configuration");
         }
 
-        List<Parameter> params = m_ackdDao.getParametersForReader(READER_NAME_HYPERIC);
+        List<Parameter> params = m_ackdConfigDao.getParametersForReader(READER_NAME_HYPERIC);
         if (params == null) {
             throw new IllegalStateException("There is no configuration for the '" + READER_NAME_HYPERIC + "' reader inside the ackd configuration");
         }
@@ -302,11 +290,12 @@ public class HypericAckProcessor implements AckProcessor {
     /**
      * <p>run</p>
      */
+    @Override
     public void run() {
         List<OnmsAcknowledgment> acks = new ArrayList<OnmsAcknowledgment>();
 
         try {
-            log().info("run: Processing Hyperic acknowledgments..." );
+            LOG.info("run: Processing Hyperic acknowledgments..." );
 
             // Query list of outstanding alerts with remote platform identifiers
             List<OnmsAlarm> unAckdAlarms = fetchUnclearedHypericAlarms();
@@ -329,7 +318,7 @@ public class HypericAckProcessor implements AckProcessor {
             }
 
             if (legacyAlarmCount > 0) {
-                log().info(String.valueOf(legacyAlarmCount) + " Hyperic alarms without an alert.source param found, these alarms will not be processed");
+                LOG.info("{} Hyperic alarms without an alert.source param found, these alarms will not be processed", String.valueOf(legacyAlarmCount));
             }
 
             // Connect to each Hyperic system and query for the status of corresponding alerts 
@@ -341,8 +330,8 @@ public class HypericAckProcessor implements AckProcessor {
                 String hypericUrl = getUrlForHypericSource(hypericSystem);
                 if (hypericUrl == null) {
                     // If the alert.source doesn't match anything in our current config, just ignore it, warn in the logs
-                    log().warn("Could not find Hyperic host URL for the following platform ID: " + hypericSystem);
-                    log().warn("Skipping processing of " + alarmsForSystem.size() + " alarms with that platform ID");
+                    LOG.warn("Could not find Hyperic host URL for the following platform ID: {}", hypericSystem);
+                    LOG.warn("Skipping processing of {} alarms with that platform ID", alarmsForSystem.size());
                     continue;
                 }
 
@@ -363,7 +352,7 @@ public class HypericAckProcessor implements AckProcessor {
                         OnmsAlarm alarm = findAlarmForHypericAlert(alarmsForSystem, hypericSystem, alert);
 
                         if (alarm == null) {
-                            log().warn("Could not find the OpenNMS alarm for the following Hyperic alert: URL: \"" + hypericUrl + "\", id: " + alert.getAlertId());
+                            LOG.warn("Could not find the OpenNMS alarm for the following Hyperic alert: URL: \"{}\", id: {}", hypericUrl, alert.getAlertId());
                         } else if (alert.isFixed() && !OnmsSeverity.CLEARED.equals(alarm.getSeverity())) {
                             // If the Hyperic alert has been fixed and the local alarm is not yet marked as CLEARED, then clear it
                             OnmsAcknowledgment ack = new OnmsAcknowledgment(alarm, "Ackd.HypericAckProcessor", (alert.getFixTime() != null) ? alert.getFixTime() : new Date());
@@ -380,18 +369,18 @@ public class HypericAckProcessor implements AckProcessor {
 
                     }
                 } catch (Throwable e) {
-                    log().warn("run: threw exception when processing alarms for Hyperic system " + hypericSystem + ": " + e.getMessage());
-                    log().warn("run: " + acks.size() + " acknowledgements processed successfully before exception");
+                    LOG.warn("run: threw exception when processing alarms for Hyperic system {}", hypericSystem, e.getMessage());
+                    LOG.warn("run: {} acknowledgements processed successfully before exception", acks.size());
                 } finally {
                     if (acks.size() > 0) {
-                        m_ackService.processAcks(acks);
+                        m_ackDao.processAcks(acks);
                     }
                 }
             }
 
-            log().info("run: Finished processing Hyperic acknowledgments (" + acks.size() + " ack(s) processed for " + unAckdAlarms.size() + " alarm(s))" );
+            LOG.info("run: Finished processing Hyperic acknowledgments ({} ack(s) processed for {} alarm(s))", acks.size(), unAckdAlarms.size());
         } catch (Throwable e) {
-            log().warn("run: threw exception: " + e.getMessage(), e);
+            LOG.warn("run: threw exception", e);
         }
     }
 
@@ -496,66 +485,37 @@ public class HypericAckProcessor implements AckProcessor {
                 alertIdString.append("id=").append(alertIds.get(i));
             }
 
-            // Create an HTTP client
-            DefaultHttpClient httpClient = new DefaultHttpClient();
-            httpClient.getParams().setIntParameter(CoreConnectionPNames.CONNECTION_TIMEOUT, 3000);
-            httpClient.getParams().setIntParameter(CoreConnectionPNames.SO_TIMEOUT, 3000);
-            HttpUriRequest httpMethod = new HttpGet(hypericUrl + alertIdString.toString());
+            final HttpClientWrapper clientWrapper = HttpClientWrapper.create()
+                    .setConnectionTimeout(3000)
+                    .setSocketTimeout(3000)
+                    // Set a custom user-agent so that it's easy to tcpdump these requests
+                    .setUserAgent("OpenNMS-Ackd.HypericAckProcessor");
 
-            // Set a custom user-agent so that it's easy to tcpdump these requests
-            httpMethod.getParams().setParameter(CoreProtocolPNames.USER_AGENT, "OpenNMS-Ackd.HypericAckProcessor");
+            HttpUriRequest httpMethod = new HttpGet(hypericUrl + alertIdString.toString());
 
             // Parse the URI from the config so that we can deduce the username/password information
             String userinfo = null;
             try {
                 URI hypericUri = new URI(hypericUrl);
                 userinfo = hypericUri.getUserInfo();
-                // httpMethod.getParams().setParameter(ClientPNames.VIRTUAL_HOST, new HttpHost("localhost", hypericUri.getPort()));
-            } catch (URISyntaxException e) {
-                log().warn("Could not parse URI to get username/password stanza: " + hypericUrl, e);
+            } catch (final URISyntaxException e) {
+                LOG.warn("Could not parse URI to get username/password stanza: {}", hypericUrl, e);
             }
             if (userinfo != null && !"".equals(userinfo)) {
-                // Add the credentials to the HttpClient instance
-                httpClient.getCredentialsProvider().setCredentials(AuthScope.ANY, new UsernamePasswordCredentials(userinfo));
-
-                /**
-                 * Add an HttpRequestInterceptor that will perform preemptive auth
-                 * @see http://hc.apache.org/httpcomponents-client-4.0.1/tutorial/html/authentication.html
-                 */
-                HttpRequestInterceptor preemptiveAuth = new HttpRequestInterceptor() {
-
-                    public void process(final HttpRequest request, final HttpContext context) throws IOException {
-
-                        AuthState authState = (AuthState)context.getAttribute(ClientContext.TARGET_AUTH_STATE);
-                        CredentialsProvider credsProvider = (CredentialsProvider)context.getAttribute(ClientContext.CREDS_PROVIDER);
-                        HttpHost targetHost = (HttpHost)context.getAttribute(ExecutionContext.HTTP_TARGET_HOST);
-
-                        // If not auth scheme has been initialized yet
-                        if (authState.getAuthScheme() == null) {
-                            AuthScope authScope = new AuthScope(targetHost.getHostName(), targetHost.getPort());
-                            // Obtain credentials matching the target host
-                            Credentials creds = credsProvider.getCredentials(authScope);
-                            // If found, generate BasicScheme preemptively
-                            if (creds != null) {
-                                authState.update(new BasicScheme(), creds);
-                            }
-                        }
-                    }
-
-                };
-                httpClient.addRequestInterceptor(preemptiveAuth, 0);
+                final String[] credentials = userinfo.split(":");
+                if (credentials.length == 2) {
+                    clientWrapper.addBasicCredentials(credentials[0], credentials[1])
+                        .usePreemptiveAuth();
+                } else {
+                    LOG.warn("Unable to deduce username/password from '{}'", userinfo);
+                }
             }
 
             try {
-                HttpResponse response = httpClient.execute(httpMethod);
-
-                // int statusCode = response.getStatusLine().getStatusCode();
-                // String statusText = response.getStatusLine().getReasonPhrase();
-
+                CloseableHttpResponse response = clientWrapper.execute(httpMethod);
                 retval = parseHypericAlerts(new StringReader(EntityUtils.toString(response.getEntity())));
-            } finally{
-                // Do we need to do any cleanup?
-                // httpMethod.releaseConnection();
+            } finally {
+                IOUtils.closeQuietly(clientWrapper);
             }
         }
         return retval;
@@ -577,6 +537,7 @@ public class HypericAckProcessor implements AckProcessor {
         XMLInputFactory xmlif = XMLInputFactory.newInstance();
         XMLEventReader xmler = xmlif.createXMLEventReader(reader);
         EventFilter filter = new EventFilter() {
+            @Override
             public boolean accept(XMLEvent event) {
                 return event.isStartElement();
             }
@@ -625,19 +586,17 @@ public class HypericAckProcessor implements AckProcessor {
     /**
      * <p>setAckdConfigDao</p>
      *
-     * @param configDao a {@link org.opennms.netmgt.dao.AckdConfigurationDao} object.
+     * @param configDao a {@link org.opennms.netmgt.dao.api.AckdConfigurationDao} object.
      */
     public synchronized void setAckdConfigDao(final AckdConfigurationDao configDao) {
-        m_ackdDao = configDao;
+        m_ackdConfigDao = configDao;
     }
 
     /**
-     * <p>setAckService</p>
-     *
-     * @param ackService a {@link org.opennms.netmgt.model.acknowledgments.AckService} object.
+     * @param ackDao a {@link org.opennms.netmgt.dao.api.AcknowledgmentDao} object.
      */
-    public synchronized void setAckService(final AckService ackService) {
-        m_ackService = ackService;
+    public synchronized void setAcknowledgmentDao(final AcknowledgmentDao ackDao) {
+        m_ackDao = ackDao;
     }
 
     /**
@@ -652,7 +611,7 @@ public class HypericAckProcessor implements AckProcessor {
     /**
      * <p>setAlarmDao</p>
      *
-     * @param dao a {@link org.opennms.netmgt.dao.AlarmDao} object.
+     * @param dao a {@link org.opennms.netmgt.dao.api.AlarmDao} object.
      */
     public synchronized void setAlarmDao(final AlarmDao dao) {
         m_alarmDao = dao;

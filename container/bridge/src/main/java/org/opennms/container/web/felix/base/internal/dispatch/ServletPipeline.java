@@ -64,7 +64,7 @@ public final class ServletPipeline
         return null;
     }
 
-    private final class Dispatcher
+    private static final class Dispatcher
         implements RequestDispatcher
     {
         private final String path;
@@ -76,6 +76,7 @@ public final class ServletPipeline
             this.handler = handler;
         }
 
+        @Override
         public void forward(ServletRequest req, ServletResponse res)
             throws ServletException, IOException
         {
@@ -86,6 +87,7 @@ public final class ServletPipeline
             this.handler.handle(new RequestWrapper((HttpServletRequest)req, this.path), (HttpServletResponse)res);
         }
 
+        @Override
         public void include(ServletRequest req, ServletResponse res)
             throws ServletException, IOException
         {
@@ -93,7 +95,7 @@ public final class ServletPipeline
         }
     }
 
-    private final class RequestWrapper
+    private final static class RequestWrapper
         extends HttpServletRequestWrapper
     {
         private final String requestUri;
@@ -104,6 +106,7 @@ public final class ServletPipeline
             this.requestUri = requestUri;
         }
 
+        @Override
         public String getRequestURI()
         {
             return this.requestUri;

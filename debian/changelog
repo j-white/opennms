@@ -1,3 +1,43 @@
+opennms (14.0.1-1) stable; urgency=medium
+
+  * New upstream release.  Major stable release 14.0.1.
+
+ -- OpenNMS Release Manager <opennms@opennms.org>  Fri, 14 Nov 2014 10:57:00 -0400
+
+opennms (14.0.0-1) stable; urgency=high
+
+  * New upstream release.  Major stable release 14.0.0.
+
+ -- OpenNMS Release Manager <opennms@opennms.org>  Mon, 03 Nov 2014 15:08:00 -0400
+
+opennms (1.13.3-1) stable; urgency=high
+
+  * New upstream release.  This is the 4th unstable release for the eventual
+    1.14.x stable series, and includes a critical security fix.
+
+ -- OpenNMS Release Manager <opennms@opennms.org>  Wed, 04 Jun 2014 16:49:00 -0400
+
+opennms (1.13.2-1) stable; urgency=low
+
+  * New upstream release.  This is the 3rd unstable release for the eventual
+    1.14.x stable series.
+
+ -- OpenNMS Release Manager <opennms@opennms.org>  Thu, 29 May 2014 12:02:00 -0400
+
+opennms (1.13.1-1) stable; urgency=low
+
+  * New upstream release.  This is the 2nd unstable release for the eventual
+    1.14.x stable series.
+
+ -- OpenNMS Release Manager <opennms@opennms.org>  Mon, 21 Apr 2014 14:21:00 -0400
+
+opennms (1.13.0-1) stable; urgency=low
+
+  * New upstream release.  This is the first unstable release for the eventual
+    1.14.x stable series.
+
+ -- OpenNMS Release Manager <opennms@opennms.org>  Thu, 12 Dec 2013 15:28:00 -0400
+
 opennms (1.12.8-1) stable; urgency=high
 
   * New upstream release.  This release contains a fix for a bug that exposes

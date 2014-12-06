@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2005-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -40,6 +40,7 @@ import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.Arrays;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.StringTokenizer;
@@ -47,7 +48,7 @@ import java.util.StringTokenizer;
 /**
  * Bootstrap application for starting OpenNMS.
  */
-public class Bootstrap {
+public abstract class Bootstrap {
     protected static final String BOOT_PROPERTIES_NAME = "bootstrap.properties";
     protected static final String RRD_PROPERTIES_NAME = "rrd-configuration.properties";
     protected static final String LIBRARY_PROPERTIES_NAME = "libraries.properties";
@@ -57,6 +58,7 @@ public class Bootstrap {
      * Matches any file that is a directory.
      */
     private static FileFilter m_dirFilter = new FileFilter() {
+        @Override
         public boolean accept(File pathname) {
             return pathname.isDirectory();
         }
@@ -66,6 +68,7 @@ public class Bootstrap {
      * Matches any file that has a name ending in ".jar".
      */
     private static FilenameFilter m_jarFilter = new FilenameFilter() {
+        @Override
         public boolean accept(File dir, String name) {
             return name.endsWith(".jar");
         }
@@ -136,7 +139,7 @@ public class Bootstrap {
      * @returns A new ClassLoader with the specified search list
      * @return a {@link java.lang.ClassLoader} object.
      */
-    public static ClassLoader newClassLoader(LinkedList<URL> urls) {
+    public static ClassLoader newClassLoader(List<URL> urls) {
         URL[] urlsArray = urls.toArray(new URL[0]);
 
         return URLClassLoader.newInstance(urlsArray);
@@ -154,7 +157,7 @@ public class Bootstrap {
      *            LinkedList to append found JARs onto
      * @throws java.net.MalformedURLException if any.
      */
-    public static void loadClasses(File dir, boolean recursive, LinkedList<URL> urls) throws MalformedURLException {
+    public static void loadClasses(File dir, boolean recursive, List<URL> urls) throws MalformedURLException {
         // Add the directory
         urls.add(dir.toURI().toURL());
 
@@ -312,7 +315,7 @@ public class Bootstrap {
         loadDefaultProperties();
         
         final String classToExec = System.getProperty("opennms.manager.class", "org.opennms.netmgt.vmmgr.Controller");
-        final String classToExecMethod = "main";
+        final String classToExecMethod = System.getProperty("opennms.manager.method", "main");
         final String[] classToExecArgs = args;
 
         executeClass(classToExec, classToExecMethod, classToExecArgs, false);
@@ -347,7 +350,7 @@ public class Bootstrap {
             System.err.println("dir = " + dir);
         }
 
-        final ClassLoader cl = Bootstrap.loadClasses(dir, recurse, false);
+        final ClassLoader cl = Bootstrap.loadClasses(dir, recurse, appendClasspath);
 
         if (classToExec != null) {
             final String className = classToExec;
@@ -357,6 +360,7 @@ public class Bootstrap {
             final Method method = c.getMethod(classToExecMethod, classes);
 
             Runnable execer = new Runnable() {
+                @Override
                 public void run() {
                     try {
                         method.invoke(null, methodArgs);

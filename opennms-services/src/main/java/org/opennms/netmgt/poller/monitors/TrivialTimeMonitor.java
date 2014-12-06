@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2008-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2008-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -43,15 +43,16 @@ import java.nio.ByteBuffer;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-import org.apache.log4j.Level;
 import org.opennms.core.utils.InetAddressUtils;
 import org.opennms.core.utils.ParameterMap;
 import org.opennms.core.utils.TimeoutTracker;
-import org.opennms.netmgt.model.PollStatus;
 import org.opennms.netmgt.poller.Distributable;
 import org.opennms.netmgt.poller.MonitoredService;
 import org.opennms.netmgt.poller.NetworkInterface;
 import org.opennms.netmgt.poller.NetworkInterfaceNotSupportedException;
+import org.opennms.netmgt.poller.PollStatus;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * This class is designed to be used by the service poller framework to test the
@@ -65,7 +66,8 @@ import org.opennms.netmgt.poller.NetworkInterfaceNotSupportedException;
 
 @Distributable
 final public class TrivialTimeMonitor extends AbstractServiceMonitor {
-    
+    private static final Logger LOG = LoggerFactory.getLogger(TrivialTimeMonitor.class);
+
     /**
      * Default layer-4 protocol to use
      */
@@ -115,6 +117,7 @@ final public class TrivialTimeMonitor extends AbstractServiceMonitor {
      * the specified number of seconds of the local system's clock time, then
      * the service is considered available.
      */
+    @Override
     public PollStatus poll(MonitoredService svc, Map<String, Object> parameters) {
         NetworkInterface<InetAddress> iface = svc.getNetInterface();
 
@@ -138,8 +141,7 @@ final public class TrivialTimeMonitor extends AbstractServiceMonitor {
         //
         InetAddress ipv4Addr = (InetAddress) iface.getAddress();
 
-        if (log().isDebugEnabled())
-            log().debug("poll: address = " + InetAddressUtils.str(ipv4Addr) + ", port = " + port + ", " + tracker);
+        LOG.debug("poll: address = {}, port = {}, tracker = {}", InetAddressUtils.str(ipv4Addr), port, tracker);
         
         // Get the permissible amount of skew.
         //
@@ -157,7 +159,7 @@ final public class TrivialTimeMonitor extends AbstractServiceMonitor {
             throw new  IllegalArgumentException("Unsupported protocol, only TCP and UDP currently supported");
         } else if (protocol.equalsIgnoreCase("udp")) {
             // TODO test UDP support
-            log().warn("UDP support is largely untested");
+            LOG.warn("UDP support is largely untested");
         }
         
         if (protocol.equalsIgnoreCase("tcp")) {
@@ -175,7 +177,7 @@ final public class TrivialTimeMonitor extends AbstractServiceMonitor {
     /**
      * <p>storeResult</p>
      *
-     * @param serviceStatus a {@link org.opennms.netmgt.model.PollStatus} object.
+     * @param serviceStatus a {@link org.opennms.netmgt.poller.PollStatus} object.
      * @param skew a {@link java.lang.Number} object.
      * @param responseTime a {@link java.lang.Double} object.
      * @param persistSkew a boolean.
@@ -184,9 +186,7 @@ final public class TrivialTimeMonitor extends AbstractServiceMonitor {
         Map<String,Number> skewProps = new LinkedHashMap<String,Number>();
         if (persistSkew) {
             skewProps.put("skew", skew);
-	    if (log().isDebugEnabled()) {
-                log().debug("persistSkew: Persisting time skew (value = " + skew + ") for this node");
-            }
+	    LOG.debug("persistSkew: Persisting time skew (value = {}) for this node", skew);
         }
         skewProps.put("response-time", responseTime);
         serviceStatus.setProperties(skewProps);
@@ -197,13 +197,13 @@ final public class TrivialTimeMonitor extends AbstractServiceMonitor {
      *
      * @param svc a {@link org.opennms.netmgt.poller.MonitoredService} object.
      * @param parameters a {@link java.util.Map} object.
-     * @param serviceStatus a {@link org.opennms.netmgt.model.PollStatus} object.
+     * @param serviceStatus a {@link org.opennms.netmgt.poller.PollStatus} object.
      * @param tracker a {@link org.opennms.core.utils.TimeoutTracker} object.
      * @param ipv4Addr a {@link java.net.InetAddress} object.
      * @param port a int.
      * @param allowedSkew a int.
      * @param persistSkew a boolean.
-     * @return a {@link org.opennms.netmgt.model.PollStatus} object.
+     * @return a {@link org.opennms.netmgt.poller.PollStatus} object.
      */
     public PollStatus pollTimeTcp(MonitoredService svc, Map<String, Object> parameters, PollStatus serviceStatus, TimeoutTracker tracker, InetAddress ipv4Addr, int port, int allowedSkew, boolean persistSkew) {
         int localTime = 0;
@@ -219,7 +219,7 @@ final public class TrivialTimeMonitor extends AbstractServiceMonitor {
                 socket = new Socket();
                 socket.connect(new InetSocketAddress(ipv4Addr, port), tracker.getConnectionTimeout());
                 socket.setSoTimeout(tracker.getSoTimeout());
-                log().debug("Connected to host: " + ipv4Addr + " on TCP port: " + port);
+                LOG.debug("Connected to host: {} on TCP port: {}", ipv4Addr, port);
 
                 //
                 // Try to read from the socket
@@ -230,14 +230,12 @@ final public class TrivialTimeMonitor extends AbstractServiceMonitor {
 
                 if (bytesRead != 4)
                     continue;
-                if (log().isDebugEnabled()) {
-                    log().debug("pollTimeTcp: bytes read = " + bytesRead);
-                }
+                LOG.debug("pollTimeTcp: bytes read = {}", bytesRead);
                 
                 try {
                     remoteTime = timeByteBuffer.getInt();
                 } catch (BufferUnderflowException bue) {
-                    log().error("Encountered buffer underflow while reading time from remote socket.");
+                    LOG.error("Encountered buffer underflow while reading time from remote socket.");
                     remoteTime = 0;
                     serviceStatus = PollStatus.unavailable("Failed to read a valid time from remote host.");
                     continue; // to next iteration of for() loop
@@ -247,13 +245,21 @@ final public class TrivialTimeMonitor extends AbstractServiceMonitor {
                 gotTime = true;
                 serviceStatus = qualifyTime(remoteTime, localTime, allowedSkew, serviceStatus, tracker.elapsedTimeInMillis(), persistSkew);
             } catch (NoRouteToHostException e) {
-                serviceStatus = logDown(Level.WARN, "No route to host exception for address " + InetAddressUtils.str(ipv4Addr), e);
+                String reason = "No route to host exception for address " + InetAddressUtils.str(ipv4Addr);
+                LOG.debug(reason, e);
+                serviceStatus = PollStatus.unavailable(reason);
             } catch (InterruptedIOException e) {
-                serviceStatus = logDown(Level.DEBUG, "did not connect to host with " + tracker);
+                String reason = "did not connect to host with " + tracker;
+                LOG.debug(reason);
+                serviceStatus = PollStatus.unavailable(reason);
             } catch (ConnectException e) {
-                serviceStatus = logDown(Level.DEBUG, "Connection exception for address: " + ipv4Addr, e);
+                String reason = "Connection exception for address: " + ipv4Addr;
+                LOG.debug(reason, e);
+                serviceStatus = PollStatus.unavailable(reason);
             } catch (IOException e) {
-                serviceStatus = logDown(Level.DEBUG, "IOException while polling address: " + ipv4Addr, e);
+                String reason = "IOException while polling address: " + ipv4Addr;
+                LOG.debug(reason, e);
+                serviceStatus = PollStatus.unavailable(reason);
             } finally {
                 try {
                     // Close the socket
@@ -261,8 +267,7 @@ final public class TrivialTimeMonitor extends AbstractServiceMonitor {
                         socket.close();
                 } catch (IOException e) {
                     e.fillInStackTrace();
-                    if (log().isDebugEnabled())
-                        log().debug("pollTimeTcp: Error closing socket.", e);
+                    LOG.debug("pollTimeTcp: Error closing socket.", e);
                 }
             }
         }
@@ -275,13 +280,13 @@ final public class TrivialTimeMonitor extends AbstractServiceMonitor {
      *
      * @param svc a {@link org.opennms.netmgt.poller.MonitoredService} object.
      * @param parameters a {@link java.util.Map} object.
-     * @param serviceStatus a {@link org.opennms.netmgt.model.PollStatus} object.
+     * @param serviceStatus a {@link org.opennms.netmgt.poller.PollStatus} object.
      * @param tracker a {@link org.opennms.core.utils.TimeoutTracker} object.
      * @param ipv4Addr a {@link java.net.InetAddress} object.
      * @param port a int.
      * @param allowedSkew a int.
      * @param persistSkew a boolean.
-     * @return a {@link org.opennms.netmgt.model.PollStatus} object.
+     * @return a {@link org.opennms.netmgt.poller.PollStatus} object.
      */
     public PollStatus pollTimeUdp(MonitoredService svc, Map<String, Object> parameters, PollStatus serviceStatus, TimeoutTracker tracker, InetAddress ipv4Addr, int port, int allowedSkew, boolean persistSkew) {
         int localTime = 0;
@@ -296,7 +301,7 @@ final public class TrivialTimeMonitor extends AbstractServiceMonitor {
     
                 socket = new DatagramSocket();
                 socket.setSoTimeout(tracker.getSoTimeout());
-                log().debug("Requesting time from host: " + ipv4Addr + " on UDP port: " + port);
+                LOG.debug("Requesting time from host: {} on UDP port: {}", ipv4Addr, port);
     
                 //
                 // Send an empty datagram per RFC868
@@ -314,14 +319,12 @@ final public class TrivialTimeMonitor extends AbstractServiceMonitor {
     
                 if (bytesRead != 4)
                     continue;
-                if (log().isDebugEnabled()) {
-                    log().debug("pollTimeUdp: bytes read = " + bytesRead);
-                }
+                LOG.debug("pollTimeUdp: bytes read = {}", bytesRead);
                 
                 try {
                     remoteTime = timeByteBuffer.getInt();
                 } catch (BufferUnderflowException bue) {
-                    log().error("Encountered buffer underflow while reading time from remote socket.");
+                    LOG.error("Encountered buffer underflow while reading time from remote socket.");
                     remoteTime = 0;
                     serviceStatus = PollStatus.unavailable("Failed to read a valid time from remote host.");
                     continue; // to next iteration of for() loop
@@ -331,13 +334,21 @@ final public class TrivialTimeMonitor extends AbstractServiceMonitor {
                 gotTime = true;
                 serviceStatus = qualifyTime(remoteTime, localTime, allowedSkew, serviceStatus, tracker.elapsedTimeInMillis(), persistSkew);
             } catch (PortUnreachableException e) {
-                serviceStatus = logDown(Level.DEBUG, "Port unreachable exception for address " + hostAddress, e);
+                String reason = "Port unreachable exception for address " + hostAddress;
+                LOG.debug(reason, e);
+                serviceStatus = PollStatus.unavailable(reason);
             } catch (NoRouteToHostException e) {
-                serviceStatus = logDown(Level.WARN, "No route to host exception for address " + hostAddress, e);
+                String reason = "No route to host exception for address " + hostAddress;
+                LOG.debug(reason, e);
+                serviceStatus = PollStatus.unavailable(reason);
             } catch (InterruptedIOException e) {
-                serviceStatus = logDown(Level.DEBUG, "did not connect to host with " + tracker);
+                String reason = "did not connect to host with " + tracker;
+                LOG.debug(reason);
+                serviceStatus = PollStatus.unavailable(reason);
             } catch (IOException e) {
-                serviceStatus = logDown(Level.DEBUG, "IOException while polling address: " + ipv4Addr, e);
+                String reason = "IOException while polling address: " + ipv4Addr;
+                LOG.debug(reason, e);
+                serviceStatus = PollStatus.unavailable(reason);
             } finally {
                 if (socket != null)
                     socket.close();
@@ -347,16 +358,20 @@ final public class TrivialTimeMonitor extends AbstractServiceMonitor {
     }
     
     private PollStatus qualifyTime(int remoteTime, int localTime, int allowedSkew, PollStatus serviceStatus, double responseTime, boolean persistSkew) {
-        if (log().isDebugEnabled()) {
-            log().debug("qualifyTime: checking remote time " + remoteTime + " against local time " + localTime + " with max skew of " + allowedSkew);
-        }
+        LOG.debug("qualifyTime: checking remote time {} against local time {} with max skew of {}", remoteTime, localTime, allowedSkew);
         if ((localTime - remoteTime > allowedSkew) || (remoteTime - localTime > allowedSkew)) {
-            serviceStatus = logDown(Level.DEBUG, "Remote time is " + (localTime > remoteTime ? ""+(localTime-remoteTime)+" seconds slow" : ""+(remoteTime-localTime)+" seconds fast"));
+            String reason = "Remote time is " + (localTime > remoteTime ? ""+(localTime-remoteTime)+" seconds slow" : ""+(remoteTime-localTime)+" seconds fast");
+            LOG.debug(reason);
+            serviceStatus = PollStatus.unavailable(reason);
         }
         if ((localTime > remoteTime) && (localTime - remoteTime > allowedSkew)) {
-            serviceStatus = logDown(Level.DEBUG, "Remote time is " + (localTime - remoteTime) + " seconds behind local, more than the allowable " + allowedSkew);
+            String reason = "Remote time is " + (localTime - remoteTime) + " seconds behind local, more than the allowable " + allowedSkew;
+            LOG.debug(reason);
+            serviceStatus = PollStatus.unavailable(reason);
         } else if ((remoteTime > localTime) && (remoteTime - localTime > allowedSkew)) {
-            serviceStatus = logDown(Level.DEBUG, "Remote time is " + (remoteTime - localTime) + " seconds ahead of local, more than the allowable " + allowedSkew);
+            String reason = "Remote time is " + (remoteTime - localTime) + " seconds ahead of local, more than the allowable " + allowedSkew;
+            LOG.debug(reason);
+            serviceStatus = PollStatus.unavailable(reason);
         } else {
             serviceStatus = PollStatus.available();
         }

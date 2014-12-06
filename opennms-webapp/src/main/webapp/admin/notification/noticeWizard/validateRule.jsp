@@ -2,22 +2,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2002-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -93,7 +93,7 @@
 
 <h3>Check the TCP/IP addresses below to ensure that the rule has given the expected results. If it hasn't click the
           'Rebuild' link below the table. If the results look good continue by clicking the 'Next' link also below the table.</h3>
-      <table width="100%" cellspacing="0" cellpadding="0" border="0">
+      <table width="100%">
         <tr>
           <td width="10%">Current Rule:
           </td>
@@ -105,7 +105,7 @@
         <%=Util.makeHiddenTags(request)%>
         <input type="hidden" name="userAction" value=""/>
         <input type="hidden" name="sourcePage" value="<%=NotificationWizardServlet.SOURCE_PAGE_VALIDATE%>"/>
-        <table width="25%" cellspacing="2" cellpadding="2" border="1">
+        <table width="25%" border="1">
           <tr bgcolor="#999999">
             <td width="50%">
               <b>Interfaces</b>
@@ -116,7 +116,7 @@
           </tr>
           <%=buildInterfaceTable(newRule, services, notServices)%>
         </table>
-        <table width="100%" cellspacing="2" cellpadding="2" border="0">
+        <table width="100%">
          <tr> 
           <td>
            <a HREF="javascript:rebuild()">&#139;&#139;&#139; Rebuild</a>&nbsp;&nbsp;&nbsp;

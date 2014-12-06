@@ -2,22 +2,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2002-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -53,7 +53,7 @@
             HttpSession user = request.getSession(true);
             Path newPath = (Path) user.getAttribute("newPath");
 
-            Collection targets = null;
+            Collection<Target> targets = null;
 
             int index = WebSecurityUtils.safeParseInt(request.getParameter("targetIndex"));
             if (index < 0) {
@@ -166,7 +166,7 @@ action="admin/notification/destinationWizard" >
 <input type="hidden" name="sourcePage" value="chooseTargets.jsp"/>
 <input type="hidden" name="nextPage"/>
 
-<table cellspacing="2" cellpadding="2" border="0">
+<table>
         <tr>
           <td valign="top"><h4>Send to Selected Users:</h4></td>
           <td>&nbsp;</td>
@@ -189,13 +189,11 @@ action="admin/notification/destinationWizard" >
         </tr>
         <tr>
           <td width="25%" valign="top" align="left">
-            <select WIDTH="200" STYLE="width: 200px" NAME="users" SIZE="10" multiple>
+            <select width="200" style="width: 200px" name="users" size="10" multiple>
              <%
-                         Map users = getUsers(targets);
-                         Iterator iterator = users.keySet().iterator();
-                         while (iterator.hasNext()) {
-                             String key = (String) iterator.next();
-                             if (((Boolean) users.get(key)).booleanValue()) {
+                         for (Map.Entry<String,Boolean> entry : getUsers(targets).entrySet()) {
+                             String key = entry.getKey();
+                             if (entry.getValue().booleanValue()) {
              %>
                     <option selected VALUE=<%=key%>><%=key%></option>
             <%
@@ -210,13 +208,11 @@ action="admin/notification/destinationWizard" >
           </td>
           <td>&nbsp;</td>
           <td width="25%" valign="top" align="left">
-            <select WIDTH="200" STYLE="width: 200px" NAME="groups" SIZE="10" multiple>
+            <select width="200" style="width: 200px" name="groups" size="10" multiple>
              <%
-                         Map groups = getGroups(targets);
-                         iterator = groups.keySet().iterator();
-                         while (iterator.hasNext()) {
-                             String key = (String) iterator.next();
-                             if (((Boolean) groups.get(key)).booleanValue()) {
+                         for (Map.Entry<String,Boolean> entry : getGroups(targets).entrySet()) {
+                             String key = entry.getKey();
+                             if (entry.getValue().booleanValue()) {
              %>
                     <option selected VALUE=<%=key%>><%=key%></option>
             <%
@@ -231,13 +227,11 @@ action="admin/notification/destinationWizard" >
            </td>
            <td>&nbsp;</td>
           <td width="25%" valign="top" align="left">
-            <select WIDTH="200" STYLE="width: 200px" NAME="roles" SIZE="10" multiple>
+            <select width="200" style="width: 200px" name="roles" size="10" multiple>
              <%
-                         Map roles = getRoles(targets);
-                         iterator = roles.keySet().iterator();
-                         while (iterator.hasNext()) {
-                             String key = (String) iterator.next();
-                             if (((Boolean) roles.get(key)).booleanValue()) {
+                     for (Map.Entry<String,Boolean> entry : getRoles(targets).entrySet()) {
+                         String key = entry.getKey();
+                         if (entry.getValue().booleanValue()) {
              %>
                     <option selected VALUE=<%=key%>><%=key%></option>
             <%
@@ -254,12 +248,9 @@ action="admin/notification/destinationWizard" >
            <td width="25%" valign="top" align="left">
             <input type="button" value="Add Address" onclick="javascript:addAddress()"/>
             <br/>&nbsp;<br/>
-            <select  WIDTH="200" STYLE="width: 200px" NAME="emails" SIZE="7" multiple>
+            <select width="200" style="width: 200px" name="emails" size="7" multiple>
              <%
-                         Map emails = getEmails(targets);
-                         iterator = emails.keySet().iterator();
-                         while (iterator.hasNext()) {
-                             String key = (String) iterator.next();
+                 for (String key : getEmails(targets).keySet()) {
              %>
                     <option VALUE=<%=key%>><%=key%></option>
             <%
@@ -287,18 +278,18 @@ action="admin/notification/destinationWizard" >
 <jsp:include page="/includes/footer.jsp" flush="false" />
 
 <%!
-public Map getUsers(Collection targets) throws ServletException {
+public Map<String,Boolean> getUsers(Collection<Target> targets) throws ServletException {
         Map<String, Boolean> allUsers = null;
 
         try {
-            allUsers = new TreeMap<String, Boolean>(new Comparator() {
-                public int compare(Object o1, Object o2) {
-                    return ((String)o1).compareToIgnoreCase((String)o2);
+            allUsers = new TreeMap<String, Boolean>(new Comparator<String>() {
+                public int compare(String o1, String o2) {
+                    return o1.compareToIgnoreCase(o2);
                 }
 
             });
             
-            Collection targetNames = getTargetNames(targets);
+            Collection<String> targetNames = getTargetNames(targets);
             for (String key : UserFactory.getInstance().getUserNames()) {
                 allUsers.put(key, targetNames.contains(key));
             }
@@ -310,9 +301,9 @@ public Map getUsers(Collection targets) throws ServletException {
         return allUsers;
     }
 
-    public Map getGroups(Collection targets) throws ServletException {
+    public Map<String,Boolean> getGroups(Collection<Target> targets) throws ServletException {
         try {
-            Collection targetNames = getTargetNames(targets);
+            Collection<String> targetNames = getTargetNames(targets);
 
             Map<String, Boolean> allGroups = new TreeMap<String, Boolean>();
             for(String key : GroupFactory.getInstance().getGroupNames()) {
@@ -325,11 +316,11 @@ public Map getUsers(Collection targets) throws ServletException {
         }
     }
 
-    public Map getRoles(Collection targets) throws ServletException {
+    public Map<String,Boolean> getRoles(Collection<Target> targets) throws ServletException {
         try {
             Map<String, Boolean> rolesMap = new TreeMap<String, Boolean>();
 
-            Collection targetNames = getTargetNames(targets);
+            Collection<String> targetNames = getTargetNames(targets);
 
             for(String key : GroupFactory.getInstance().getRoleNames()) {
                 rolesMap.put(key, targetNames.contains(key));
@@ -341,15 +332,11 @@ public Map getUsers(Collection targets) throws ServletException {
         }
     }
 
-    public Map getEmails(Collection targets) throws ServletException {
+    public Map<String,String> getEmails(Collection<Target> targets) throws ServletException {
         Map<String, String> emails = new TreeMap<String, String>();
 
         try {
-            Collection targetNames = getTargetNames(targets);
-
-            Iterator i = targetNames.iterator();
-            while (i.hasNext()) {
-                String key = (String) i.next();
+            for (String key : getTargetNames(targets)) {
                 if (key.indexOf("@") > -1) {
                     emails.put(key, key);
                 }
@@ -362,12 +349,10 @@ public Map getUsers(Collection targets) throws ServletException {
         return emails;
     }
 
-    public Collection<String> getTargetNames(Collection targets) {
+    public Collection<String> getTargetNames(Collection<Target> targets) {
         Collection<String> targetNames = new ArrayList<String>();
-
-        Iterator i = targets.iterator();
-        while (i.hasNext()) {
-            targetNames.add(((Target) i.next()).getName());
+        for (Target target : targets) {
+            targetNames.add(target.getName());
         }
         return targetNames;
     }%>

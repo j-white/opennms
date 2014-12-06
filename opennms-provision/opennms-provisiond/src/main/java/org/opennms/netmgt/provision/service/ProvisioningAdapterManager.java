@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2009-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2009-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -30,14 +30,15 @@ package org.opennms.netmgt.provision.service;
 
 import java.util.Collection;
 
-import org.opennms.core.utils.ThreadCategory;
-import org.opennms.netmgt.EventConstants;
-import org.opennms.netmgt.model.events.EventForwarder;
-import org.opennms.netmgt.model.events.annotations.EventHandler;
-import org.opennms.netmgt.model.events.annotations.EventListener;
+import org.opennms.netmgt.events.api.EventConstants;
+import org.opennms.netmgt.events.api.EventForwarder;
+import org.opennms.netmgt.events.api.annotations.EventHandler;
+import org.opennms.netmgt.events.api.annotations.EventListener;
 import org.opennms.netmgt.provision.ProvisioningAdapter;
 import org.opennms.netmgt.provision.ProvisioningAdapterException;
 import org.opennms.netmgt.xml.event.Event;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.util.Assert;
 
@@ -48,8 +49,9 @@ import org.springframework.util.Assert;
  * @author <a href="mailto:david@opennms.org">David Hustace</a>
  * @version $Id: $
  */
-@EventListener(name="ProvisioningAdapterManager:EventListener")
+@EventListener(name="ProvisioningAdapterManager:EventListener", logPrefix="provisiond")
 public class ProvisioningAdapterManager implements InitializingBean {
+    private static final Logger LOG = LoggerFactory.getLogger(ProvisioningAdapterManager.class);
 
     private PluginRegistry m_pluginRegistry;
     private Collection<ProvisioningAdapter> m_adapters;
@@ -95,13 +97,13 @@ public class ProvisioningAdapterManager implements InitializingBean {
     @EventHandler(uei = EventConstants.NODE_ADDED_EVENT_UEI)
     public void handleNodeAddedEvent(Event e) {
         for (ProvisioningAdapter adapter : m_adapters) {
-            log().info("handleNodeAddedEvent: Calling adapter:"+adapter.getName()+" for node: "+e.getNodeid());
+            LOG.info("handleNodeAddedEvent: Calling adapter:{} for node: {}", e.getNodeid(), adapter.getName());
             try {
                 adapter.addNode(e.getNodeid().intValue());
             } catch (ProvisioningAdapterException pae) {
-                log().error("handleNodeAddedEvent: Adapter threw known exception: "+adapter.getName(), pae);
+                LOG.error("handleNodeAddedEvent: Adapter threw known exception: {}", adapter.getName(), pae);
             } catch (Throwable t) {
-                log().error("handleNodeAddedEvent: Unanticpated exception when calling adapter: "+adapter.getName(), t);
+                LOG.error("handleNodeAddedEvent: Unanticpated exception when calling adapter: {}", adapter.getName(), t);
             }
         }
     }
@@ -114,13 +116,13 @@ public class ProvisioningAdapterManager implements InitializingBean {
     @EventHandler(uei = EventConstants.NODE_UPDATED_EVENT_UEI)
     public void handleNodeUpdatedEvent(Event e) {
         for (ProvisioningAdapter adapter : m_adapters) {
-            log().info("handleNodeUpdatedEvent: Calling adapter:"+adapter.getName()+" for node: "+e.getNodeid());
+            LOG.info("handleNodeUpdatedEvent: Calling adapter:{} for node: {}", e.getNodeid(), adapter.getName());
             try {
                 adapter.updateNode(e.getNodeid().intValue());
             } catch (ProvisioningAdapterException pae) {
-                log().error("handleNodeUpdatedEvent: Adapter threw known exception: "+adapter.getName(), pae);
+                LOG.error("handleNodeUpdatedEvent: Adapter threw known exception: {}", adapter.getName(), pae);
             } catch (Throwable t) {
-                log().error("handleNodeUpdatedEvent: Unanticpated exception when calling adapter: "+adapter.getName(), t);
+                LOG.error("handleNodeUpdatedEvent: Unanticpated exception when calling adapter: {}", adapter.getName(), t);
             }
         }
     }
@@ -133,13 +135,13 @@ public class ProvisioningAdapterManager implements InitializingBean {
     @EventHandler(uei = EventConstants.NODE_DELETED_EVENT_UEI)
     public void handleNodeDeletedEvent(Event e) {
         for (ProvisioningAdapter adapter : m_adapters) {
-            log().info("handleNodeDeletedEvent: Calling adapter:"+adapter.getName()+" for node: "+e.getNodeid());
+            LOG.info("handleNodeDeletedEvent: Calling adapter:{} for node: {}", e.getNodeid(), adapter.getName());
             try {
                 adapter.deleteNode(e.getNodeid().intValue());
             } catch (ProvisioningAdapterException pae) {
-                log().error("handleNodeDeletedEvent: Adapter threw known exception: "+adapter.getName(), pae);
+                LOG.error("handleNodeDeletedEvent: Adapter threw known exception: {}", adapter.getName(), pae);
             } catch (Throwable t) {
-                log().error("handleNodeDeletedEvent: Unanticpated exception when calling adapter: "+adapter.getName(), t);
+                LOG.error("handleNodeDeletedEvent: Unanticpated exception when calling adapter: {}", adapter.getName(), t);
             }
         }
     }
@@ -155,13 +157,13 @@ public class ProvisioningAdapterManager implements InitializingBean {
     @EventHandler(uei = EventConstants.PROVISION_SCAN_COMPLETE_UEI)
     public void handleNodeScanCompletedEvent(Event e) {
         for (ProvisioningAdapter adapter : m_adapters) {
-            log().info("handleScanCompletedEvent: Calling adapter:"+adapter.getName()+" for node: "+e.getNodeid());
+            LOG.info("handleScanCompletedEvent: Calling adapter:{} for node: {}", e.getNodeid(), adapter.getName());
             try {
                 adapter.updateNode(e.getNodeid().intValue());
             } catch (ProvisioningAdapterException pae) {
-                log().error("handleNodeScanCompletedEvent: Adapter threw known exception: "+adapter.getName(), pae);
+                LOG.error("handleNodeScanCompletedEvent: Adapter threw known exception: {}", adapter.getName(), pae);
             } catch (Throwable t) {
-                log().error("handleNodeScanCompletedEvent: Unanticpated exception when calling adapter: "+adapter.getName(), t);
+                LOG.error("handleNodeScanCompletedEvent: Unanticpated exception when calling adapter: {}", adapter.getName(), t);
             }
         }
     }
@@ -174,29 +176,25 @@ public class ProvisioningAdapterManager implements InitializingBean {
     @EventHandler(uei = EventConstants.NODE_CONFIG_CHANGE_UEI)
     public void handleNodeChangedEvent(Event e) {
         for (ProvisioningAdapter adapter : m_adapters) {
-            log().info("handleNodeChangedEvent: Calling adapter:"+adapter.getName()+" for node: "+e.getNodeid());
+            LOG.info("handleNodeChangedEvent: Calling adapter:{} for node: {}", e.getNodeid(), adapter.getName());
             try {
                 if (e.getNodeid() != 0) {
                     adapter.nodeConfigChanged(e.getNodeid().intValue());
                 } else {
-                    log().warn("handleNodeChangedEvent: received configChanged event without nodeId: "+e);
+                    LOG.warn("handleNodeChangedEvent: received configChanged event without nodeId: {}", e);
                 }
             } catch (ProvisioningAdapterException pae) {
-                log().error("handleNodeChangedEvent: Adapter threw known exception: "+adapter.getName(), pae);
+                LOG.error("handleNodeChangedEvent: Adapter threw known exception: {}", adapter.getName(), pae);
             } catch (Throwable t) {
-                log().error("handleNodeChangedEvent: Unanticpated exception when calling adapter: "+adapter.getName(), t);
+                LOG.error("handleNodeChangedEvent: Unanticpated exception when calling adapter: {}", adapter.getName(), t);
             }
         }
-    }
-
-    private ThreadCategory log() {
-        return ThreadCategory.getInstance(getClass());
     }
 
     /**
      * <p>setEventForwarder</p>
      *
-     * @param eventForwarder a {@link org.opennms.netmgt.model.events.EventForwarder} object.
+     * @param eventForwarder a {@link org.opennms.netmgt.events.api.EventForwarder} object.
      */
     public void setEventForwarder(EventForwarder eventForwarder) {
         m_eventForwarder = eventForwarder;
@@ -205,7 +203,7 @@ public class ProvisioningAdapterManager implements InitializingBean {
     /**
      * <p>getEventForwarder</p>
      *
-     * @return a {@link org.opennms.netmgt.model.events.EventForwarder} object.
+     * @return a {@link org.opennms.netmgt.events.api.EventForwarder} object.
      */
     public EventForwarder getEventForwarder() {
         return m_eventForwarder;

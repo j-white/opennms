@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2006-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -42,19 +42,19 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import org.apache.commons.beanutils.MethodUtils;
-import org.opennms.core.utils.PropertyPath;
-import org.opennms.netmgt.EventConstants;
+import org.opennms.core.spring.PropertyPath;
 import org.opennms.netmgt.config.CapsdConfig;
-import org.opennms.netmgt.dao.CategoryDao;
-import org.opennms.netmgt.dao.NodeDao;
-import org.opennms.netmgt.dao.ServiceTypeDao;
+import org.opennms.netmgt.dao.api.CategoryDao;
+import org.opennms.netmgt.dao.api.NodeDao;
+import org.opennms.netmgt.dao.api.ServiceTypeDao;
+import org.opennms.netmgt.events.api.EventConstants;
+import org.opennms.netmgt.events.api.EventProxy;
+import org.opennms.netmgt.events.api.EventProxyException;
 import org.opennms.netmgt.model.OnmsAssetRecord;
 import org.opennms.netmgt.model.OnmsCategory;
 import org.opennms.netmgt.model.OnmsServiceType;
 import org.opennms.netmgt.model.PrimaryType;
 import org.opennms.netmgt.model.events.EventBuilder;
-import org.opennms.netmgt.model.events.EventProxy;
-import org.opennms.netmgt.model.events.EventProxyException;
 import org.opennms.netmgt.provision.persist.ForeignSourceRepository;
 import org.opennms.netmgt.provision.persist.foreignsource.ForeignSource;
 import org.opennms.netmgt.provision.persist.requisition.Requisition;
@@ -125,7 +125,7 @@ public class DefaultManualProvisioningService implements ManualProvisioningServi
     /**
      * <p>setNodeDao</p>
      *
-     * @param nodeDao a {@link org.opennms.netmgt.dao.NodeDao} object.
+     * @param nodeDao a {@link org.opennms.netmgt.dao.api.NodeDao} object.
      */
     public void setNodeDao(final NodeDao nodeDao) {
         m_writeLock.lock();
@@ -139,7 +139,7 @@ public class DefaultManualProvisioningService implements ManualProvisioningServi
     /**
      * <p>setCategoryDao</p>
      *
-     * @param categoryDao a {@link org.opennms.netmgt.dao.CategoryDao} object.
+     * @param categoryDao a {@link org.opennms.netmgt.dao.api.CategoryDao} object.
      */
     public void setCategoryDao(final CategoryDao categoryDao) {
         m_writeLock.lock();
@@ -153,7 +153,7 @@ public class DefaultManualProvisioningService implements ManualProvisioningServi
     /**
      * <p>setServiceTypeDao</p>
      *
-     * @param serviceTypeDao a {@link org.opennms.netmgt.dao.ServiceTypeDao} object.
+     * @param serviceTypeDao a {@link org.opennms.netmgt.dao.api.ServiceTypeDao} object.
      */
     public void setServiceTypeDao(final ServiceTypeDao serviceTypeDao) {
         m_serviceTypeDao = serviceTypeDao;
@@ -164,6 +164,7 @@ public class DefaultManualProvisioningService implements ManualProvisioningServi
     }
 
     /** {@inheritDoc} */
+    @Override
     public Requisition addCategoryToNode(final String groupName, final String pathToNode, final String categoryName) {
         m_writeLock.lock();
         try {
@@ -186,6 +187,7 @@ public class DefaultManualProvisioningService implements ManualProvisioningServi
     }
     
     /** {@inheritDoc} */
+    @Override
     public Requisition addAssetFieldToNode(final String groupName, final String pathToNode, final String assetName, final String assetValue) {
         m_writeLock.lock();
         try {
@@ -208,6 +210,7 @@ public class DefaultManualProvisioningService implements ManualProvisioningServi
     }
 
     /** {@inheritDoc} */
+    @Override
     public Requisition addInterfaceToNode(final String groupName, final String pathToNode, final String ipAddr) {
         m_writeLock.lock();
         try {
@@ -243,6 +246,7 @@ public class DefaultManualProvisioningService implements ManualProvisioningServi
     }
 
     /** {@inheritDoc} */
+    @Override
     public Requisition addNewNodeToGroup(final String groupName, final String nodeLabel) {
         m_writeLock.lock();
         
@@ -269,6 +273,7 @@ public class DefaultManualProvisioningService implements ManualProvisioningServi
     }
 
     /** {@inheritDoc} */
+    @Override
     public Requisition addServiceToInterface(final String groupName, final String pathToInterface, final String serviceName) {
         m_writeLock.lock();
         
@@ -289,6 +294,7 @@ public class DefaultManualProvisioningService implements ManualProvisioningServi
     }
 
     /** {@inheritDoc} */
+    @Override
     public Requisition getProvisioningGroup(final String name) {
         m_readLock.lock();
         try {
@@ -297,8 +303,7 @@ public class DefaultManualProvisioningService implements ManualProvisioningServi
 
             if (pending == null) {
                 m_deployedForeignSourceRepository.flush();
-                final Requisition deployed = m_deployedForeignSourceRepository.getRequisition(name);
-                return deployed;
+                return m_deployedForeignSourceRepository.getRequisition(name);
             }
 
             return pending;
@@ -308,6 +313,7 @@ public class DefaultManualProvisioningService implements ManualProvisioningServi
     }
     
     /** {@inheritDoc} */
+    @Override
     public Requisition saveProvisioningGroup(final String groupName, final Requisition group) {
         m_writeLock.lock();
         try {
@@ -326,6 +332,7 @@ public class DefaultManualProvisioningService implements ManualProvisioningServi
      *
      * @return a {@link java.util.Collection} object.
      */
+    @Override
     public Collection<String> getProvisioningGroupNames() {
         m_readLock.lock();
         try {
@@ -345,6 +352,7 @@ public class DefaultManualProvisioningService implements ManualProvisioningServi
     }
     
     /** {@inheritDoc} */
+    @Override
     public Requisition createProvisioningGroup(final String name) {
         m_writeLock.lock();
         try {
@@ -367,6 +375,7 @@ public class DefaultManualProvisioningService implements ManualProvisioningServi
 
 
     /** {@inheritDoc} */
+    @Override
     public void importProvisioningGroup(final String requisitionName) {
         m_writeLock.lock();
         
@@ -395,6 +404,7 @@ public class DefaultManualProvisioningService implements ManualProvisioningServi
     }
 
     /** {@inheritDoc} */
+    @Override
     public Requisition deletePath(final String groupName, final String pathToDelete) {
         m_writeLock.lock();
         
@@ -433,6 +443,7 @@ public class DefaultManualProvisioningService implements ManualProvisioningServi
      *
      * @return a {@link java.util.Collection} object.
      */
+    @Override
     public Collection<Requisition> getAllGroups() {
         m_readLock.lock();
         
@@ -450,6 +461,7 @@ public class DefaultManualProvisioningService implements ManualProvisioningServi
     }
 
     /** {@inheritDoc} */
+    @Override
     public void deleteProvisioningGroup(final String groupName) {
         m_writeLock.lock();
         
@@ -467,6 +479,7 @@ public class DefaultManualProvisioningService implements ManualProvisioningServi
     }
 
     /** {@inheritDoc} */
+    @Override
     public void deleteAllNodes(final String groupName) {
         m_writeLock.lock();
         
@@ -494,6 +507,7 @@ public class DefaultManualProvisioningService implements ManualProvisioningServi
      *
      * @return a java$util$Map object.
      */
+    @Override
     public Map<String, Integer> getGroupDbNodeCounts() {
         m_readLock.lock();
         
@@ -515,6 +529,7 @@ public class DefaultManualProvisioningService implements ManualProvisioningServi
      *
      * @return a {@link java.util.Collection} object.
      */
+    @Override
     public Collection<String> getNodeCategoryNames() {
         m_readLock.lock();
         
@@ -534,6 +549,7 @@ public class DefaultManualProvisioningService implements ManualProvisioningServi
      *
      * @return a {@link java.util.Collection} object.
      */
+    @Override
     public Collection<String> getServiceTypeNames(String groupName) {
         final SortedSet<String> serviceNames = new TreeSet<String>();
 
@@ -562,6 +578,7 @@ public class DefaultManualProvisioningService implements ManualProvisioningServi
      *
      * @return a {@link java.util.Collection} object.
      */
+    @Override
     public Collection<String> getAssetFieldNames() {
         m_readLock.lock();
         

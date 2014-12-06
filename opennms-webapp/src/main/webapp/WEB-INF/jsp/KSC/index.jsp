@@ -2,22 +2,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2007-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2007-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -45,9 +45,9 @@
     final HttpServletRequest req = new XssRequestWrapper(request);
     final String match = req.getParameter("match");
     pageContext.setAttribute("match", match);
-    final String baseHref = Util.calculateUrlBase(request);
 %>
-    
+<c:set var="baseHref" value="<%=Util.calculateUrlBase(request)%>"/>
+
 <jsp:include page="/includes/header.jsp" flush="false" >
   <jsp:param name="title" value="Key SNMP Customized Performance Reports" />
   <jsp:param name="headTitle" value="Performance" />
@@ -83,12 +83,12 @@
 		
 		
 	</script>
-    <opennms:kscCustomReportList id="kscReportList" dataObject="customData"></opennms:kscCustomReportList>
+    <opennms:kscCustomReportList id="kscReportList" dataObject="customData" isreadonly="${isReadOnly}"></opennms:kscCustomReportList>
     <!-- For IE Only -->
-    <div name="opennms-kscCustomReportList" id="kscReportList-ie" dataObject="customData"></div>
+    <div name="opennms-kscCustomReportList" id="kscReportList-ie" dataObject="customData" isreadonly="${isReadOnly}"></div>
   </div>
 
-  <h3 class="o-box">Node & Domain Interface Reports</h3>
+  <h3 class="o-box">Node &amp; Domain Interface Reports</h3>
   <div class="boxWrapper">
   <p>Select resource for desired performance report</p>
     <script type="text/javascript">

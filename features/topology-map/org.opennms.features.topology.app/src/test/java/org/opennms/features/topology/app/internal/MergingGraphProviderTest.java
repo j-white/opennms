@@ -1,3 +1,31 @@
+/*******************************************************************************
+ * This file is part of OpenNMS(R).
+ *
+ * Copyright (C) 2012-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
+ *
+ * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
+ *
+ * OpenNMS(R) is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published
+ * by the Free Software Foundation, either version 3 of the License,
+ * or (at your option) any later version.
+ *
+ * OpenNMS(R) is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with OpenNMS(R).  If not, see:
+ *      http://www.gnu.org/licenses/
+ *
+ * For more information contact:
+ *     OpenNMS(R) Licensing <license@opennms.org>
+ *     http://www.opennms.org/
+ *     http://www.opennms.com/
+ *******************************************************************************/
+
 package org.opennms.features.topology.app.internal;
 
 import static org.junit.Assert.assertEquals;
@@ -12,10 +40,11 @@ import org.opennms.core.test.MockLogAppender;
 import org.opennms.features.topology.api.topo.Edge;
 import org.opennms.features.topology.api.topo.EdgeProvider;
 import org.opennms.features.topology.api.topo.GraphProvider;
-import org.opennms.features.topology.api.topo.AbstractVertexRef;
+import org.opennms.features.topology.api.topo.DefaultVertexRef;
 import org.opennms.features.topology.api.topo.AbstractEdgeRef;
 import org.opennms.features.topology.api.topo.SimpleEdgeProvider;
 import org.opennms.features.topology.api.topo.Vertex;
+import org.opennms.features.topology.plugins.topo.simple.SimpleGraphBuilder;
 
 public class MergingGraphProviderTest {
 
@@ -72,7 +101,7 @@ public class MergingGraphProviderTest {
 	@Test
 	public void testGetVertex() {
 		assertEquals("vertex1", m_mergedProvider.getVertex("nodes", "v1").getLabel());
-		assertEquals("vertex2", m_mergedProvider.getVertex(new AbstractVertexRef("nodes", "v2")).getLabel());
+		assertEquals("vertex2", m_mergedProvider.getVertex(new DefaultVertexRef("nodes", "v2")).getLabel());
 	}
 
 	@Test
@@ -90,9 +119,7 @@ public class MergingGraphProviderTest {
 		assertEquals(m_graphProvider.getEdges(), edges);
 		
 		// set a criteria now and get some ncs edges
-		m_mergedProvider.setCriteria(SimpleEdgeProvider.labelMatches("ncs", "ncsedge2"));
-		
-		edges = m_mergedProvider.getEdges();
+		edges = m_mergedProvider.getEdges(SimpleEdgeProvider.labelMatches("ncs", "ncsedge2"));
 
 		assertEquals(5, edges.size());
 		assertTrue(edges.contains(new AbstractEdgeRef("ncs", "ncs2")));

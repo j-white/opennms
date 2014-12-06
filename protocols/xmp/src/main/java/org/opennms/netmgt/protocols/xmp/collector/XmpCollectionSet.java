@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2011-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2009-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -55,14 +55,18 @@ import java.util.Date;
 import java.util.HashSet;
 import java.util.Set;
 
-import org.opennms.core.utils.ThreadCategory;
-import org.opennms.netmgt.collectd.CollectionAgent;
-import org.opennms.netmgt.collectd.ServiceCollector;
-import org.opennms.netmgt.config.collector.CollectionSet;
-import org.opennms.netmgt.config.collector.CollectionSetVisitor;
+
+import org.opennms.netmgt.collection.api.CollectionAgent;
+import org.opennms.netmgt.collection.api.CollectionSet;
+import org.opennms.netmgt.collection.api.CollectionSetVisitor;
+import org.opennms.netmgt.collection.api.ServiceCollector;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 public class XmpCollectionSet implements CollectionSet {
 
     /* class variables and methods *********************** */
+	private static final Logger LOG = LoggerFactory.getLogger(XmpCollectionSet.class);
+
 
     /* instance variables ******************************** */
     int status;
@@ -89,9 +93,7 @@ public class XmpCollectionSet implements CollectionSet {
     }
 
     /* private methods *********************************** */
-    private ThreadCategory log() {
-        return ThreadCategory.getInstance(getClass());
-    }
+    
 
     /* public methods ************************************ */
 
@@ -119,13 +121,13 @@ public class XmpCollectionSet implements CollectionSet {
     /**
      * <p>getCollectionAgent</p>
      *
-     * @return a {@link org.opennms.netmgt.collectd.CollectionAgent} object.
+     * @return a {@link org.opennms.netmgt.collection.api.CollectionAgent} object.
      */
     public CollectionAgent getCollectionAgent() { return agent; }
     /**
      * <p>setCollectionAgent</p>
      *
-     * @param agent a {@link org.opennms.netmgt.collectd.CollectionAgent} object.
+     * @param agent a {@link org.opennms.netmgt.collection.api.CollectionAgent} object.
      */
     public void setCollectionAgent(CollectionAgent agent) { this.agent = agent; }
 
@@ -134,6 +136,7 @@ public class XmpCollectionSet implements CollectionSet {
      *
      * @return a int.
      */
+    @Override
     public int getStatus() { return status; }
     /**
      * <p>Setter for the field <code>status</code>.</p>
@@ -160,6 +163,7 @@ public class XmpCollectionSet implements CollectionSet {
      *
      * @return a boolean.
      */
+    @Override
     public boolean ignorePersist() { return ignorePersistVar; }
 
     /**
@@ -179,9 +183,10 @@ public class XmpCollectionSet implements CollectionSet {
     //public XmpCollectionResource getResource() { return collectionResource; }
 
     /** {@inheritDoc} */
+    @Override
     public void visit(CollectionSetVisitor visitor) 
     {
-        log().debug("XmpCollectionSet: visit starting for set "+agent);
+        LOG.debug("XmpCollectionSet: visit starting for set {}", agent);
 
         visitor.visitCollectionSet(this);
 
@@ -196,6 +201,7 @@ public class XmpCollectionSet implements CollectionSet {
         visitor.completeCollectionSet(this);
     }
 
+    @Override
 	public Date getCollectionTimestamp() {
 		return m_timestamp;
 	}

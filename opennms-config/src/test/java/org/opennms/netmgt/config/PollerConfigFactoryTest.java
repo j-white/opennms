@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2005-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -34,12 +34,10 @@ import java.io.InputStream;
 
 import junit.framework.TestCase;
 
-import org.exolab.castor.xml.MarshalException;
-import org.exolab.castor.xml.ValidationException;
 import org.opennms.core.db.DataSourceFactory;
 import org.opennms.core.test.MockLogAppender;
 import org.opennms.core.test.db.MockDatabase;
-import org.opennms.core.xml.CastorUtils;
+import org.opennms.core.xml.JaxbUtils;
 import org.opennms.netmgt.config.poller.Downtime;
 import org.opennms.netmgt.config.poller.Filter;
 import org.opennms.netmgt.config.poller.IncludeRange;
@@ -73,17 +71,14 @@ public class PollerConfigFactoryTest extends TestCase {
             "       </rrd>\n" +
             "       <service name=\"ICMP\" interval=\"300000\">\n" +
             "         <parameter key=\"test-key\" value=\"test-value\"/>\n" +
-            "         <parameter key=\"any-parm\">" +
-            "            <config>" +
-            "              <data/>" +
-            "            </config>" +
-            "         </parameter>" +
+            "         <parameter key=\"any-parm\" />" +
             "       </service>\n" +
             "       <downtime begin=\"0\" end=\"30000\"/>\n" + 
             "   </package>\n" +
             "   <monitor service=\"ICMP\" class-name=\"org.opennms.netmgt.mock.MockMonitor\"/>\n"+
             "</poller-configuration>\n";
 
+    @Override
     protected void setUp() throws Exception {
         super.setUp();
         MockLogAppender.setupLogging();
@@ -130,6 +125,7 @@ public class PollerConfigFactoryTest extends TestCase {
         
     }
 
+    @Override
     protected void tearDown() throws Exception {
         super.tearDown();
 		MockLogAppender.assertNoWarningsOrGreater();
@@ -138,14 +134,14 @@ public class PollerConfigFactoryTest extends TestCase {
     static class TestPollerConfigManager extends PollerConfigManager {
         private String m_xml;
 
-        public TestPollerConfigManager(String xml, String localServer, boolean verifyServer) throws MarshalException, ValidationException, IOException {
+        public TestPollerConfigManager(String xml, String localServer, boolean verifyServer) throws IOException {
             super(new ByteArrayInputStream(xml.getBytes("UTF-8")), localServer, verifyServer);
             save();
         }
 
         @Override
-        public void update() throws IOException, MarshalException, ValidationException {
-            m_config = CastorUtils.unmarshal(PollerConfiguration.class, new ByteArrayInputStream(m_xml.getBytes("UTF-8")));
+        public void update() throws IOException {
+            m_config = JaxbUtils.unmarshal(PollerConfiguration.class, m_xml);
             setUpInternalData();
         }
 
@@ -176,11 +172,11 @@ public class PollerConfigFactoryTest extends TestCase {
         
         Service svc = new Service();
         svc.setName("TestService");
-        svc.setInterval(300000);
+        svc.setInterval(300000l);
         pkg.addService(svc);
         
         Downtime dt = new Downtime();
-        dt.setBegin(0);
+        dt.setBegin(0l);
         pkg.addDowntime(dt);
         
         IncludeRange inclde = new IncludeRange();
@@ -229,11 +225,11 @@ public class PollerConfigFactoryTest extends TestCase {
         
         Service svc = new Service();
         svc.setName("TestService");
-        svc.setInterval(300000);
+        svc.setInterval(300000l);
         pkg.addService(svc);
         
         Downtime dt = new Downtime();
-        dt.setBegin(0);
+        dt.setBegin(0l);
         pkg.addDowntime(dt);
         
         pkg.addSpecific("123.12.123.121");

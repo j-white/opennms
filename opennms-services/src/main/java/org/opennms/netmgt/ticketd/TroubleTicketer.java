@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2007-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2007-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -33,15 +33,16 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.opennms.core.utils.ThreadCategory;
-import org.opennms.netmgt.EventConstants;
 import org.opennms.netmgt.capsd.EventUtils;
 import org.opennms.netmgt.capsd.InsufficientInformationException;
 import org.opennms.netmgt.daemon.SpringServiceDaemon;
-import org.opennms.netmgt.model.events.EventIpcManager;
-import org.opennms.netmgt.model.events.EventListener;
+import org.opennms.netmgt.events.api.EventConstants;
+import org.opennms.netmgt.events.api.EventIpcManager;
+import org.opennms.netmgt.events.api.EventListener;
 import org.opennms.netmgt.xml.event.Event;
 import org.opennms.netmgt.xml.event.Parm;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.util.Assert;
 
 /**
@@ -52,6 +53,10 @@ import org.springframework.util.Assert;
  * @author <a href="mailto:david@opennms.org">David Hustace</a>
  */
 public class TroubleTicketer implements SpringServiceDaemon, EventListener {
+	
+	private static final Logger LOG = LoggerFactory.getLogger(TroubleTicketer.class);
+
+	private static final String LOG4J_CATEGORY = "trouble-ticketer";
 	
     private volatile boolean m_initialized = false;
     
@@ -65,7 +70,7 @@ public class TroubleTicketer implements SpringServiceDaemon, EventListener {
 	/**
 	 * <p>setEventIpcManager</p>
 	 *
-	 * @param eventIpcManager a {@link org.opennms.netmgt.model.events.EventIpcManager} object.
+	 * @param eventIpcManager a {@link org.opennms.netmgt.events.api.EventIpcManager} object.
 	 */
 	public void setEventIpcManager(EventIpcManager eventIpcManager) {
 		m_eventIpcManager = eventIpcManager;
@@ -132,6 +137,7 @@ public class TroubleTicketer implements SpringServiceDaemon, EventListener {
 	 *
 	 * @return <code>java.lang.String</code> representing the name of this service daemon
 	 */
+    @Override
 	public String getName() {
 		return "OpenNMS.TroubleTicketer";
 	}
@@ -141,6 +147,7 @@ public class TroubleTicketer implements SpringServiceDaemon, EventListener {
 	 *
 	 * Event listener Interface required implementation
 	 */
+    @Override
 	public void onEvent(Event e) {
         try {
 		if (EventConstants.TROUBLETICKET_CANCEL_UEI.equals(e.getUei())) {
@@ -155,16 +162,11 @@ public class TroubleTicketer implements SpringServiceDaemon, EventListener {
             handleTicketerReload(e);
  		}
         } catch (InsufficientInformationException ex) {
-            log().warn("Unable to create trouble ticket due to lack of information: "+ex.getMessage());
+            LOG.warn("Unable to create trouble ticket due to lack of information: {}", ex.getMessage());
         } catch (Throwable t) {
-            log().error("Error occurred during trouble ticket processing!", t);
+            LOG.error("Error occurred during trouble ticket processing!", t);
         }
 	}
-
-	private ThreadCategory log() {
-	    return ThreadCategory.getInstance(getClass());
-    }
-
 
 	/**
 	 * Makes call to API to close a trouble ticket associated with an OnmsAlarm.
@@ -252,5 +254,9 @@ public class TroubleTicketer implements SpringServiceDaemon, EventListener {
     
     private void handleTicketerReload(Event e) {
         m_ticketerServiceLayer.reloadTicketer();
+    }
+
+    public static String getLoggingCategory() {
+        return LOG4J_CATEGORY;
     }
 }

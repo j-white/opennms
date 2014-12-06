@@ -7,16 +7,16 @@
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -37,6 +37,8 @@ import org.eclipse.jetty.server.nio.SelectChannelConnector;
 import org.eclipse.jetty.server.ssl.SslSocketConnector;
 import org.eclipse.jetty.xml.XmlConfiguration;
 import org.opennms.netmgt.daemon.AbstractServiceDaemon;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Implements Web Application within OpenNMS as a Service Daemon.
@@ -45,18 +47,22 @@ import org.opennms.netmgt.daemon.AbstractServiceDaemon;
  * @author <a href="mailto:david@opennms.org">David Hustace</a>
  */
 public class JettyServer extends AbstractServiceDaemon {
-    
+
+    private static final Logger LOG = LoggerFactory.getLogger(JettyServer.class);
+
+    private static final String LOG4J_CATEGORY = "jetty-server";
+
     int m_port = 8080;
 
     private Server m_server;
-        
+
     /**
      * <p>Constructor for JettyServer.</p>
      */
     protected JettyServer() {
-        super("OpenNMS.JettyServer");
+        super(LOG4J_CATEGORY);
     }
-    
+
     /** {@inheritDoc} */
     @Override
     protected void onInit() {
@@ -87,8 +93,8 @@ public class JettyServer extends AbstractServiceDaemon {
     protected void onStart() {
         try {
             m_server.start();
-        } catch (Throwable e) {
-            log().error("Error starting Jetty Server", e);
+        } catch (final Throwable t) {
+            LOG.error("Error starting Jetty Server", t);
         }
     }
 
@@ -97,9 +103,13 @@ public class JettyServer extends AbstractServiceDaemon {
     protected void onStop() {
         try {
             m_server.stop();
-        } catch (Throwable e) {
-            log().error("Error stopping Jetty Server", e);
+        } catch (final Throwable t) {
+            LOG.error("Error stopping Jetty Server", t);
         }
+    }
+
+    public static String getLoggingCategory() {
+        return LOG4J_CATEGORY;
     }
     
     public long getHttpsConnectionsTotal() {

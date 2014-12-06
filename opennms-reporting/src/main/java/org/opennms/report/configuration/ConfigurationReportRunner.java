@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2009-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2009-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -32,11 +32,12 @@ import java.io.IOException;
 import java.util.Date;
 
 
-import org.apache.log4j.Logger;
 
 import org.opennms.report.ReportMailer;
 import org.opennms.reporting.availability.render.ReportRenderException;
 import org.opennms.reporting.availability.render.ReportRenderer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * <p>ConfigurationReportRunner class.</p>
@@ -45,6 +46,9 @@ import org.opennms.reporting.availability.render.ReportRenderer;
  * @version $Id: $
  */
 public class ConfigurationReportRunner implements Runnable {
+	
+	private static final Logger LOG = LoggerFactory.getLogger(ConfigurationReportRunner.class);
+
         
     String theDate;
     String reportFormat;
@@ -205,10 +209,10 @@ public class ConfigurationReportRunner implements Runnable {
     /**
      * <p>run</p>
      */
+    @Override
     public void run() {
 
-        log().debug("run: getting configuration report on Date ["+ theDate +"]. Requested by User: " + user + "on Date " 
-                    + reportRequestDate.toString()); 
+        LOG.debug("run: getting configuration report on Date [{}]. Requested by User: {}on Date {}", theDate, user,  reportRequestDate.toString());
 
         ReportRenderer renderer;
         calculator.setReportRequestDate(reportRequestDate);
@@ -216,11 +220,11 @@ public class ConfigurationReportRunner implements Runnable {
         calculator.setUser(user);
         
         if (reportFormat.compareTo("pdftype") == 0){
-            log().debug("run: generating pdf is still not supported :( sending xml");
+            LOG.debug("run: generating pdf is still not supported :( sending xml");
             
             renderer = m_nullReportRenderer;
         } else {
-            log().debug("runRancidListReport generating html");
+            LOG.debug("runRancidListReport generating html");
             renderer =  m_htmlReportRenderer;
         }
        
@@ -229,10 +233,9 @@ public class ConfigurationReportRunner implements Runnable {
             calculator.writeXML();
 
             String outputFile = calculator.getOutputFileName();
-            log().debug("Written Configuration Report as XML to " + outputFile);
+            LOG.debug("Written Configuration Report as XML to {}", outputFile);
             renderer.setInputFileName(outputFile);
-            log().debug("rendering XML " + outputFile + " as "
-                    + renderer.getOutputFileName());
+            LOG.debug("rendering XML {} as {}", outputFile, renderer.getOutputFileName());
             renderer.render();
             ReportMailer mailer = new ReportMailer(
                                                    reportEmail,
@@ -240,16 +243,12 @@ public class ConfigurationReportRunner implements Runnable {
                                                            + renderer.getOutputFileName(), "OpenNMS Configuration Report");
             mailer.send();
         } catch (ConfigurationCalculationException ce) {
-            log().fatal("Unable to calculate report data ", ce);
+            LOG.error("Unable to calculate report data ", ce);
         } catch (ReportRenderException re) {
-            log().fatal("Unable to render report ", re);
+            LOG.error("Unable to render report ", re);
         } catch (IOException ioe) {
-            log().fatal("Unable to render report ", ioe);
+            LOG.error("Unable to render report ", ioe);
         }
-    }
-        
-    private static Logger log() {
-        return Logger.getLogger("Rancid");
     }
 
 }

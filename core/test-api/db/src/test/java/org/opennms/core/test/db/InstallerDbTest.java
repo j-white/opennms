@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2005-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -65,6 +65,7 @@ public class InstallerDbTest extends TemporaryDatabaseTestCase {
 
     private ByteArrayOutputStream m_outputStream;
 
+    @Override
     protected void setUp() throws Exception {
         super.setUp();
         
@@ -93,6 +94,7 @@ public class InstallerDbTest extends TemporaryDatabaseTestCase {
         m_connection = getInstallerDb().getDataSource().getConnection();
     }
 
+    @Override
     public void tearDown() throws Exception {
         if (isEnabled()) {
             m_installerDb.closeColumnReplacements();
@@ -248,7 +250,7 @@ public class InstallerDbTest extends TemporaryDatabaseTestCase {
         String localFailureMessage = "time for eventId " + eventId + " does not match between old and new (in local time zone): " + eventTime + " (" + new Date(eventTime.getTime()) + ") -> " + newEventTime + " (" + new Date(newEventTime.getTime())+ ")";
         assertEquals(localFailureMessage, eventTime, newEventTime);
 
-        jdbcTemplate.getJdbcOperations().execute("SET TIME ZONE 'UTC'");
+        jdbcTemplate.execute("SET TIME ZONE 'UTC'");
         
         Date utcEventTime = jdbcTemplate.queryForObject("select eventTime from events where eventId = ?", Date.class, eventId);
         String utcFailureMessage = "time for eventId " + eventId + " does not match between old and new (in UTC): " + eventTime + " (" + new Date(eventTime.getTime()) + ") -> " + utcEventTime + " (" + new Date(utcEventTime.getTime())+ ")";

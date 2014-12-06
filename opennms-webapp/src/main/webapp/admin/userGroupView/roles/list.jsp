@@ -2,22 +2,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2002-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -39,7 +39,7 @@
 
 <%
 	UserManager userFactory;
-  	Map users = null;
+  	Map<String,User> users = null;
 	HashMap<String, String> usersHash = new HashMap<String, String>();
 	
 	try
@@ -53,9 +53,7 @@
 		throw new ServletException("User:list " + e.getMessage());
 	}
 
-	Iterator i = users.keySet().iterator();
-	while (i.hasNext()) {
-		User curUser = (User)users.get(i.next());
+	for (User curUser : users.values()) {
 		usersHash.put(curUser.getUserId(), curUser.getFullName());
 	}
 
@@ -72,6 +70,8 @@
 	<jsp:param name="breadcrumb" value="<a href='admin/userGroupView/index.jsp'>Users, Groups and Roles</a>" />
 	<jsp:param name="breadcrumb" value="Role List" />
 </jsp:include>
+
+<link rel="stylesheet" href="css/font-awesome-4.0.3/css/font-awesome.min.css">
 
 <script type="text/javascript" >
 
@@ -114,7 +114,7 @@
         <c:choose>
           <c:when test="${empty roleManager.roles}">
             <tr>
-              <td colspan="6">No roles defined.  Use the "Add New Role" button
+              <td colspan="6">No roles defined.  Use the "Add new role" link
                 to add roles.</td>
             </tr>
 	 	  </c:when>
@@ -126,7 +126,7 @@
 				<c:set var="confirmScript" value="return confirm('Are you sure you want to delete the role ${role.name}?')"/>
 				
 				<tr>
-				<td><a href="${deleteUrl}" onclick="${confirmScript}"><img src="images/trash.gif" alt="Delete ${role.name}"></a></td>
+				<td><a href="${deleteUrl}" onclick="${confirmScript}"><i class="fa fa-trash-o fa-2x"></i></a></td>
 				<td><a href="${viewUrl}">${role.name}</a></td>
 				<td>
 				  <c:set var="supervisorUser">${role.defaultUser}</c:set>

@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2002-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -36,11 +36,12 @@ import java.sql.SQLException;
 import org.exolab.castor.xml.MarshalException;
 import org.exolab.castor.xml.ValidationException;
 import org.opennms.core.db.DataSourceFactory;
-import org.opennms.core.utils.ThreadCategory;
 import org.opennms.netmgt.config.EventTranslatorConfigFactory;
 import org.opennms.netmgt.daemon.AbstractServiceDaemon;
-import org.opennms.netmgt.eventd.EventIpcManagerFactory;
-import org.opennms.netmgt.model.events.EventIpcManager;
+import org.opennms.netmgt.events.api.EventIpcManager;
+import org.opennms.netmgt.events.api.EventIpcManagerFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * <p>EventTranslator class.</p>
@@ -51,6 +52,8 @@ import org.opennms.netmgt.model.events.EventIpcManager;
  * @author <a href="mailto:mhuot@opennms.org">Mike Huot</a>
  */
 public class EventTranslator extends AbstractServiceDaemon implements EventTranslatorMBean {
+	
+	private static final Logger LOG = LoggerFactory.getLogger(EventTranslator.class);
 
     /**
      * <p>Constructor for EventTranslator.</p>
@@ -59,34 +62,33 @@ public class EventTranslator extends AbstractServiceDaemon implements EventTrans
         super(NAME);
     }
 
-    /** Constant <code>NAME="OpenNMS.EventTranslator"</code> */
-    public final static String NAME = "OpenNMS.EventTranslator";
+    public static final String NAME = "event-translator";
 
     /**
      * <p>onInit</p>
      */
+    @Override
     protected void onInit() {
-        ThreadCategory log = ThreadCategory.getInstance(this.getClass());
+
         try {
-            DataSourceFactory.init();
             EventTranslatorConfigFactory.init();
         } catch (MarshalException e) {
-            log.error("Could not unmarshall configuration", e);
+            LOG.error("Could not unmarshall configuration", e);
             throw new UndeclaredThrowableException(e);
         } catch (ValidationException e) {
-            log.error("validation error ", e);
+        	LOG.error("validation error ", e);
             throw new UndeclaredThrowableException(e);
         } catch (IOException e) {
-            log.error("IOException: ", e);
+        	LOG.error("IOException: ", e);
             throw new UndeclaredThrowableException(e);
         } catch (ClassNotFoundException e) {
-            log.error("Unable to initialize database: "+e.getMessage(), e);
+		LOG.error("Unable to initialize database", e);
             throw new UndeclaredThrowableException(e);
         } catch (SQLException e) {
-            log.error("SQLException: ", e);
+        	LOG.error("SQLException: ", e);
             throw new UndeclaredThrowableException(e);
         } catch (PropertyVetoException e) {
-            log.error("PropertyVetoException: ", e);
+        	LOG.error("PropertyVetoException: ", e);
             throw new UndeclaredThrowableException(e);
         }
         
@@ -103,6 +105,7 @@ public class EventTranslator extends AbstractServiceDaemon implements EventTrans
     /**
      * <p>onStart</p>
      */
+    @Override
     protected void onStart() {
         getEventTranslator().start();
     }
@@ -110,6 +113,7 @@ public class EventTranslator extends AbstractServiceDaemon implements EventTrans
     /**
      * <p>onStop</p>
      */
+    @Override
     protected void onStop() {
         getEventTranslator().stop();
     }
@@ -119,6 +123,7 @@ public class EventTranslator extends AbstractServiceDaemon implements EventTrans
      *
      * @return a int.
      */
+    @Override
     public int getStatus() {
         return getEventTranslator().getStatus();
     }

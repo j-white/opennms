@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2012-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -79,22 +79,22 @@ public class LegacyLocalReportRepository implements ReportRepository {
     /**
      * Repository tag to identify reports
      */
-    private final String REPOSITORY_ID = "local";
+    private static final String REPOSITORY_ID = "local";
 
     /**
      * Name for the local community repository
      */
-    private final String REPOSITORY_NAME = "Local Report Repository";
+    private static final String REPOSITORY_NAME = "Local Report Repository";
 
     /**
      * Description for the local community repository
      */
-    private final String REPOSITORY_DESCRIPTION = "Providing OpenNMS community reports from local disk.";
+    private static final String REPOSITORY_DESCRIPTION = "Providing OpenNMS community reports from local disk.";
 
     /**
      * URL to subscribe a repository
      */
-    private final String MANAGEMENT_URL = "blank";
+    private static final String MANAGEMENT_URL = "blank";
 
     /**
      * Default constructor creates one local repositories for OpenNMS community reports.

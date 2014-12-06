@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2002-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -29,10 +29,8 @@
 package org.opennms.netmgt.config;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.OutputStreamWriter;
 import java.io.StringWriter;
 import java.io.Writer;
@@ -46,16 +44,13 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
-import org.apache.commons.io.IOUtils;
-import org.exolab.castor.xml.MarshalException;
-import org.exolab.castor.xml.Marshaller;
-import org.exolab.castor.xml.ValidationException;
 import org.opennms.core.utils.ConfigFileConstants;
 import org.opennms.core.utils.IPLike;
 import org.opennms.core.utils.InetAddressComparator;
 import org.opennms.core.utils.InetAddressUtils;
-import org.opennms.core.utils.LogUtils;
-import org.opennms.core.xml.CastorUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.opennms.core.xml.JaxbUtils;
 import org.opennms.netmgt.config.ami.AmiAgentConfig;
 import org.opennms.netmgt.config.ami.AmiConfig;
 import org.opennms.netmgt.config.ami.Definition;
@@ -77,6 +72,7 @@ import org.opennms.netmgt.config.ami.Range;
  * @author <a href="http://www.opennms.org/">OpenNMS </a>
  */
 public class AmiPeerFactory {
+    private static final Logger LOG = LoggerFactory.getLogger(AmiPeerFactory.class);
     private final ReadWriteLock m_globalLock = new ReentrantReadWriteLock();
     private final Lock m_readLock = m_globalLock.readLock();
     private final Lock m_writeLock = m_globalLock.writeLock();
@@ -101,18 +97,12 @@ public class AmiPeerFactory {
      * 
      * @exception java.io.IOException
      *                Thrown if the specified config file cannot be read
-     * @exception org.exolab.castor.xml.MarshalException
-     *                Thrown if the file does not conform to the schema.
-     * @exception org.exolab.castor.xml.ValidationException
-     *                Thrown if the contents do not match the required schema.
      *
      * @param configFile the path to the config file to load in.
      */
-    private AmiPeerFactory(final String configFile) throws IOException, MarshalException, ValidationException {
+    private AmiPeerFactory(final String configFile) throws IOException {
         super();
-        final InputStream cfgIn = new FileInputStream(configFile);
-        m_config = CastorUtils.unmarshal(AmiConfig.class, cfgIn);
-        IOUtils.closeQuietly(cfgIn);
+        m_config = JaxbUtils.unmarshal(AmiConfig.class, new File(configFile));
     }
 
     public Lock getReadLock() {
@@ -129,15 +119,11 @@ public class AmiPeerFactory {
      *
      * @exception java.io.IOException
      *                Thrown if the specified config file cannot be read
-     * @exception org.exolab.castor.xml.MarshalException
-     *                Thrown if the file does not conform to the schema.
-     * @exception org.exolab.castor.xml.ValidationException
-     *                Thrown if the contents do not match the required schema.
      * @throws java.io.IOException if any.
      * @throws org.exolab.castor.xml.MarshalException if any.
      * @throws org.exolab.castor.xml.ValidationException if any.
      */
-    public static synchronized void init() throws IOException, MarshalException, ValidationException {
+    public static synchronized void init() throws IOException {
         if (m_loaded) {
             // init already called - return
             // to reload, reload() will need to be called
@@ -145,7 +131,7 @@ public class AmiPeerFactory {
         }
 
         final File cfgFile = ConfigFileConstants.getFile(ConfigFileConstants.AMI_CONFIG_FILE_NAME);
-        LogUtils.debugf(AmiPeerFactory.class, "init: config file path: %s", cfgFile.getPath());
+        LOG.debug("init: config file path: {}", cfgFile.getPath());
         m_singleton = new AmiPeerFactory(cfgFile.getPath());
         m_loaded = true;
     }
@@ -155,15 +141,11 @@ public class AmiPeerFactory {
      *
      * @exception java.io.IOException
      *                Thrown if the specified config file cannot be read/loaded
-     * @exception org.exolab.castor.xml.MarshalException
-     *                Thrown if the file does not conform to the schema.
-     * @exception org.exolab.castor.xml.ValidationException
-     *                Thrown if the contents do not match the required schema.
      * @throws java.io.IOException if any.
      * @throws org.exolab.castor.xml.MarshalException if any.
      * @throws org.exolab.castor.xml.ValidationException if any.
      */
-    public static synchronized void reload() throws IOException, MarshalException, ValidationException {
+    public static synchronized void reload() throws IOException {
         m_singleton = null;
         m_loaded = false;
 
@@ -218,7 +200,7 @@ public class AmiPeerFactory {
             // way the original config
             // isn't lost if the XML from the marshal is hosed.
             final StringWriter stringWriter = new StringWriter();
-            Marshaller.marshal(m_config, stringWriter);
+            JaxbUtils.marshal(m_config, stringWriter);
             if (stringWriter.toString() != null) {
                 final Writer fileWriter = new OutputStreamWriter(new FileOutputStream(ConfigFileConstants.getFile(ConfigFileConstants.AMI_CONFIG_FILE_NAME)), "UTF-8");
                 fileWriter.write(stringWriter.toString());
@@ -249,7 +231,7 @@ public class AmiPeerFactory {
                 final Definition definition = definitionsIterator.next();
                 if (definition.getSpecificCount() == 0
                     && definition.getRangeCount() == 0) {
-                    LogUtils.debugf(this, "optimize: Removing empty definition element");
+                    LOG.debug("optimize: Removing empty definition element");
                     definitionsIterator.remove();
                 }
             }

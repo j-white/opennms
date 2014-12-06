@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2008-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2008-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -35,13 +35,13 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 
-import org.opennms.core.utils.InetAddressUtils;
-import org.opennms.core.utils.LogUtils;
 import org.opennms.core.utils.SocketUtils;
 import org.opennms.core.utils.SocketWrapper;
 import org.opennms.netmgt.provision.detector.simple.request.NrpeRequest;
 import org.opennms.netmgt.provision.support.Client;
 import org.opennms.netmgt.provision.support.nrpe.NrpePacket;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * <p>NrpeClient class.</p>
@@ -51,6 +51,7 @@ import org.opennms.netmgt.provision.support.nrpe.NrpePacket;
  */
 public class NrpeClient implements Client<NrpeRequest, NrpePacket>, SocketWrapper {
     
+    private static final Logger LOG = LoggerFactory.getLogger(NrpeClient.class);
     /** 
      * List of cipher suites to use when talking SSL to NRPE, which uses anonymous DH
      */
@@ -65,6 +66,7 @@ public class NrpeClient implements Client<NrpeRequest, NrpePacket>, SocketWrappe
     /**
      * <p>close</p>
      */
+    @Override
     public void close() {
         Socket socket = m_socket;
         m_socket = null;
@@ -74,12 +76,13 @@ public class NrpeClient implements Client<NrpeRequest, NrpePacket>, SocketWrappe
             }
             
         } catch (final IOException e) {
-            LogUtils.debugf(this, e, "failed to close socket");
+            LOG.debug("failed to close socket", e);
         }
         
     }
 
     /** {@inheritDoc} */
+    @Override
     public void connect(final InetAddress address, final int port, final int timeout) throws IOException, Exception {
         m_socket = getWrappedSocket(address, port, timeout);
         setOutput(m_socket.getOutputStream());
@@ -102,7 +105,7 @@ public class NrpeClient implements Client<NrpeRequest, NrpePacket>, SocketWrappe
         try {
             return wrapSocket(socket);
         } catch (final IOException e) {
-            LogUtils.debugf(this, e, "an error occurred while SSL-wrapping a socket (%s:%d)", address, port);
+            LOG.debug("an error occurred while SSL-wrapping a socket ({}:{})", address, port, e);
             return null;
         }
     }
@@ -116,6 +119,7 @@ public class NrpeClient implements Client<NrpeRequest, NrpePacket>, SocketWrappe
      * @return a {@link java.net.Socket} object.
      * @throws java.lang.Exception if any.
      */
+    @Override
     public Socket wrapSocket(final Socket socket) throws IOException {
         if (!isUseSsl()) {
             return socket;
@@ -133,6 +137,7 @@ public class NrpeClient implements Client<NrpeRequest, NrpePacket>, SocketWrappe
      * @throws java.io.IOException if any.
      * @throws java.lang.Exception if any.
      */
+    @Override
     public NrpePacket receiveBanner() throws IOException, Exception {
         return receiveResponse();
     }
@@ -145,6 +150,7 @@ public class NrpeClient implements Client<NrpeRequest, NrpePacket>, SocketWrappe
      * @throws java.io.IOException if any.
      * @throws java.lang.Exception if any.
      */
+    @Override
     public NrpePacket sendRequest(final NrpeRequest request) throws IOException, Exception {
         request.send(getOutput());
         return receiveResponse();
@@ -152,7 +158,7 @@ public class NrpeClient implements Client<NrpeRequest, NrpePacket>, SocketWrappe
     
     private NrpePacket receiveResponse() throws Exception {
         final NrpePacket response = NrpePacket.receivePacket(getInput(), getPadding());
-        LogUtils.infof(this, "what is response: " + response.getResultCode());
+        LOG.info("what is response: {}", response.getResultCode());
         return response;
     }
 

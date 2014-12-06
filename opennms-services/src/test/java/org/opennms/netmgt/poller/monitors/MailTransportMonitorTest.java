@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2008-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2008-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -30,26 +30,24 @@ package org.opennms.netmgt.poller.monitors;
 
 import static org.junit.Assert.assertEquals;
 
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.Reader;
-import java.io.StringReader;
 import java.net.InetAddress;
 import java.util.HashMap;
 import java.util.InvalidPropertiesFormatException;
 import java.util.Map;
 import java.util.Properties;
 
-import org.hibernate.lob.ReaderInputStream;
-import org.opennms.core.test.MockLogAppender;
-import org.opennms.core.utils.InetAddressUtils;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
-import org.opennms.netmgt.model.PollStatus;
+import org.opennms.core.test.MockLogAppender;
+import org.opennms.core.utils.InetAddressUtils;
 import org.opennms.netmgt.poller.MonitoredService;
+import org.opennms.netmgt.poller.PollStatus;
 import org.opennms.netmgt.poller.mock.MockMonitoredService;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
@@ -126,14 +124,14 @@ public class MailTransportMonitorTest {
     public void testLoadXmlProperties() throws InvalidPropertiesFormatException, IOException {
         Properties props = new Properties();
         
-        Reader reader = new StringReader("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" + 
-                "<!DOCTYPE properties SYSTEM \"http://java.sun.com/dtd/properties.dtd\">\n" + 
-                "<properties>\n" + 
-                "<comment>Hi</comment>\n" + 
-                "<entry key=\"foo\">1</entry>\n" + 
-                "<entry key=\"fu\">baz</entry>\n" + 
-                "</properties>");
-        InputStream stream = new ReaderInputStream(reader );
+        StringBuffer reader = new StringBuffer().append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n") 
+                .append("<!DOCTYPE properties SYSTEM \"http://java.sun.com/dtd/properties.dtd\">\n") 
+                .append("<properties>\n") 
+                .append("<comment>Hi</comment>\n") 
+                .append("<entry key=\"foo\">1</entry>\n") 
+                .append("<entry key=\"fu\">baz</entry>\n") 
+                .append("</properties>");
+        InputStream stream = new ByteArrayInputStream(reader.toString().getBytes("UTF-8"));
         props.loadFromXML(stream);
         assertEquals("1", props.get("foo"));
     }

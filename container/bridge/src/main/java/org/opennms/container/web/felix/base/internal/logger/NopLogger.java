@@ -23,6 +23,8 @@ import org.osgi.framework.ServiceReference;
 public final class NopLogger
     extends AbstractLogger
 {
+    @Override
+    @SuppressWarnings("rawtypes") // Because of OSGi API
     public void log(ServiceReference ref, int level, String message, Throwable cause)
     {
         // Do nothing

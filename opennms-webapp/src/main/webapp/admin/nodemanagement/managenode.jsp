@@ -2,22 +2,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2002-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -45,7 +45,7 @@
 
 <%
     HttpSession userSession = request.getSession(false);
-    List interfaces = null;
+    List<ManagedInterface> interfaces = null;
     Integer lineItems= new Integer(0);
     
     //EventConfFactory eventFactory = EventConfFactory.getInstance();
@@ -57,13 +57,12 @@
 	throw new ServletException("User session is null");
     }
 
-    interfaces = (List) userSession.getAttribute("interfaces.nodemanagement");
-    if (interfaces.size() < 1) {
-    	throw new NoManagedInterfacesException("element/nodeList.htm");
-    }
+    interfaces = (List<ManagedInterface>) userSession.getAttribute("interfaces.nodemanagement");
     if (interfaces == null) {
 	throw new ServletException("Session attribute "
 				   + "interfaces.nodemanagement is null");
+    } else if (interfaces.size() < 1) {
+    	throw new NoManagedInterfacesException("element/nodeList.htm");
     }
     lineItems = (Integer) userSession.getAttribute("lineItems.nodemanagement");
     if (lineItems == null) {
@@ -152,7 +151,7 @@
   
         if (lineItems.intValue() > 0)
         {
-                ManagedInterface firstInterface = (ManagedInterface)interfaces.get(0);
+                ManagedInterface firstInterface = interfaces.get(0);
                 nodeLabel = NetworkElementFactory.getInstance(getServletContext()).getNodeLabel(firstInterface.getNodeid());
     
                 if ( interfaces.size() == 1)
@@ -266,7 +265,7 @@
 <jsp:include page="/includes/footer.jsp" flush="true"/>
 
 <%!
-      public String buildManageTableRows(List interfaces, int start, int stop)
+      public String buildManageTableRows(List<ManagedInterface> interfaces, int start, int stop)
       	throws java.sql.SQLException
       {
           StringBuffer rows = new StringBuffer();
@@ -274,7 +273,7 @@
           for (int i = start; i < stop; i++)
           {
                 
-                ManagedInterface curInterface = (ManagedInterface)interfaces.get(i);
+                ManagedInterface curInterface = interfaces.get(i);
 		String intKey = curInterface.getNodeid() + "-" + curInterface.getAddress();
                 StringBuffer serviceArray = new StringBuffer("[");
                 String prepend = "";
@@ -291,10 +290,10 @@
                                               (curInterface.getStatus().equals("managed") ? "checked" : ""),
                                               curInterface.getAddress()));
                   
-                List interfaceServices = curInterface.getServices();
+                List<ManagedService> interfaceServices = curInterface.getServices();
                 for (int k = 0; k < interfaceServices.size(); k++) 
                 {
-                     ManagedService curService = (ManagedService)interfaceServices.get(k);
+                     ManagedService curService = interfaceServices.get(k);
                      String serviceKey = curInterface.getNodeid() + "-" + curInterface.getAddress() + "-" + curService.getId();
                      rows.append(buildServiceRow(serviceKey,
                                                  interfaceIndex,

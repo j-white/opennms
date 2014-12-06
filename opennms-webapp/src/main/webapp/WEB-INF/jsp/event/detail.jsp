@@ -2,22 +2,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2009-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2002-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -38,11 +38,11 @@
 <%@page import="java.util.regex.Pattern"%>
 <%@page import="org.springframework.util.Assert"%>
 
-<%@page import="org.opennms.netmgt.EventConstants"%>
-<%@page import="org.opennms.core.utils.WebSecurityUtils"%>
+<%@page import="org.opennms.netmgt.events.api.EventConstants"%>
 <%@page import="org.opennms.web.servlet.XssRequestWrapper"%>
 <%@page import="org.opennms.web.event.Event"%>
 <%@page import="org.opennms.web.event.AcknowledgeType"%>
+<%@page import="org.opennms.core.utils.WebSecurityUtils"%>
 
 <%
 
@@ -91,7 +91,7 @@
   <jsp:param name="title" value="Event Detail" />
   <jsp:param name="headTitle" value="Detail" />
   <jsp:param name="headTtitle" value="Events" />
-  <jsp:param name="breadcrumb" value="<a href='event/index.jsp'>Events</a>" />
+  <jsp:param name="breadcrumb" value="<a href='event/index'>Events</a>" />
   <jsp:param name="breadcrumb" value="Detail" />
 </jsp:include>
 	 <% if (event == null ) { %>
@@ -123,7 +123,7 @@
         
         <tr  class="<%= event.getSeverity().getLabel() %>">
           <th>Time</th>
-          <td><%=org.opennms.web.api.Util.formatDateToUIString(event.getTime())%></td>
+          <td><fmt:formatDate value="<%=event.getTime()%>" type="BOTH" /></td>
           <th>Interface</th>
           <td>
             <% if( event.getIpAddress() != null ) { %>
@@ -142,7 +142,16 @@
           </td>
           <% if ("true".equals(acknowledgeEvent)) { %>
           <th>Time&nbsp;Acknowledged</th>
-          <td><%=event.getAcknowledgeTime()!=null ? org.opennms.web.api.Util.formatDateToUIString(event.getAcknowledgeTime()) : "&nbsp;"%></td>
+          <td>
+          <c:choose>
+            <c:when test="<%=event.getAcknowledgeTime() != null%>">
+              <fmt:formatDate value="<%=event.getAcknowledgeTime()%>" type="BOTH" />
+            </c:when>
+            <c:otherwise>
+              &nbsp;
+            </c:otherwise>
+          </c:choose>
+          </td>
           <% } else { %>
           <td colspan="2">&nbsp;</td>
           <% } %>
@@ -193,7 +202,7 @@
           <th>Log&nbsp;Message</th>
         </tr>
         <tr class="<%= event.getSeverity().getLabel() %>">
-          <td><%=event.getLogMessage()%></td>
+          <td><%=WebSecurityUtils.sanitizeString(event.getLogMessage(), true)%></td>
         </tr>
       </table>
 
@@ -202,7 +211,7 @@
           <th>Description</th>
         </tr>
         <tr class="<%= event.getSeverity().getLabel() %>">
-          <td><%=event.getDescription()%></td>
+          <td><%=WebSecurityUtils.sanitizeString(event.getDescription(), true)%></td>
         </tr>
       </table>
       
@@ -222,7 +231,7 @@
       </table>
 
       <% 
-      if( ( request.isUserInRole( org.opennms.web.springframework.security.Authentication.ROLE_ADMIN ) || !request.isUserInRole( org.opennms.web.springframework.security.Authentication.ROLE_READONLY ) ) && "true".equals(acknowledgeEvent)) { %>
+      if( ( request.isUserInRole( org.opennms.web.api.Authentication.ROLE_ADMIN ) || !request.isUserInRole( org.opennms.web.api.Authentication.ROLE_READONLY ) ) && "true".equals(acknowledgeEvent)) { %>
         <form method="post" action="event/acknowledge">
           <input type="hidden" name="actionCode" value="<%=action%>" />
           <input type="hidden" name="event" value="<%=event.getId()%>"/>

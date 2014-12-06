@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2008-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2006-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -31,24 +31,29 @@ package org.opennms.netmgt.provision.service.operations;
 import java.net.InetAddress;
 
 import org.opennms.core.utils.InetAddressUtils;
-import org.opennms.core.utils.LogUtils;
 import org.opennms.netmgt.model.OnmsCategory;
 import org.opennms.netmgt.model.OnmsIpInterface;
 import org.opennms.netmgt.model.OnmsMonitoredService;
 import org.opennms.netmgt.model.OnmsNode;
 import org.opennms.netmgt.model.OnmsServiceType;
 import org.opennms.netmgt.model.PrimaryType;
+import org.opennms.netmgt.model.OnmsNode.NodeLabelSource;
+import org.opennms.netmgt.model.OnmsNode.NodeType;
 import org.opennms.netmgt.provision.service.ProvisionService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeanWrapper;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.PropertyAccessorFactory;
 
 public abstract class SaveOrUpdateOperation extends ImportOperation {
+    private static final Logger LOG = LoggerFactory.getLogger(SaveOrUpdateOperation.class);
 
     private final OnmsNode m_node;
     private OnmsIpInterface m_currentInterface;
     
     private ScanManager m_scanManager;
+    private String m_rescanExisting = Boolean.TRUE.toString();
     
     /**
      * <p>Constructor for SaveOrUpdateOperation.</p>
@@ -61,7 +66,7 @@ public abstract class SaveOrUpdateOperation extends ImportOperation {
      * @param provisionService a {@link org.opennms.netmgt.provision.service.ProvisionService} object.
      */
     public SaveOrUpdateOperation(String foreignSource, String foreignId, String nodeLabel, String building, String city, ProvisionService provisionService) {
-		this(null, foreignSource, foreignId, nodeLabel, building, city, provisionService);
+		this(null, foreignSource, foreignId, nodeLabel, building, city, provisionService, Boolean.TRUE.toString());
 	}
 
 	/**
@@ -74,19 +79,21 @@ public abstract class SaveOrUpdateOperation extends ImportOperation {
 	 * @param building a {@link java.lang.String} object.
 	 * @param city a {@link java.lang.String} object.
 	 * @param provisionService a {@link org.opennms.netmgt.provision.service.ProvisionService} object.
+         * @param rescanExisting a {@link java.lang.String} object
 	 */
-	public SaveOrUpdateOperation(Integer nodeId, String foreignSource, String foreignId, String nodeLabel, String building, String city, ProvisionService provisionService) {
+	public SaveOrUpdateOperation(Integer nodeId, String foreignSource, String foreignId, String nodeLabel, String building, String city, ProvisionService provisionService, String rescanExisting) {
 	    super(provisionService);
 	    
         m_node = new OnmsNode();
         m_node.setId(nodeId);
 		m_node.setLabel(nodeLabel);
-		m_node.setLabelSource("U");
-		m_node.setType("A");
+		m_node.setLabelSource(NodeLabelSource.USER);
+		m_node.setType(NodeType.ACTIVE);
         m_node.setForeignSource(foreignSource);
         m_node.setForeignId(foreignId);
         m_node.getAssetRecord().setBuilding(building);
         m_node.getAssetRecord().setCity(city);
+        m_rescanExisting = rescanExisting;
 	}
 	
 	/**
@@ -110,7 +117,7 @@ public abstract class SaveOrUpdateOperation extends ImportOperation {
 	public void foundInterface(String ipAddr, Object descr, final PrimaryType primaryType, boolean managed, int status) {
 		
 		if (ipAddr == null || "".equals(ipAddr.trim())) {
-		    log().error(String.format("Found interface on node %s with an empty ipaddr! Ignoring!", m_node.getLabel()));
+		    LOG.error("Found interface on node {} with an empty ipaddr! Ignoring!", m_node.getLabel());
 			return;
 		}
 
@@ -121,7 +128,7 @@ public abstract class SaveOrUpdateOperation extends ImportOperation {
         if (PrimaryType.PRIMARY.equals(primaryType)) {
         	final InetAddress addr = InetAddressUtils.addr(ipAddr);
         	if (addr == null) {
-        		LogUtils.errorf(this, "Unable to resolve address of snmpPrimary interface for node %s with address '%s'", m_node.getLabel(), ipAddr);
+        		LOG.error("Unable to resolve address of snmpPrimary interface for node {} with address '{}'", m_node.getLabel(), ipAddr);
         	} else {
         		m_scanManager = new ScanManager(addr);
         	}
@@ -135,9 +142,10 @@ public abstract class SaveOrUpdateOperation extends ImportOperation {
     /**
      * <p>scan</p>
      */
+    @Override
     public void scan() {
     	updateSnmpData();
-	}
+    }
 	
     /**
      * <p>updateSnmpData</p>
@@ -183,6 +191,10 @@ public abstract class SaveOrUpdateOperation extends ImportOperation {
         return m_node;
     }
 
+    protected String getRescanExisting() {
+        return m_rescanExisting;
+    }
+
     /**
      * <p>foundAsset</p>
      *
@@ -194,7 +206,7 @@ public abstract class SaveOrUpdateOperation extends ImportOperation {
         try {
             w.setPropertyValue(name, value);
         } catch (final BeansException e) {
-            log().warn("Could not set property on object of type " + m_node.getClass().getName() + ": " + name, e);
+            LOG.warn("Could not set property on object of type {}: {}", m_node.getClass().getName(), name, e);
         }
     }
 }

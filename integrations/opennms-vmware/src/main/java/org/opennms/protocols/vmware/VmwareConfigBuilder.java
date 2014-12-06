@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2013-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -113,6 +113,7 @@ public class VmwareConfigBuilder {
     private String versionInformation = "", apiVersion = "";
 
     private static class TrustAllManager implements javax.net.ssl.TrustManager, javax.net.ssl.X509TrustManager {
+        @Override
         public java.security.cert.X509Certificate[] getAcceptedIssuers() {
             return null;
         }
@@ -125,10 +126,12 @@ public class VmwareConfigBuilder {
             return true;
         }
 
+        @Override
         public void checkServerTrusted(java.security.cert.X509Certificate[] certs, String authType) throws java.security.cert.CertificateException {
             return;
         }
 
+        @Override
         public void checkClientTrusted(java.security.cert.X509Certificate[] certs, String authType) throws java.security.cert.CertificateException {
             return;
         }
@@ -296,7 +299,7 @@ public class VmwareConfigBuilder {
 
         versionInformation = buffer.toString();
 
-        String arr[] = serviceInstance.getAboutInfo().getApiVersion().split("\\.");
+        String[] arr = serviceInstance.getAboutInfo().getApiVersion().split("\\.");
 
         if (arr.length > 1) {
             apiVersion = arr[0];
@@ -474,7 +477,7 @@ public class VmwareConfigBuilder {
     }
 
 
-    public static void main(String args[]) throws ParseException {
+    public static void main(String[] args) throws ParseException {
         String hostname = null;
         String username = null;
         String password = null;
@@ -522,6 +525,7 @@ public class VmwareConfigBuilder {
         HttpsURLConnection.setDefaultSSLSocketFactory(sc.getSocketFactory());
 
         HostnameVerifier hv = new HostnameVerifier() {
+            @Override
             public boolean verify(String urlHostName, SSLSession session) {
                 return true;
             }

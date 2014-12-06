@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2002-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -33,10 +33,11 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.RejectedExecutionException;
 
-import org.opennms.core.utils.ThreadCategory;
-import org.opennms.netmgt.EventConstants;
-import org.opennms.netmgt.eventd.EventIpcManagerFactory;
-import org.opennms.netmgt.model.events.EventListener;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.opennms.netmgt.events.api.EventConstants;
+import org.opennms.netmgt.events.api.EventIpcManagerFactory;
+import org.opennms.netmgt.events.api.EventListener;
 import org.opennms.netmgt.xml.event.Event;
 
 /**
@@ -47,6 +48,7 @@ import org.opennms.netmgt.xml.event.Event;
  * @author <a href="http://www.opennms.org/">OpenNMS</a>
  */
 final class BroadcastEventProcessor implements EventListener {
+    private static final Logger LOG = LoggerFactory.getLogger(BroadcastEventProcessor.class);
     /**
      * The location where incoming events of interest are enqueued
      */
@@ -128,14 +130,14 @@ final class BroadcastEventProcessor implements EventListener {
      * available for processing. Each message is examined for its Universal
      * Event Identifier and the appropriate action is taking based on each UEI.
      */
+    @Override
     public void onEvent(Event event) {
         if (event == null)
             return;
 
-        ThreadCategory log = ThreadCategory.getInstance(getClass());
 
-        if (log.isDebugEnabled())
-            log.debug("About to start processing recd. event");
+
+        LOG.debug("About to start processing recd. event");
 
         try {
             // check on timertasks and events counter
@@ -147,16 +149,16 @@ final class BroadcastEventProcessor implements EventListener {
 
             m_updater.execute(new DataUpdater(event));
 
-            if (log.isDebugEnabled())
-                log.debug("Event " + uei + " added to updater queue");
+
+            LOG.debug("Event {} added to updater queue", uei);
 
             // Reset the user timer
             RTCManager.getInstance().resetUserTimer();
         } catch (RejectedExecutionException ex) {
-            log.error("Failed to process event", ex);
+            LOG.error("Failed to process event", ex);
             return;
         } catch (Throwable t) {
-            log.error("Failed to process event", t);
+            LOG.error("Failed to process event", t);
             return;
         }
 
@@ -167,6 +169,7 @@ final class BroadcastEventProcessor implements EventListener {
      *
      * @return a {@link java.lang.String} object.
      */
+    @Override
     public String getName() {
         return "RTCManager:BroadcastEventProcessor";
     }

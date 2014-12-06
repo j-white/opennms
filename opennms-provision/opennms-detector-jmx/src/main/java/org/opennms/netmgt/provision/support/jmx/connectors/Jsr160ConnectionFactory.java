@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2008-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2005-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -41,7 +41,8 @@ import javax.management.remote.JMXServiceURL;
 
 import org.opennms.core.utils.InetAddressUtils;
 import org.opennms.core.utils.ParameterMap;
-import org.opennms.core.utils.ThreadCategory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 //import mx4j.tools.remote.*;
 
@@ -52,9 +53,9 @@ import org.opennms.core.utils.ThreadCategory;
  * 
  * @author <A HREF="mailto:mike@opennms.org">Mike Jamison </A>
  */
-public class Jsr160ConnectionFactory {
+public abstract class Jsr160ConnectionFactory {
     
-    static ThreadCategory log = ThreadCategory.getInstance(Jsr160ConnectionFactory.class);
+    private static final Logger LOG = LoggerFactory.getLogger(Jsr160ConnectionFactory.class);
 
     /**
      * <p>getMBeanServerConnection</p>
@@ -80,12 +81,12 @@ public class Jsr160ConnectionFactory {
         JMXServiceURL url = null;
         
         final String hostAddress = InetAddressUtils.str(address);
-		log.debug("JMX: " + factory + " - service:" + protocol + "//" + hostAddress + ":" + port + urlPath);
+        LOG.debug("JMX: {} - service:{}//{}:{}{}", factory, protocol, hostAddress, port, urlPath);
 
         if (factory == null || factory.equals("STANDARD")) {
             try {
                 
-                url = new JMXServiceURL("service:jmx:" + protocol + ":///jndi/"+protocol+"://" + hostAddress + ":" + port + urlPath);
+                url = getUrl(address, port, protocol, urlPath);
                 
                 // Connect a JSR 160 JMXConnector to the server side
                 JMXConnector connector = JMXConnectorFactory.connect(url);
@@ -93,9 +94,9 @@ public class Jsr160ConnectionFactory {
                 
                 connectionWrapper = new Jsr160ConnectionWrapper(connector, connection);
             } catch(MalformedURLException e) {
-                log.warn("URL was malformed: " + url, e);
+                LOG.warn("URL was malformed: {}", url, e);
             } catch (IOException e) {
-                log.warn("An I/O exception occurred: " +url, e);
+                LOG.warn("An I/O exception occurred: {}", url, e);
             }
         }
         else if (factory.equals("PASSWORD-CLEAR")) {
@@ -112,7 +113,7 @@ public class Jsr160ConnectionFactory {
                 // Create an RMI connector client and
                 // connect it to the RMI connector server
                 //
-                url = new JMXServiceURL("service:jmx:" + protocol + ":///jndi/"+protocol+"://" + hostAddress + ":" + port + urlPath);
+                url = getUrl(address, port, protocol, urlPath);
                 
                 // Connect a JSR 160 JMXConnector to the server side
                 JMXConnector connector = JMXConnectorFactory.newJMXConnector(url, null);
@@ -125,7 +126,7 @@ public class Jsr160ConnectionFactory {
                 catch (SecurityException x)
                 {
                     // Uh-oh ! Bad credentials 
-                    log.error("Security exception: bad credentials");
+                    LOG.error("Security exception: bad credentials");
                     throw x;
                 }
 
@@ -134,7 +135,7 @@ public class Jsr160ConnectionFactory {
                 connectionWrapper = new Jsr160ConnectionWrapper(connector, connection);
                 
             } catch(Throwable e) {
-                log.error("Unable to get MBeanServerConnection: " + url, e);
+                LOG.error("Unable to get MBeanServerConnection: {}", url, e);
             }
         }
         /*
@@ -222,4 +223,20 @@ public class Jsr160ConnectionFactory {
         */
         return connectionWrapper;
     }    
+
+    private static JMXServiceURL getUrl(InetAddress address, int port, String protocol, String urlPath) throws MalformedURLException {
+        JMXServiceURL url;
+        if (protocol.equalsIgnoreCase("jmxmp") || protocol.equalsIgnoreCase("remoting-jmx")) {
+
+            // Create an JMXMP connector client and
+            // connect it to the JMXMP connector server
+            //
+            url = new JMXServiceURL(protocol, InetAddressUtils.str(address), port, urlPath);
+        } else {
+            // Fallback, building a URL for RMI
+            url = new JMXServiceURL("service:jmx:" + protocol + ":///jndi/" + protocol + "://" + InetAddressUtils.str(address) + ":" + port + urlPath);
+        }
+        return url;
+    }    
+
 }

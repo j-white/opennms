@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2013 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2013 The OpenNMS Group, Inc.
+ * Copyright (C) 2013-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -41,11 +41,11 @@ public class SeverityGenerator implements ColumnGenerator {
 
 	@Override
 	public Object generateCell(Table source, Object itemId, Object columnId) {
-		Property property = source.getContainerProperty(itemId, columnId);
+		Property<OnmsSeverity> property = source.getContainerProperty(itemId, columnId);
 		if (property == null || property.getValue() == null) {
 			return null;
 		} else {
-			OnmsSeverity severity = (OnmsSeverity)property.getValue();
+			OnmsSeverity severity = property.getValue();
 			String label = severity.getLabel();
 			label = label.toLowerCase();
 			label = new String(label.substring(0, 1)).toUpperCase() + label.substring(1);
@@ -56,7 +56,8 @@ public class SeverityGenerator implements ColumnGenerator {
 	private String escapeHtml(String html) {
 		if (html == null) {
 			return null;
+		} else {
+			return html.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
 		}
-		return html.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
 	}
 }

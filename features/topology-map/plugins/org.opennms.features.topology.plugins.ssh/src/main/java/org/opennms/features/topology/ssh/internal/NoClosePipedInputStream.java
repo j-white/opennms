@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2012-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -106,7 +106,7 @@ public class NoClosePipedInputStream extends InputStream{
      * The circular buffer into which incoming data is placed.
      * @since   JDK1.1
      */
-    protected byte buffer[];
+    protected byte[] buffer;
 
     /**
      * The index of the position in the circular buffer at which the
@@ -254,7 +254,7 @@ public class NoClosePipedInputStream extends InputStream{
      *           {@link #connect(java.io.PipedOutputStream) unconnected},
      *           closed,or if an I/O error occurs.
      */
-    synchronized void receive(byte b[], int off, int len)  throws IOException {
+    synchronized void receive(byte[] b, int off, int len)  throws IOException {
         checkStateForReceive();
         writeSide = Thread.currentThread();
         int bytesToTransfer = len;
@@ -319,6 +319,7 @@ public class NoClosePipedInputStream extends InputStream{
      *           <a href=#BROKEN> <code>broken</code></a>, closed,
      *           or if an I/O error occurs.
      */
+    @Override
     public synchronized int read()  throws IOException {
         if (!connected) {
             throw new IOException("Pipe not connected");
@@ -368,7 +369,8 @@ public class NoClosePipedInputStream extends InputStream{
      *           {@link #connect(java.io.PipedOutputStream) unconnected},
      *           closed, or if an I/O error occurs.
      */
-    public synchronized int read(byte b[], int off, int len)  throws IOException {
+    @Override
+    public synchronized int read(byte[] b, int off, int len)  throws IOException {
         if (b == null) {
             throw new NullPointerException();
         } else if (off < 0 || len < 0 || len > b.length - off) {
@@ -427,6 +429,7 @@ public class NoClosePipedInputStream extends InputStream{
      * @exception  IOException  if an I/O error occurs.
      * @since   JDK1.0.2
      */
+    @Override
     public synchronized int available() throws IOException {
         if(in < 0)
             return 0;

@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2009-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2009-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -41,7 +41,8 @@ import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlElementRef;
 import javax.xml.bind.annotation.XmlRootElement;
 
-import org.opennms.core.utils.LogUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.opennms.netmgt.provision.adapters.link.EndPoint;
 import org.opennms.netmgt.provision.adapters.link.EndPointStatusException;
 import org.opennms.netmgt.provision.adapters.link.EndPointValidationExpression;
@@ -49,6 +50,7 @@ import org.opennms.netmgt.provision.adapters.link.EndPointValidationExpression;
 @XmlRootElement(name="endpoint-type")
 @XmlAccessorType(value=XmlAccessType.FIELD)
 public class EndPointType {
+    private static final Logger LOG = LoggerFactory.getLogger(EndPointType.class);
     @XmlAttribute(name="name")
     private String m_name;
     
@@ -141,11 +143,11 @@ public class EndPointType {
      */
     public boolean matches(EndPoint ep) {
         if (ep == null) {
-            LogUtils.debugf(this, "EndPoint is null!");
+            LOG.debug("EndPoint is null!");
             return false;
         }
         if (ep.getSysOid() == null) {
-            LogUtils.debugf(this, "sysObjectId for endpoint %s is null", ep);
+            LOG.debug("sysObjectId for endpoint {} is null", ep);
             return false;
         }
         if (ep.getSysOid().startsWith(getSysOid())) {

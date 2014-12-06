@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2010-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2006-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -30,7 +30,6 @@ package org.opennms.reporting.availability;
 
 import java.io.File;
 import java.io.FileOutputStream;
-import java.io.IOException;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
@@ -39,13 +38,14 @@ import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.GregorianCalendar;
+import java.util.concurrent.Callable;
 
-import org.exolab.castor.xml.MarshalException;
 import org.exolab.castor.xml.Marshaller;
-import org.exolab.castor.xml.ValidationException;
-import org.opennms.core.utils.ThreadCategory;
+import org.opennms.core.logging.Logging;
 import org.opennms.netmgt.model.ReportCatalogEntry;
 import org.opennms.reporting.core.svclayer.ReportStoreService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * AvailabilityCalculator is a partial refactoring of AvailabilityReport that
@@ -65,18 +65,16 @@ import org.opennms.reporting.core.svclayer.ReportStoreService;
  * @author <a href="mailto:jonathan@opennms.org">Jonathan Sartin</a>
  */
 public class AvailabilityCalculatorImpl implements AvailabilityCalculator {
+    private static final Logger LOG = LoggerFactory.getLogger(AvailabilityCalculatorImpl.class);
 
-    private static final String LOG4J_CATEGORY = "OpenNMS.Report";
+    private static final String LOG4J_CATEGORY = "reports";
 
     // String of Months
     public static String[] months = new String[] { "January", "February",
-            "March", "April", "May", "June", "July", "August", "September",
-            "October", "November", "December" };
+        "March", "April", "May", "June", "July", "August", "September",
+        "October", "November", "December" };
 
     // calendar
-
-    @SuppressWarnings("unused")
-    private Calendar m_calendar;
 
     // start date
 
@@ -93,9 +91,9 @@ public class AvailabilityCalculatorImpl implements AvailabilityCalculator {
     // URL for logo
 
     private String m_logoURL;
-    
+
     // output base dir
-    
+
     private String m_baseDir;
 
     // output file name
@@ -117,41 +115,37 @@ public class AvailabilityCalculatorImpl implements AvailabilityCalculator {
 
     private Report m_report = null;
 
-    private final ThreadCategory log;
-
     private ReportStoreService m_reportStoreService;
-    
+
     private AvailabilityData m_availabilityData;
 
     /**
      * <p>Constructor for AvailabilityCalculatorImpl.</p>
      */
     public AvailabilityCalculatorImpl() {
+        Logging.withPrefix(LOG4J_CATEGORY, new Runnable() {
+            @Override public void run() {
+                m_report = new Report();
+                m_report.setAuthor(m_author);
 
-        String oldPrefix = ThreadCategory.getPrefix();
-        ThreadCategory.setPrefix(LOG4J_CATEGORY);
-        log = ThreadCategory.getInstance(this.getClass());
-        ThreadCategory.setPrefix(oldPrefix);
-        
-        m_report = new Report();
-        m_report.setAuthor(m_author);
-
-        Calendar today = new GregorianCalendar();
-        int day = today.get(Calendar.DAY_OF_MONTH);
-        int year = today.get(Calendar.YEAR);
-        String month = months[today.get(Calendar.MONTH)];
-        int hour = today.get(Calendar.HOUR);
-        int minute = today.get(Calendar.MINUTE);
-        int second = today.get(Calendar.SECOND);
-        Created created = new Created();
-        created.setDay(day);
-        created.setHour(hour);
-        created.setMin(minute);
-        created.setMonth(month);
-        created.setSec(second);
-        created.setYear(year);
-        created.setContent(new BigDecimal(today.getTime().getTime()));
-        m_report.setCreated(created);
+                Calendar today = new GregorianCalendar();
+                int day = today.get(Calendar.DAY_OF_MONTH);
+                int year = today.get(Calendar.YEAR);
+                String month = months[today.get(Calendar.MONTH)];
+                int hour = today.get(Calendar.HOUR);
+                int minute = today.get(Calendar.MINUTE);
+                int second = today.get(Calendar.SECOND);
+                Created created = new Created();
+                created.setDay(day);
+                created.setHour(hour);
+                created.setMin(minute);
+                created.setMonth(month);
+                created.setSec(second);
+                created.setYear(year);
+                created.setContent(new BigDecimal(today.getTime().getTime()));
+                m_report.setCreated(created);
+            }
+        });
     }
 
     /* (non-Javadoc)
@@ -162,113 +156,106 @@ public class AvailabilityCalculatorImpl implements AvailabilityCalculator {
      *
      * @throws org.opennms.reporting.availability.AvailabilityCalculationException if any.
      */
+    @Override
     public void calculate() throws AvailabilityCalculationException {
-
-        log.debug("Calculation Started");
-        log.debug("periodEndDate: " + m_periodEndDate);
-
-        m_report.setLogo(m_logoURL);
-        log.debug("logoURL: " + m_logoURL);
-        ViewInfo viewInfo = new ViewInfo();
-        m_report.setViewInfo(viewInfo);
-        org.opennms.reporting.availability.Categories categories = new org.opennms.reporting.availability.Categories();
-        m_report.setCategories(categories);
         try {
-            log.debug("Populating datastructures and calculating availability");
-            log.debug("category:     " + m_categoryName);
-            log.debug("monthFormat:  " + m_monthFormat);
-            log.debug("reportFormat: " + m_reportFormat);
-            /* We just initialize this to make sure there are no exceptions, I guess?
-             * AvailabilityData availData =
-             */
-            
-            m_availabilityData.fillReport(m_categoryName,
-                                                              m_report,
-                                                              m_reportFormat,
-                                                              m_monthFormat,
-                                                              m_periodEndDate);
-        } catch (MarshalException me) {
-            log.fatal("MarshalException ", me);
-            throw new AvailabilityCalculationException(me);
-        } catch (ValidationException ve) {
-            log.fatal("Validation Exception ", ve);
-            throw new AvailabilityCalculationException(ve);
-        } catch (IOException ioe) {
-            log.fatal("Validation Exception ", ioe);
-            throw new AvailabilityCalculationException(ioe);
-        } catch (Throwable e) {
-            log.fatal("Exception ", e);
+            Logging.withPrefix(LOG4J_CATEGORY, new Callable<Void>() {
+                @Override
+                public Void call() throws Exception {
+                    LOG.debug("Calculation Started");
+                    LOG.debug("periodEndDate: {}", m_periodEndDate);
+
+                    m_report.setLogo(m_logoURL);
+                    LOG.debug("logoURL: {}", m_logoURL);
+                    ViewInfo viewInfo = new ViewInfo();
+                    m_report.setViewInfo(viewInfo);
+                    org.opennms.reporting.availability.Categories categories = new org.opennms.reporting.availability.Categories();
+                    m_report.setCategories(categories);
+                    try {
+                        LOG.debug("Populating datastructures and calculating availability");
+                        LOG.debug("category: {}", m_categoryName);
+                        LOG.debug("monthFormat: {}", m_monthFormat);
+                        LOG.debug("reportFormat: {}", m_reportFormat);
+                        m_availabilityData.fillReport(m_categoryName, m_report, m_reportFormat, m_monthFormat, m_periodEndDate);
+                    } catch (final Exception e) {
+                        LOG.error("An error occurred while calculating availability.", e);
+                        throw e;
+                    }
+                    return null;
+                }
+            });
+        } catch (final Exception e) {
             throw new AvailabilityCalculationException(e);
         }
-
     }
 
-   /* (non-Javadoc)
- * @see org.opennms.reporting.availability.AvailabilityCalculator#writeXML()
- */
-/**
- * <p>writeXML</p>
- *
- * @return a {@link java.lang.String} object.
- * @throws org.opennms.reporting.availability.AvailabilityCalculationException if any.
- */
-public String writeXML() throws AvailabilityCalculationException {
+    /* (non-Javadoc)
+     * @see org.opennms.reporting.availability.AvailabilityCalculator#writeXML()
+     */
+    /**
+     * <p>writeXML</p>
+     *
+     * @return a {@link java.lang.String} object.
+     * @throws org.opennms.reporting.availability.AvailabilityCalculationException if any.
+     */
+    @Override
+    public String writeXML() throws AvailabilityCalculationException {
         try {
-            log.debug("Writing the XML");
+            LOG.debug("Writing the XML");
             // Create a file name of type Category-monthFormat-startDate.xml
             SimpleDateFormat fmt = new SimpleDateFormat("yyyyMMdd");
             String catFileName = m_categoryName.replace(' ', '-');
-            m_outputFileName = m_baseDir + catFileName + "-" + m_monthFormat
-                    + fmt.format(m_periodEndDate) + ".xml";
-            log.debug("Report Store XML file: " + m_outputFileName);
+            m_outputFileName = m_baseDir + catFileName + "-" + m_monthFormat + fmt.format(m_periodEndDate) + ".xml";
+            LOG.debug("Report Store XML file: {}", m_outputFileName);
             File reportFile = new File(m_outputFileName);
             // marshal the XML into the file.
             marshal(reportFile);
-            
+
         } catch (AvailabilityCalculationException e) {
-            log.fatal("Unable to marshal report as XML");
+            LOG.error("Unable to marshal report as XML");
             throw new AvailabilityCalculationException(e);
         }
-        
+
         return m_outputFileName;
-        
+
     }
-   
-   /* (non-Javadoc)
- * @see org.opennms.reporting.availability.AvailabilityCalculator#writeXML(java.lang.String)
- */
-/** {@inheritDoc} */
-public void writeXML(String outputFileName) throws AvailabilityCalculationException {
-       try {
-           log.debug("Writing the XML");
-           m_outputFileName = outputFileName;
-           // Create a file name of type Category-monthFormat-startDate.xml
-           log.debug("Report Store XML file: " + m_outputFileName);
-           File reportFile = new File(m_baseDir, m_outputFileName);
-           // marshal the XML into the file.
-           marshal(reportFile);
-       } catch (AvailabilityCalculationException e) {
-           log.fatal("Unable to marshal report as XML");
-           throw new AvailabilityCalculationException(e);
-       }
-   }
-    
-   
-   
-   
+
+    /* (non-Javadoc)
+     * @see org.opennms.reporting.availability.AvailabilityCalculator#writeXML(java.lang.String)
+     */
+    /** {@inheritDoc} */
+    @Override
+    public void writeXML(String outputFileName) throws AvailabilityCalculationException {
+        try {
+            LOG.debug("Writing the XML");
+            m_outputFileName = outputFileName;
+            // Create a file name of type Category-monthFormat-startDate.xml
+            LOG.debug("Report Store XML file: {}", m_outputFileName);
+            File reportFile = new File(m_baseDir, m_outputFileName);
+            // marshal the XML into the file.
+            marshal(reportFile);
+        } catch (AvailabilityCalculationException e) {
+            LOG.error("Unable to marshal report as XML");
+            throw new AvailabilityCalculationException(e);
+        }
+    }
+
+
+
+
     /* (non-Javadoc)
      * @see org.opennms.reporting.availability.AvailabilityCalculator#writeLocateableXML(java.lang.String)
      */
     /** {@inheritDoc} */
+    @Override
     public String writeLocateableXML(String id) throws AvailabilityCalculationException {
         try {
-            log.debug("Writing the XML");
+            LOG.debug("Writing the XML");
             // Create a file name of type Category-monthFormat-startDate.xml
             SimpleDateFormat fmt = new SimpleDateFormat("yyyyMMdd");
             String catFileName = m_categoryName.replace(' ', '-');
-            m_outputFileName = catFileName + "-" + m_monthFormat
-                    + fmt.format(m_periodEndDate) + ".xml";
-            log.debug("Report Store XML file: " + m_outputFileName);
+            m_outputFileName = catFileName + "-" + m_monthFormat + fmt.format(m_periodEndDate) + ".xml";
+            LOG.debug("Report Store XML file: {}", m_outputFileName);
             File reportFile = new File(m_baseDir, m_outputFileName);
             // marshal the XML into the file.
             marshal(reportFile);
@@ -281,75 +268,95 @@ public void writeXML(String outputFileName) throws AvailabilityCalculationExcept
             m_reportStoreService.save(catalogEntry);
 
         } catch (AvailabilityCalculationException e) {
-            log.fatal("Unable to marshal report as XML");
+            LOG.error("Unable to marshal report as XML");
             throw new AvailabilityCalculationException(e);
         }
-        
+
         return m_outputFileName;
-        
+
     }
-    
+
     /**
      * <p>writeXML</p>
      *
      * @param outputStream a {@link java.io.OutputStream} object.
      * @throws org.opennms.reporting.availability.AvailabilityCalculationException if any.
      */
-    public void writeXML(OutputStream outputStream) throws AvailabilityCalculationException {
+    @Override
+    public void writeXML(final OutputStream outputStream) throws AvailabilityCalculationException {
         try {
-            log.debug("Writing the XML");
-            marshal(outputStream);
-        } catch (AvailabilityCalculationException e) {
-            log.fatal("Unable to marshal report as XML");
-            throw new AvailabilityCalculationException(e);
+            Logging.withPrefix(LOG4J_CATEGORY, new Callable<Void>() {
+                @Override
+                public Void call() throws Exception {
+                    try {
+                        LOG.debug("Writing the XML");
+                        marshal(outputStream);
+                    } catch (final Exception e) {
+                        LOG.error("Failed to write XML", e);
+                        throw e;
+                    }
+                    return null;
+                }
+
+            });
+        } catch (final Exception e) {
+            throw new AvailabilityCalculationException("Failed to write XML", e);
         }
     }
-    
+
 
     /* (non-Javadoc)
      * @see org.opennms.reporting.availability.AvailabilityCalculator#marshal(java.io.File)
      */
     /** {@inheritDoc} */
-    public void marshal(File outputFile)
-            throws AvailabilityCalculationException {
+    @Override
+    public void marshal(final File outputFile) throws AvailabilityCalculationException {
         try {
-            Writer fileWriter = new OutputStreamWriter(new FileOutputStream(outputFile), "UTF-8");
-            Marshaller marshaller = new Marshaller(fileWriter);
-            marshaller.setSuppressNamespaces(true);
-            marshaller.marshal(m_report);
-            log.debug("The xml marshalled from the castor classes is saved in "
-                    + outputFile.getAbsoluteFile());
-            fileWriter.close();
-        } catch (MarshalException me) {
-            log.fatal("MarshalException ", me);
-            throw new AvailabilityCalculationException(me);
-        } catch (ValidationException ve) {
-            log.fatal("Validation Exception ", ve);
-            throw new AvailabilityCalculationException(ve);
-        } catch (IOException ioe) {
-            log.fatal("IO Exception ", ioe);
-            throw new AvailabilityCalculationException(ioe);
+            Logging.withPrefix(LOG4J_CATEGORY, new Callable<Void>() {
+                @Override
+                public Void call() throws Exception {
+                    try {
+                        Writer fileWriter = new OutputStreamWriter(new FileOutputStream(outputFile), "UTF-8");
+                        Marshaller marshaller = new Marshaller(fileWriter);
+                        marshaller.setSuppressNamespaces(true);
+                        marshaller.marshal(m_report);
+                        LOG.debug("The xml marshalled from the castor classes is saved in {}", outputFile.getAbsoluteFile());
+                        fileWriter.close();
+                    } catch (final Exception e) {
+                        LOG.error("Failed to write marshal " + outputFile, e);
+                        throw e;
+                    }
+                    return null;
+                }
+
+            });
+        } catch (final Exception e) {
+            throw new AvailabilityCalculationException("Failed to marshal " + outputFile, e);
         }
     }
-    
-    private void marshal(OutputStream outputStream) 
-            throws AvailabilityCalculationException {
+
+    private void marshal(final OutputStream outputStream) throws AvailabilityCalculationException {
         try {
-            OutputStreamWriter writer = new OutputStreamWriter(outputStream, "UTF-8");
-            Marshaller marshaller = new Marshaller(writer);
-            marshaller.setSuppressNamespaces(true);
-            marshaller.marshal(m_report);
-            log.debug("The xml marshalled from the castor classes has been written to the output stream");
-            writer.flush();
-        } catch (MarshalException me) {
-            log.fatal("MarshalException ", me);
-            throw new AvailabilityCalculationException(me);
-        } catch (ValidationException ve) {
-            log.fatal("Validation Exception ", ve);
-            throw new AvailabilityCalculationException(ve);
-        } catch (IOException ioe) {
-            log.fatal("IO Exception ", ioe);
-            throw new AvailabilityCalculationException(ioe);
+            Logging.withPrefix(LOG4J_CATEGORY, new Callable<Void>() {
+                @Override
+                public Void call() throws Exception {
+                    try {
+                        OutputStreamWriter writer = new OutputStreamWriter(outputStream, "UTF-8");
+                        Marshaller marshaller = new Marshaller(writer);
+                        marshaller.setSuppressNamespaces(true);
+                        marshaller.marshal(m_report);
+                        LOG.debug("The xml marshalled from the castor classes has been written to the output stream");
+                        writer.flush();
+                    } catch (final Exception e) {
+                        LOG.error("Failed to write to output.", e);
+                        throw e;
+                    }
+                    return null;
+                }
+
+            });
+        } catch (final Exception e) {
+            throw new AvailabilityCalculationException("Failed to write to output.", e);
         }
     }
 
@@ -361,6 +368,7 @@ public void writeXML(String outputFileName) throws AvailabilityCalculationExcept
      *
      * @return a {@link java.lang.String} object.
      */
+    @Override
     public String getLogoURL() {
         return m_logoURL;
     }
@@ -369,6 +377,7 @@ public void writeXML(String outputFileName) throws AvailabilityCalculationExcept
      * @see org.opennms.reporting.availability.AvailabilityCalculator#setLogoURL(java.lang.String)
      */
     /** {@inheritDoc} */
+    @Override
     public void setLogoURL(String logoURL) {
         this.m_logoURL = logoURL;
     }
@@ -381,6 +390,7 @@ public void writeXML(String outputFileName) throws AvailabilityCalculationExcept
      *
      * @return a {@link java.lang.String} object.
      */
+    @Override
     public String getOutputFileName() {
         return m_outputFileName;
     }
@@ -389,6 +399,7 @@ public void writeXML(String outputFileName) throws AvailabilityCalculationExcept
      * @see org.opennms.reporting.availability.AvailabilityCalculator#setOutputFileName(java.lang.String)
      */
     /** {@inheritDoc} */
+    @Override
     public void setOutputFileName(String outputFileName) {
         this.m_outputFileName = outputFileName;
     }
@@ -401,6 +412,7 @@ public void writeXML(String outputFileName) throws AvailabilityCalculationExcept
      *
      * @return a {@link java.lang.String} object.
      */
+    @Override
     public String getAuthor() {
         return m_author;
     }
@@ -409,6 +421,7 @@ public void writeXML(String outputFileName) throws AvailabilityCalculationExcept
      * @see org.opennms.reporting.availability.AvailabilityCalculator#setAuthor(java.lang.String)
      */
     /** {@inheritDoc} */
+    @Override
     public void setAuthor(String author) {
         this.m_author = author;
     }
@@ -421,6 +434,7 @@ public void writeXML(String outputFileName) throws AvailabilityCalculationExcept
      *
      * @return a {@link java.lang.String} object.
      */
+    @Override
     public String getCategoryName() {
         return m_categoryName;
     }
@@ -429,6 +443,7 @@ public void writeXML(String outputFileName) throws AvailabilityCalculationExcept
      * @see org.opennms.reporting.availability.AvailabilityCalculator#setCategoryName(java.lang.String)
      */
     /** {@inheritDoc} */
+    @Override
     public void setCategoryName(String categoryName) {
         this.m_categoryName = categoryName;
     }
@@ -441,6 +456,7 @@ public void writeXML(String outputFileName) throws AvailabilityCalculationExcept
      *
      * @return a {@link java.lang.String} object.
      */
+    @Override
     public String getMonthFormat() {
         return m_monthFormat;
     }
@@ -449,6 +465,7 @@ public void writeXML(String outputFileName) throws AvailabilityCalculationExcept
      * @see org.opennms.reporting.availability.AvailabilityCalculator#setMonthFormat(java.lang.String)
      */
     /** {@inheritDoc} */
+    @Override
     public void setMonthFormat(String monthFormat) {
         this.m_monthFormat = monthFormat;
     }
@@ -461,6 +478,7 @@ public void writeXML(String outputFileName) throws AvailabilityCalculationExcept
      *
      * @return a {@link java.lang.String} object.
      */
+    @Override
     public String getReportFormat() {
         return m_reportFormat;
     }
@@ -469,6 +487,7 @@ public void writeXML(String outputFileName) throws AvailabilityCalculationExcept
      * @see org.opennms.reporting.availability.AvailabilityCalculator#setReportFormat(java.lang.String)
      */
     /** {@inheritDoc} */
+    @Override
     public void setReportFormat(String reportFormat) {
         this.m_reportFormat = reportFormat;
     }
@@ -481,16 +500,9 @@ public void writeXML(String outputFileName) throws AvailabilityCalculationExcept
      *
      * @return a {@link org.opennms.reporting.availability.Report} object.
      */
+    @Override
     public Report getReport() {
         return m_report;
-    }
-
-    /* (non-Javadoc)
-     * @see org.opennms.reporting.availability.AvailabilityCalculator#setCalendar(java.util.Calendar)
-     */
-    /** {@inheritDoc} */
-    public void setCalendar(Calendar calendar) {
-        this.m_calendar = calendar;
     }
 
     /* (non-Javadoc)
@@ -501,6 +513,7 @@ public void writeXML(String outputFileName) throws AvailabilityCalculationExcept
      *
      * @return a {@link java.util.Date} object.
      */
+    @Override
     public Date getPeriodEndDate() {
         return m_periodEndDate;
     }
@@ -509,6 +522,7 @@ public void writeXML(String outputFileName) throws AvailabilityCalculationExcept
      * @see org.opennms.reporting.availability.AvailabilityCalculator#setPeriodEndDate(java.util.Date)
      */
     /** {@inheritDoc} */
+    @Override
     public void setPeriodEndDate(Date periodEndDate) {
         this.m_periodEndDate = periodEndDate;
     }
@@ -517,6 +531,7 @@ public void writeXML(String outputFileName) throws AvailabilityCalculationExcept
      * @see org.opennms.reporting.availability.AvailabilityCalculator#setReportStoreService(org.opennms.reporting.core.svclayer.ReportStoreService)
      */
     /** {@inheritDoc} */
+    @Override
     public void setReportStoreService(ReportStoreService reportStoreService) {
         m_reportStoreService = reportStoreService;
     }
@@ -529,6 +544,7 @@ public void writeXML(String outputFileName) throws AvailabilityCalculationExcept
      *
      * @return a {@link java.lang.String} object.
      */
+    @Override
     public String getBaseDir() {
         return m_baseDir;
     }
@@ -537,6 +553,7 @@ public void writeXML(String outputFileName) throws AvailabilityCalculationExcept
      * @see org.opennms.reporting.availability.AvailabilityCalculator#setBaseDir(java.lang.String)
      */
     /** {@inheritDoc} */
+    @Override
     public void setBaseDir(String baseDir) {
         m_baseDir = baseDir;
     }
@@ -545,6 +562,7 @@ public void writeXML(String outputFileName) throws AvailabilityCalculationExcept
      * @see org.opennms.reporting.availability.AvailabilityCalculator#setAvailabilityData(org.opennms.reporting.availability.AvailabilityData)
      */
     /** {@inheritDoc} */
+    @Override
     public void setAvailabilityData(AvailabilityData availabilityData) {
         m_availabilityData = availabilityData;
     }

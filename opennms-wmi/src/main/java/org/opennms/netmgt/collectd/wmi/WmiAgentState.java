@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2009-2013 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2013 The OpenNMS Group, Inc.
+ * Copyright (C) 2009-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -34,13 +34,14 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.opennms.core.utils.InetAddressUtils;
-import org.opennms.core.utils.LogUtils;
 import org.opennms.netmgt.config.WmiPeerFactory;
 import org.opennms.netmgt.config.wmi.WmiAgentConfig;
 import org.opennms.protocols.wmi.IWmiClient;
 import org.opennms.protocols.wmi.WmiClient;
 import org.opennms.protocols.wmi.WmiException;
 import org.opennms.protocols.wmi.WmiManager;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * <P>
@@ -56,12 +57,15 @@ import org.opennms.protocols.wmi.WmiManager;
  * @author <a href="http://www.opennms.org">OpenNMS</a>
  */
 public class WmiAgentState {
+	
+	private static final Logger LOG = LoggerFactory.getLogger(WmiAgentState.class);
+
     private WmiManager m_manager;
     private IWmiClient m_wmiClient;
 
     private WmiAgentConfig m_agentConfig;
     private String m_address;
-    private HashMap<String, WmiGroupState> m_groupStates = new HashMap<String, WmiGroupState>();
+    private Map<String, WmiGroupState> m_groupStates = new HashMap<String, WmiGroupState>();
 
     /**
      * <p>Constructor for WmiAgentState.</p>
@@ -77,7 +81,7 @@ public class WmiAgentState {
         try {
             m_wmiClient = new WmiClient(m_address);
         } catch(final WmiException e) {
-            LogUtils.errorf(this, e, "Failed to create WMI client.");
+            LOG.error("Failed to create WMI client.", e);
         }
     }
 
@@ -90,7 +94,7 @@ public class WmiAgentState {
         try {
             m_wmiClient.connect(m_agentConfig.getDomain(), m_agentConfig.getUsername(), m_agentConfig.getPassword(), namespace);
         } catch(final WmiException e) {
-            LogUtils.errorf(this, e, "Failed to connect to host.");
+            LOG.error("Failed to connect to host.", e);
         }
     }
 
@@ -170,7 +174,7 @@ public class WmiAgentState {
         final WmiGroupState groupState = m_groupStates.get(groupName);
         if (groupState == null) {
             // Probably an error - log it as a warning, and give up
-            LogUtils.warnf(this, "didCheckGroupAvailability called on a group without state - this is odd.");
+            LOG.warn("didCheckGroupAvailability called on a group without state - this is odd.");
             return;
         }
         groupState.setLastChecked(new Date());

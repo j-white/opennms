@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2002-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -28,7 +28,14 @@
 
 package org.opennms.web.element;
 
+import static org.opennms.core.utils.InetAddressUtils.str;
+
 import java.util.List;
+
+import org.opennms.core.utils.InetAddressUtils;
+import org.opennms.netmgt.model.OnmsIpInterface;
+import org.opennms.netmgt.model.OnmsSnmpInterface;
+import org.opennms.web.api.Util;
 
 /**
  * <p>Interface class.</p>
@@ -84,6 +91,75 @@ public class Interface {
     	
     List<String> ipaddresses=null;
 
+    Interface () {
+        
+    }
+
+    Interface (OnmsSnmpInterface snmpIface) {
+        m_id = snmpIface.getId();
+        createSnmpInterface(snmpIface);
+    }
+
+    public void createSnmpInterface(OnmsSnmpInterface snmpIface) {
+        if(snmpIface.getNode() != null) {
+            m_nodeId = snmpIface.getNode().getId();
+        }
+        
+        m_snmpIfIndex = snmpIface.getIfIndex();
+        m_snmpIpAdEntNetMask = str(snmpIface.getNetMask());
+        m_snmpPhysAddr = snmpIface.getPhysAddr();
+        m_snmpIfDescr = snmpIface.getIfDescr();
+        m_snmpIfName = snmpIface.getIfName();
+        
+        if(snmpIface.getIfType() != null) {
+            m_snmpIfType = snmpIface.getIfType();
+        }
+        if(snmpIface.getIfOperStatus() != null) {
+            m_snmpIfOperStatus = snmpIface.getIfOperStatus();
+        }
+        if(snmpIface.getIfSpeed() != null) {
+            m_snmpIfSpeed = snmpIface.getIfSpeed();
+        }
+        if(snmpIface.getIfAdminStatus() != null) {
+            m_snmpIfAdminStatus = snmpIface.getIfAdminStatus();
+        }
+            m_snmpIfAlias = snmpIface.getIfAlias();
+        
+        Object element = snmpIface.getPoll();
+        if (element != null) {
+            m_isSnmpPoll = ((String) element).charAt(0);
+        }
+
+        if (snmpIface.getLastCapsdPoll() != null) {
+            m_snmpLastCapsdPoll = Util.formatDateToUIString(snmpIface.getLastCapsdPoll());
+        }
+
+        if (snmpIface.getLastSnmpPoll() != null) {
+            m_snmpLastSnmpPoll = Util.formatDateToUIString(snmpIface.getLastSnmpPoll());
+        }
+    }
+    
+    Interface (OnmsIpInterface ipIface) {        
+        m_id = ipIface.getId();
+        createIpInterface(ipIface);
+    }
+
+    public void createIpInterface(OnmsIpInterface ipIface) {
+        if(ipIface.getNode() != null) {
+            m_nodeId = ipIface.getNode().getId();
+        }
+        
+        if(ipIface.getSnmpInterface() != null) {
+            m_ifIndex = ipIface.getIfIndex();
+        }
+        m_ipHostName = ipIface.getIpHostName();
+        m_ipAddr = InetAddressUtils.str(ipIface.getIpAddress());
+        m_isSnmpPrimary = ipIface.getIsSnmpPrimary().getCode();
+        m_isManaged = ipIface.getIsManaged().charAt(0);
+        if(ipIface.getIpLastCapsdPoll() != null) {
+            m_ipLastCapsdPoll = Util.formatDateToUIString(ipIface.getIpLastCapsdPoll());
+        }
+    }
 	public List<String> getIpaddresses() {
 		return ipaddresses;
 	}
@@ -282,6 +358,7 @@ public class Interface {
      *
      * @return a {@link java.lang.String} object.
      */
+    @Override
     public String toString() {
         return m_ipHostName;
     }

@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2009-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2009-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -35,15 +35,16 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.opennms.core.utils.ThreadCategory;
-
-import org.opennms.netmgt.EventConstants;
+import org.opennms.core.logging.Logging;
+import org.opennms.netmgt.events.api.EventConstants;
 import org.opennms.netmgt.model.OnmsSnmpInterface;
-import org.opennms.netmgt.model.PollStatus;
+import org.opennms.netmgt.poller.PollStatus;
 import org.opennms.netmgt.scheduler.ReadyRunnable;
 import org.opennms.netmgt.scheduler.Schedule;
 import org.opennms.netmgt.snmp.SnmpAgentConfig;
 import org.opennms.netmgt.snmpinterfacepoller.SnmpPollInterfaceMonitor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Represents a PollableSnmpInterface
@@ -52,10 +53,12 @@ import org.opennms.netmgt.snmpinterfacepoller.SnmpPollInterfaceMonitor;
  * @version $Id: $
  */
 public class PollableSnmpInterface implements ReadyRunnable {
+    
+    private static final Logger LOG = LoggerFactory.getLogger(PollableSnmpInterface.class);
 
     private volatile Schedule m_schedule;
 
-    private HashMap<Integer,OnmsSnmpInterface> m_snmpinterfaces;
+    private Map<Integer,OnmsSnmpInterface> m_snmpinterfaces;
     
     private PollableSnmpInterfaceConfig m_snmppollableconfig;
 
@@ -67,11 +70,11 @@ public class PollableSnmpInterface implements ReadyRunnable {
         
     private SnmpAgentConfig m_agentConfig;
     
-    public class SnmpMinimalPollInterface {
+    public static class SnmpMinimalPollInterface {
         
-        final static int IF_UP=1;
-        final static int IF_DOWN=2;
-        final static int IF_UNKNOWN=0;
+    	static final int IF_UP=1;
+    	static final int IF_DOWN=2;
+    	static final int IF_UNKNOWN=0;
         
         private final String[] s_statusNames = {"Unknown","InterfaceUp", "InterfaceDown"}; 
         
@@ -149,7 +152,7 @@ public class PollableSnmpInterface implements ReadyRunnable {
      */
     public void setSnmpinterfaces(List<OnmsSnmpInterface> snmpinterfaces) {
     	if (snmpinterfaces == null) {
-    		log().debug("setting snmpinterfaces: got null, thread instantiated but at moment no interface found");
+    		LOG.debug("setting snmpinterfaces: got null, thread instantiated but at moment no interface found");
     		return;
     	}
 
@@ -164,9 +167,10 @@ public class PollableSnmpInterface implements ReadyRunnable {
     	
     	m_snmpinterfaces.clear();
         for (OnmsSnmpInterface iface: snmpinterfaces) {
+		LOG.debug("setting snmpinterface:", iface.toString());
         	if (iface != null && iface.getIfIndex() != null && iface.getIfIndex() > 0) {
         		final Integer oldStatus = oldStatuses.get(iface.getIfIndex());
-                        log().debug("setting snmpinterface (oldStatus=" + oldStatus + "):" + iface.toString());
+                        LOG.debug("setting snmpinterface (oldStatus={}):{}", oldStatus, iface.toString());
                         // Note: If OpenNMS is restarted, the event is going to be sent no matter if it was sent before, if the current status of the interface is down.        
                         m_snmpinterfaces.put(iface.getIfIndex(), iface);
         		if (iface.getIfAdminStatus() != null &&
@@ -271,6 +275,7 @@ public class PollableSnmpInterface implements ReadyRunnable {
      *
      * @return a boolean.
      */
+    @Override
     public boolean isReady() {
         return true;
     }
@@ -278,34 +283,35 @@ public class PollableSnmpInterface implements ReadyRunnable {
     /**
      * <p>run</p>
      */
-    public void run() {        
-        if (getParent().polling()) {
-            log().info("run: polling SNMP interfaces on package/interface " + getParent().getPackageName()+ "/" + getName() + "on primary address: " + getParent().getIpaddress());
-            if (m_snmpinterfaces == null || m_snmpinterfaces.isEmpty()) {
-                log().debug("No Interface found. Doing nothing");
-            } else {
-                log().debug(m_snmpinterfaces.size() + " Interfaces found. Getting Statutes....");
-            	SnmpPollInterfaceMonitor pollMonitor = new SnmpPollInterfaceMonitor();
-        		int maxiface = getMaxInterfacePerPdu();
-        		if (maxiface == 0) maxiface=m_snmpinterfaces.size();
-        		log().debug("Max Interface Per Pdu is: " + maxiface);
-        		List<SnmpMinimalPollInterface> mifaces = getSnmpMinimalPollInterface();
-        		int start =0;
-        		while (start + maxiface< m_snmpinterfaces.size()) {
-            		doPoll(pollMonitor,mifaces.subList(start, start+maxiface));
-            		start += maxiface;
-        		}
-        		doPoll(pollMonitor,mifaces.subList(start, m_snmpinterfaces.size()));
-            }
-            
-        }  else {
-            log().info("not polling: " + getParent().getIpaddress());
-        } // End if polling
+    @Override
+    public void run() {
+            if (getParent().polling()) {
+                LOG.info("run: polling SNMP interfaces on package/interface {}/{} on primary address: {}", getParent().getPackageName(), getName(), getParent().getIpaddress());
+                if (m_snmpinterfaces == null || m_snmpinterfaces.isEmpty()) {
+                    LOG.debug("No Interface found. Doing nothing");
+                } else {
+                    LOG.debug("{} Interfaces found. Getting Statutes....", m_snmpinterfaces.size());
+                    SnmpPollInterfaceMonitor pollMonitor = new SnmpPollInterfaceMonitor();
+                    int maxiface = getMaxInterfacePerPdu();
+                    if (maxiface == 0) maxiface=m_snmpinterfaces.size();
+                    LOG.debug("Max Interface Per Pdu is: {}", maxiface);
+                    List<SnmpMinimalPollInterface> mifaces = getSnmpMinimalPollInterface();
+                    int start =0;
+                    while (start + maxiface< m_snmpinterfaces.size()) {
+                        doPoll(pollMonitor,mifaces.subList(start, start+maxiface));
+                        start += maxiface;
+                    }
+                    doPoll(pollMonitor,mifaces.subList(start, m_snmpinterfaces.size()));
+                }
+
+            }  else {
+                LOG.info("not polling: {}", getParent().getIpaddress());
+            } // End if polling
     } //end Run method
         
     private void doPoll(SnmpPollInterfaceMonitor pollMonitor, List<SnmpMinimalPollInterface> mifaces) {
         
-        log().info("doPoll: input interfaces number: " + mifaces.size());
+        LOG.info("doPoll: input interfaces number: {}", mifaces.size());
     	
         mifaces = pollMonitor.poll(getAgentConfig(), mifaces);
         
@@ -314,15 +320,15 @@ public class PollableSnmpInterface implements ReadyRunnable {
         Date now = getDate();
         
         if (mifaces != null) {
-            log().info("doPoll: PollerMonitor return interfaces number: " + mifaces.size());
+            LOG.info("doPoll: PollerMonitor return interfaces number: {}", mifaces.size());
             for (SnmpMinimalPollInterface miface : mifaces) {
-                log().debug("Working on interface with ifindex: " + miface.getIfindex());
-                log().debug("Interface PollStatus is " + miface.getStatus().getStatusName());
+                LOG.debug("Working on interface with ifindex: {}", miface.getIfindex());
+                LOG.debug("Interface PollStatus is {}", miface.getStatus().getStatusName());
                 if (miface.getStatus().isUp()) {
                     OnmsSnmpInterface iface = m_snmpinterfaces.get(Integer.valueOf(miface.getIfindex()));
 
-                    log().debug("Previuos status Admin/Oper: " + iface.getIfAdminStatus() + "/" + iface.getIfOperStatus());
-                    log().debug("Current status Admin/Oper: " + miface.getAdminstatus() + "/" + miface.getOperstatus());
+                    LOG.debug("Previuos status Admin/Oper: {}/{}", iface.getIfAdminStatus(), iface.getIfOperStatus());
+                    LOG.debug("Current status Admin/Oper: {}/{}", miface.getAdminstatus(), miface.getOperstatus());
                     
                     // If the interface is Admin Up, and the interface is Operational Down, we generate an alarm.
                     if ( miface.getAdminstatus() == SnmpMinimalPollInterface.IF_UP
@@ -368,18 +374,18 @@ public class PollableSnmpInterface implements ReadyRunnable {
                     try {
                         update(iface);
                     } catch (Throwable e) {
-                        log().warn("Failing updating Interface" + iface.getIfName()+" " + e.getLocalizedMessage());
+                        LOG.warn("Failing updating Interface {} {}", iface.getIfName(), e.getLocalizedMessage());
                         refresh = true;
                     }
                 } else {
-                    log().debug("No "+ getContext().getServiceName() + " data available for interface.");
+                    LOG.debug("No {} data available for interface.", getContext().getServiceName());
                 } //End if status OK
             } //end while on interface
             
             if (refresh) 
                 getParent().getParent().refresh(getParent().getNodeid());
         } else {
-            log().error("the monitor return null object");
+            LOG.error("the monitor return null object");
         } //end If not null
 
     }
@@ -456,11 +462,7 @@ public class PollableSnmpInterface implements ReadyRunnable {
         m_schedule.unschedule();
     }
     
-    private ThreadCategory log() {
-        return ThreadCategory.getInstance(PollableSnmpInterface.class);
-    }
-
-	/**
+    /**
 	 * <p>getAgentConfig</p>
 	 *
 	 * @return a {@link org.opennms.netmgt.snmp.SnmpAgentConfig} object.

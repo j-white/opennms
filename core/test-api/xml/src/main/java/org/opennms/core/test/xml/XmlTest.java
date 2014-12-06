@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2011-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2011-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -72,9 +72,10 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.opennms.core.test.MockLogAppender;
-import org.opennms.core.utils.LogUtils;
 import org.opennms.core.xml.CastorUtils;
 import org.opennms.core.xml.JaxbUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeanWrapper;
 import org.springframework.beans.BeanWrapperImpl;
 import org.w3c.dom.NodeList;
@@ -83,6 +84,20 @@ import org.xml.sax.XMLFilter;
 
 @RunWith(Parameterized.class)
 abstract public class XmlTest<T> {
+    private static final Logger LOG = LoggerFactory.getLogger(XmlTest.class);
+
+    static {
+        initXmlUnit();
+    }
+
+    private static void initXmlUnit() {
+        XMLUnit.setIgnoreWhitespace(true);
+        XMLUnit.setIgnoreAttributeOrder(true);
+        XMLUnit.setIgnoreComments(true);
+        XMLUnit.setIgnoreDiffBetweenTextAndCDATA(true);
+        XMLUnit.setNormalize(true);
+    }
+
     private T m_sampleObject;
     private Object m_sampleXml;
     private String m_schemaFile;
@@ -96,11 +111,7 @@ abstract public class XmlTest<T> {
     @Before
     public void setUp() {
         MockLogAppender.setupLogging(true);
-        XMLUnit.setIgnoreWhitespace(true);
-        XMLUnit.setIgnoreAttributeOrder(true);
-        XMLUnit.setIgnoreComments(true);
-        XMLUnit.setIgnoreDiffBetweenTextAndCDATA(true);
-        XMLUnit.setNormalize(true);
+        initXmlUnit();
     }
 
     protected T getSampleObject() {
@@ -155,13 +166,13 @@ abstract public class XmlTest<T> {
 
     protected void validateXmlString(final String xml) throws Exception {
         if (getSchemaFile() == null) {
-            LogUtils.warnf(this, "skipping validation, schema file not set");
+            LOG.warn("skipping validation, schema file not set");
             return;
         }
 
         final SchemaFactory schemaFactory = SchemaFactory.newInstance("http://www.w3.org/2001/XMLSchema");
         final File schemaFile = new File(getSchemaFile());
-        LogUtils.debugf(this, "Validating using schema file: %s", schemaFile);
+        LOG.debug("Validating using schema file: {}", schemaFile);
         final Schema schema = schemaFactory.newSchema(schemaFile);
 
         final SAXParserFactory saxParserFactory = SAXParserFactory.newInstance();
@@ -179,23 +190,17 @@ abstract public class XmlTest<T> {
     }
 
     protected String marshalToXmlWithCastor() {
-        LogUtils.debugf(this, "Reference Object: %s", getSampleObject());
+        LOG.debug("Reference Object: {}", getSampleObject());
 
         final StringWriter writer = new StringWriter();
         CastorUtils.marshalWithTranslatedExceptions(getSampleObject(), writer);
         final String xml = writer.toString();
-        LogUtils.debugf(this, "Castor XML: %s", xml);
+        LOG.debug("Castor XML: {}", xml);
         return xml;
     }
 
     protected String marshalToXmlWithJaxb() {
-        LogUtils.debugf(this, "Reference Object: %s", getSampleObject());
-
-        final StringWriter writer = new StringWriter();
-        JaxbUtils.marshal(getSampleObject(), writer);
-        final String xml = writer.toString();
-        LogUtils.debugf(this, "JAXB XML: %s", xml);
-        return xml;
+        return marshalToXmlWithJaxb(getSampleObject());
     }
 
     @Test
@@ -213,7 +218,7 @@ abstract public class XmlTest<T> {
     @Test
     public void unmarshalXmlAndCompareToCastor() throws Exception {
         final T obj = CastorUtils.unmarshal(getSampleClass(), getSampleXmlInputStream());
-        LogUtils.debugf(this, "Sample object: %s\n\nCastor object: %s", getSampleObject(), obj);
+        LOG.debug("Sample object: {}\n\nCastor object: {}", getSampleObject(), obj);
         assertDepthEquals(getSampleObject(), obj);
     }
 
@@ -249,9 +254,9 @@ abstract public class XmlTest<T> {
 
     @Test
     public void unmarshalXmlAndCompareToJaxb() throws Exception {
-        LogUtils.debugf(this, "xml: %s", getSampleXml());
+        LOG.debug("xml: {}", getSampleXml());
         final T obj = JaxbUtils.unmarshal(getSampleClass(), new InputSource(getSampleXmlInputStream()), null);
-        LogUtils.debugf(this, "Sample object: %s\n\nJAXB object: %s", getSampleObject(), obj);
+        LOG.debug("Sample object: {}\n\nJAXB object: {}", getSampleObject(), obj);
         assertDepthEquals(getSampleObject(), obj);
     }
 
@@ -259,7 +264,7 @@ abstract public class XmlTest<T> {
     public void marshalCastorUnmarshalJaxb() throws Exception {
         final String xml = marshalToXmlWithCastor();
         final T obj = JaxbUtils.unmarshal(getSampleClass(), xml);
-        LogUtils.debugf(this, "Generated Object: %s", obj);
+        LOG.debug("Generated Object: {}", obj);
         assertDepthEquals(getSampleObject(), obj);
     }
 
@@ -267,7 +272,7 @@ abstract public class XmlTest<T> {
     public void marshalJaxbUnmarshalCastor() throws Exception {
         final String xml = marshalToXmlWithJaxb();
         final T obj = CastorUtils.unmarshal(getSampleClass(), new ByteArrayInputStream(xml.getBytes()));
-        LogUtils.debugf(this, "Generated Object: %s", obj);
+        LOG.debug("Generated Object: {}", obj);
         assertDepthEquals(getSampleObject(), obj);
     }
 
@@ -284,10 +289,10 @@ abstract public class XmlTest<T> {
     public void validateJaxbXmlAgainstSchema() throws Exception {
         final String schemaFile = getSchemaFile();
         if (schemaFile == null) {
-            LogUtils.warnf(this, "Skipping validation.");
+            LOG.warn("Skipping validation.");
             return;
         }
-        LogUtils.debugf(this, "Validating against XSD: %s", schemaFile);
+        LOG.debug("Validating against XSD: {}", schemaFile);
         javax.xml.bind.Unmarshaller unmarshaller = JaxbUtils.getUnmarshallerFor(getSampleClass(), null, true);
         final SchemaFactory factory = SchemaFactory.newInstance("http://www.w3.org/2001/XMLSchema");
         final Schema schema = factory.newSchema(new StreamSource(schemaFile));
@@ -295,7 +300,7 @@ abstract public class XmlTest<T> {
         unmarshaller.setEventHandler(new ValidationEventHandler() {
             @Override
             public boolean handleEvent(final ValidationEvent event) {
-                LogUtils.warnf(this, event.getLinkedException(), "Received validation event: %s", event);
+                LOG.warn("Received validation event: {}", event, event.getLinkedException());
                 return false;
             }
         });
@@ -311,6 +316,16 @@ abstract public class XmlTest<T> {
         }
     }
 
+    public static <T> String marshalToXmlWithJaxb(T sampleObject) {
+        LOG.debug("Reference Object: {}", sampleObject);
+
+        final StringWriter writer = new StringWriter();
+        JaxbUtils.marshal(sampleObject, writer);
+        final String xml = writer.toString();
+        LOG.debug("JAXB XML: {}", xml);
+        return xml;
+    }
+
     public static void assertXmlEquals(final String expectedXml, final String actualXml) {
         // ugly hack alert!
         final XmlTest<Object> test = new XmlTest<Object>(null, null, null) {
@@ -321,7 +336,7 @@ abstract public class XmlTest<T> {
     protected void _assertXmlEquals(final String expectedXml, final String actualXml) {
         final List<Difference> differences = getDifferences(expectedXml, actualXml);
         if (differences.size() > 0) {
-            LogUtils.debugf(this, "XML:\n\n%s\n\n...does not match XML:\n\n%s", expectedXml, actualXml);
+            LOG.debug("XML:\n\n{}\n\n...does not match XML:\n\n{}", expectedXml, actualXml);
         }
         assertEquals("number of XMLUnit differences between the expected xml and the actual xml should be 0", 0, differences.size());
     }
@@ -364,39 +379,39 @@ abstract public class XmlTest<T> {
                 if (d.getDescription().equals("namespace URI")) {
                     if (control != null && !"null".equals(control)) {
                         if (ignoreNamespace(control.toLowerCase())) {
-                            LogUtils.tracef(this, "Ignoring %s: %s", d.getDescription(), d);
+                            LOG.trace("Ignoring {}: {}", d.getDescription(), d);
                             continue DIFFERENCES;
                         }
                     }
                     if (test != null && !"null".equals(test)) {
                         if (ignoreNamespace(test.toLowerCase())) {
-                            LogUtils.tracef(this, "Ignoring %s: %s", d.getDescription(), d);
+                            LOG.trace("Ignoring {}: {}", d.getDescription(), d);
                             continue DIFFERENCES;
                         }
                     }
                 } else if (d.getDescription().equals("namespace prefix")) {
                     if (control != null && !"null".equals(control)) {
                         if (ignorePrefix(control.toLowerCase())) {
-                            LogUtils.tracef(this, "Ignoring %s: %s", d.getDescription(), d);
+                            LOG.trace("Ignoring {}: {}", d.getDescription(), d);
                             continue DIFFERENCES;
                         }
                     }
                     if (test != null && !"null".equals(test)) {
                         if (ignorePrefix(test.toLowerCase())) {
-                            LogUtils.tracef(this, "Ignoring %s: %s", d.getDescription(), d);
+                            LOG.trace("Ignoring {}: {}", d.getDescription(), d);
                             continue DIFFERENCES;
                         }
                     }
                 } else if (d.getDescription().equals("xsi:schemaLocation attribute")) {
-                    LogUtils.debugf(this, "Schema location '%s' does not match.  Ignoring.", controlNodeDetail.getValue() == null? testNodeDetail.getValue() : controlNodeDetail.getValue());
+                    LOG.debug("Schema location '{}' does not match.  Ignoring.", controlNodeDetail.getValue() == null? testNodeDetail.getValue() : controlNodeDetail.getValue());
                     continue DIFFERENCES;
                 }
 
                 if (ignoreDifference(d)) {
-                    LogUtils.debugf(this, "ignoreDifference matched.  Ignoring difference: %s: %s", d.getDescription(), d);
+                    LOG.debug("ignoreDifference matched.  Ignoring difference: {}: {}", d.getDescription(), d);
                     continue DIFFERENCES;
                 } else {
-                    LogUtils.warnf(this, "Found difference: %s: %s", d.getDescription(), d);
+                    LOG.warn("Found difference: {}: {}", d.getDescription(), d);
                     retDifferences.add(d);
                 }
             }
@@ -420,27 +435,26 @@ abstract public class XmlTest<T> {
         return nodes;
     }
 
-    private void assertDepthEquals(final Object expected, Object actual) {
-        /*
-        System.err.println("----------");
-        System.err.println("expected: " + expected);
-        System.err.println("actual:   " + actual);
-        */
+    public static void assertDepthEquals(final Object expected, Object actual) {
+        assertDepthEquals(0, "", expected, actual);
+    }
 
+    private static void assertDepthEquals(final int depth, final String propertyName, final Object expected, Object actual) {
         if (expected == null && actual == null) {
             return;
         } else if (expected == null) {
-            fail("expected was null but actual was not!");
+            fail("expected " + propertyName + " was null but actual was not!");
         } else if (actual == null) {
-            fail("actual was null but expected was not!");
+            fail("actual " + propertyName + " was null but expected was not!");
         }
 
+        final String assertionMessage = propertyName == null? ("Top-level objects (" + expected.getClass().getName() + ") do not match.") : ("Properties " + propertyName + " do not match.");
         if (expected.getClass().getName().startsWith("java") || actual.getClass().getName().startsWith("java")) {
             // java primitives, just do assertEquals
             if (expected instanceof Object[] || actual instanceof Object[]) {
-                assertTrue(Arrays.equals((Object[])expected, (Object[])actual));
+                assertTrue(assertionMessage, Arrays.equals((Object[])expected, (Object[])actual));
             } else {
-                assertEquals(expected, actual);
+                assertEquals(assertionMessage, expected, actual);
             }
             return;
         }
@@ -459,7 +473,6 @@ abstract public class XmlTest<T> {
         properties.remove("class");
 
         for (final String property : properties) {
-            //System.err.println("property: " + property);
             final PropertyDescriptor expectedDescriptor = expectedWrapper.getPropertyDescriptor(property);
             final PropertyDescriptor actualDescriptor = actualWrapper.getPropertyDescriptor(property);
             
@@ -476,7 +489,7 @@ abstract public class XmlTest<T> {
                 } catch (final Exception e) {
                 }
 
-                assertDepthEquals(expectedValue, actualValue);
+                assertDepthEquals(depth + 1, property, expectedValue, actualValue);
             } else if (expectedDescriptor != null) {
                 fail("Should have '" + property + "' property on actual object, but there was none!");
             } else if (actualDescriptor != null) {
@@ -486,9 +499,11 @@ abstract public class XmlTest<T> {
         }
 
         if (expected instanceof Object[] || actual instanceof Object[]) {
-            assertTrue(Arrays.equals((Object[])expected, (Object[])actual));
+            final Object[] expectedArray = (Object[])expected;
+            final Object[] actualArray   = (Object[])actual;
+            assertTrue(assertionMessage, Arrays.equals(expectedArray, actualArray));
         } else {
-            assertEquals(expected, actual);
+            assertEquals(assertionMessage, expected, actual);
         }
     }
 

@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2007-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2007-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -40,10 +40,10 @@ import java.io.OutputStreamWriter;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import org.opennms.core.utils.ThreadCategory;
 import org.opennms.core.utils.WebSecurityUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.web.servlet.ModelAndView;
-import org.springframework.web.servlet.mvc.Controller;
 
 
 /**
@@ -56,13 +56,14 @@ import org.springframework.web.servlet.mvc.Controller;
  * @version $Id: $
  * @since 1.8.1
  */
-public class ExecCommandController implements Controller {
-	ThreadCategory log;
+public class ExecCommandController extends MapsLoggingController {
+	
+	private static final Logger LOG = LoggerFactory.getLogger(ExecCommandController.class);
+
 
 	/** {@inheritDoc} */
-	public ModelAndView handleRequest(HttpServletRequest request, HttpServletResponse response) throws IOException {
-   		ThreadCategory.setPrefix(MapsConstants.LOG4J_CATEGORY);
-		log = ThreadCategory.getInstance(this.getClass());
+        @Override
+	protected ModelAndView handleRequestInternal(HttpServletRequest request, HttpServletResponse response) throws IOException {
 
         int timeOut = 1;
         int numberOfRequest = 10;
@@ -81,6 +82,8 @@ public class ExecCommandController implements Controller {
         if (numericoutput != null && numericoutput.equals("true")) {
             commandToExec = commandToExec + " -n ";
         }
+
+        final boolean hideCloseButton = getParameterAsBoolean(request, "hideCloseButton");
 
         if (command.equals("ping")) {
 	        String timeout = request.getParameter("timeOut");
@@ -124,7 +127,7 @@ public class ExecCommandController implements Controller {
 		    throw new IllegalStateException("Command "+ command+" not supported.");   
 		}
         
-	    log.info("Executing "+commandToExec);
+	    LOG.info("Executing {}", commandToExec);
         response.setBufferSize(0);
         response.setContentType("text/html");
         response.setHeader("pragma","no-Cache");
@@ -140,14 +143,18 @@ public class ExecCommandController implements Controller {
 				comm = (command.startsWith("traceroute"))?"Trace Route":"";
 			}
 			
-			os.write("<head><title>"+comm+" "+address+" | OpenNMS Web Console</title>" +
-    		"</head>" +
-			"<div width='100%' align='right'>" +
-			"<input type='button' value='Close' onclick='window.close();'/>" +
-			"</div>" +
-    		"<h3><font face='courier,arial'>Executing "+comm+" for the IP address "+address+"</h3>");
+			os.write("<head><title>"+comm+" "+address+" | OpenNMS Web Console</title>");
+            os.write("</head>");
+            if (!hideCloseButton) {
+                os.write("<div width='100%' align='right'>");
+                os.write("<input type='button' value='Close' onclick='window.close();'/>");
+                os.write("</div>");
+            }
+    		os.write("<h3><font face='courier,arial'>Executing "+comm+" for the IP address "+address+"</h3>");
+
 			new Thread(new Runnable()
 			{
+                            @Override
 			    public void run()
 			    {
 			        try
@@ -163,18 +170,18 @@ public class ExecCommandController implements Controller {
 			            
 			        }
 			        catch(IOException io){
-			        	log.warn(io.getMessage());
+			        	LOG.warn(io.getMessage());
 			        }
 			    }
 			}, this.getClass().getSimpleName()).start();
 			try{
 				p.waitFor();
 			}catch(Throwable e){
-				log.warn(e.getMessage());
+				LOG.warn(e.getMessage());
 			}
 
 		} catch (Throwable e) {
-			log.error("An error occourred while executing command.",e);
+			LOG.error("An error occourred while executing command.",e);
 			os.write("An error occourred.");
 		}finally{
 			os.write("</font>" +
@@ -186,8 +193,16 @@ public class ExecCommandController implements Controller {
 
 		return null;
 	}
+
+    private static boolean getParameterAsBoolean(HttpServletRequest request, String parameterName) {
+        String parameterStringValue = request.getParameter(parameterName);
+        if (parameterStringValue == null || "".equals(parameterStringValue)) {
+            return false;
+        }
+        return Boolean.valueOf(parameterStringValue.toLowerCase()).booleanValue();
+    }
 	
-	private class Command
+	private static class Command
 	{
 	    private BufferedReader out;
 	    private Process p;

@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2009-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2009-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -40,6 +40,8 @@ import org.opennms.netmgt.snmp.SnmpInstId;
 import org.opennms.netmgt.snmp.SnmpObjId;
 import org.opennms.netmgt.snmp.SnmpUtils;
 import org.opennms.netmgt.snmp.SnmpValue;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
@@ -52,7 +54,10 @@ import org.springframework.stereotype.Component;
  */
 @Scope("prototype")
 public class DiskUsageDetector extends SnmpDetector {
-    /**
+
+	private static final Logger LOG = LoggerFactory.getLogger(DiskUsageDetector.class);
+
+	/**
      * The protocol supported by this plugin
      */
     private static final String PROTOCOL_NAME = "DiskUsage";
@@ -182,10 +187,10 @@ public class DiskUsageDetector extends SnmpDetector {
             }
 
             for (Map.Entry<SnmpInstId, SnmpValue> e : descrResults.entrySet()) { 
-                log().debug("capsd: SNMPwalk succeeded, addr=" + InetAddressUtils.str(address) + " oid=" + hrStorageDescrSnmpObject + " instance=" + e.getKey() + " value=" + e.getValue());
+                LOG.debug("capsd: SNMPwalk succeeded, addr={} oid={} instance={} value={}", InetAddressUtils.str(address), hrStorageDescrSnmpObject, e.getKey(), e.getValue());
               
                 if (isMatch(e.getValue().toString(), getDisk(), matchType)) {
-                    log().debug("Found disk '" + getDisk() + "' (matching hrStorageDescr was '" + e.getValue().toString() + "'");
+                    LOG.debug("Found disk '{}' (matching hrStorageDescr was '{}')", getDisk(), e.getValue());
                     return true;
                         
                 }
@@ -202,21 +207,21 @@ public class DiskUsageDetector extends SnmpDetector {
     
     private boolean isMatch(String candidate, String target, int matchType) {
         boolean matches = false;
-        log().debug("isMessage: candidate is '" + candidate + "', matching against target '" + target + "'");
+        LOG.debug("isMessage: candidate is '{}', matching against target '{}'", candidate, target);
         if (matchType == MATCH_TYPE_EXACT) {
-            log().debug("Attempting equality match: candidate '" + candidate + "', target '" + target + "'");
+            LOG.debug("Attempting equality match: candidate '{}', target '{}'", candidate, target);
             matches = candidate.equals(target);
         } else if (matchType == MATCH_TYPE_STARTSWITH) {
-            log().debug("Attempting startsWith match: candidate '" + candidate + "', target '" + target + "'");
+            LOG.debug("Attempting startsWith match: candidate '{}', target '{}'", candidate, target);
             matches = candidate.startsWith(target);
         } else if (matchType == MATCH_TYPE_ENDSWITH) {
-            log().debug("Attempting endsWith match: candidate '" + candidate + "', target '" + target + "'");
+            LOG.debug("Attempting endsWith match: candidate '{}', target '{}'", candidate, target);
             matches = candidate.endsWith(target);
         } else if (matchType == MATCH_TYPE_REGEX) {
-            log().debug("Attempting endsWith match: candidate '" + candidate + "', target '" + target + "'");
+            LOG.debug("Attempting endsWith match: candidate '{}', target '{}'", candidate, target);
             matches = Pattern.compile(target).matcher(candidate).find();
         }
-        log().debug("isMatch: Match is positive");
+        LOG.debug("isMatch: Match is positive");
         return matches;
     }
     

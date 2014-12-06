@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2004-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -38,17 +38,18 @@ import java.net.InetAddress;
 import java.util.List;
 
 import org.opennms.core.utils.InetAddressUtils;
-import org.opennms.core.utils.ThreadCategory;
-import org.opennms.netmgt.EventConstants;
-import org.opennms.netmgt.eventd.EventIpcManagerFactory;
-import org.opennms.netmgt.model.capsd.DbNodeEntry;
+import org.opennms.netmgt.events.api.EventConstants;
+import org.opennms.netmgt.events.api.EventIpcManagerFactory;
+import org.opennms.netmgt.events.api.EventListener;
+import org.opennms.netmgt.model.OnmsNode.NodeLabelSource;
 import org.opennms.netmgt.model.events.EventBuilder;
-import org.opennms.netmgt.model.events.EventListener;
-import org.opennms.netmgt.utils.XmlrpcUtil;
 import org.opennms.netmgt.xml.event.Event;
 import org.opennms.netmgt.xml.event.Parm;
 import org.opennms.netmgt.xml.event.Snmp;
 import org.opennms.netmgt.xml.event.Value;
+import org.opennms.netmgt.xmlrpcd.XmlrpcUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Provides a collection of utility methods used by the DeleteEvent Processor
@@ -57,6 +58,9 @@ import org.opennms.netmgt.xml.event.Value;
  * @author brozow
  */
 public abstract class EventUtils {
+    
+    
+    private static final Logger LOG = LoggerFactory.getLogger(EventUtils.class);
 
     /**
      * Make the given listener object a listener for the list of events
@@ -498,14 +502,12 @@ public abstract class EventUtils {
      */
     public static void sendEvent(Event newEvent, String callerUei, long txNo, boolean isXmlRpcEnabled) {
         // Send event to Eventd
-        ThreadCategory log = ThreadCategory.getInstance(EventUtils.class);
         try {
             EventIpcManagerFactory.getIpcManager().sendNow(newEvent);
 
-            if (log.isDebugEnabled())
-                log.debug("sendEvent: successfully sent event " + newEvent);
+            LOG.debug("sendEvent: successfully sent event {}", newEvent);
         } catch (Throwable t) {
-            log.warn("run: unexpected throwable exception caught during send to middleware", t);
+            LOG.warn("run: unexpected throwable exception caught during send to middleware", t);
             if (isXmlRpcEnabled) {
                 int status = EventConstants.XMLRPC_NOTIFY_FAILURE;
                 XmlrpcUtil.createAndSendXmlrpcNotificationEvent(txNo, callerUei, "caught unexpected throwable exception.", status, "OpenNMS.Capsd");
@@ -523,7 +525,7 @@ public abstract class EventUtils {
      * @return a {@link org.opennms.netmgt.xml.event.Event} object.
      */
     public static Event createNodeAddedEvent(DbNodeEntry nodeEntry) {
-        return createNodeAddedEvent(nodeEntry.getNodeId(), nodeEntry.getLabel(), String.valueOf(nodeEntry.getLabelSource()));
+        return createNodeAddedEvent(nodeEntry.getNodeId(), nodeEntry.getLabel(), nodeEntry.getLabelSource());
     }
 
 	/**
@@ -534,7 +536,7 @@ public abstract class EventUtils {
 	 * @param labelSource a {@link java.lang.String} object.
 	 * @return a {@link org.opennms.netmgt.xml.event.Event} object.
 	 */
-	public static Event createNodeAddedEvent(int nodeId, String nodeLabel, String labelSource) {
+	public static Event createNodeAddedEvent(int nodeId, String nodeLabel, NodeLabelSource labelSource) {
         return createNodeAddedEvent("OpenNMS.Capsd", nodeId, nodeLabel, labelSource);
 	}
 
@@ -547,13 +549,15 @@ public abstract class EventUtils {
      * @param labelSource a {@link java.lang.String} object.
      * @return a {@link org.opennms.netmgt.xml.event.Event} object.
      */
-    public static Event createNodeAddedEvent(String source, int nodeId, String nodeLabel, String labelSource) {
+    public static Event createNodeAddedEvent(String source, int nodeId, String nodeLabel, NodeLabelSource labelSource) {
 		EventBuilder bldr = createNodeEventBuilder(EventConstants.NODE_ADDED_EVENT_UEI, source, nodeId, -1);
 
         bldr.setHost(Capsd.getLocalHostAddress());
         
         bldr.setParam(EventConstants.PARM_NODE_LABEL, nodeLabel);
-        bldr.setParam(EventConstants.PARM_NODE_LABEL_SOURCE, labelSource);
+        if (labelSource != null) {
+            bldr.setParam(EventConstants.PARM_NODE_LABEL_SOURCE, labelSource.toString());
+        }
 
         return bldr.getEvent();
     }
@@ -703,7 +707,7 @@ public abstract class EventUtils {
     public static Event createNodeGainedServiceEvent(DbNodeEntry nodeEntry, InetAddress ifaddr, String service, long txNo) {
         int nodeId = nodeEntry.getNodeId();
         String nodeLabel = nodeEntry.getLabel();
-        String labelSource = String.valueOf(nodeEntry.getLabelSource());
+        NodeLabelSource labelSource = nodeEntry.getLabelSource();
         String sysName = nodeEntry.getSystemName();
         String sysDescr = nodeEntry.getSystemDescription();
 
@@ -723,7 +727,7 @@ public abstract class EventUtils {
 	 * @param sysDescr a {@link java.lang.String} object.
 	 * @return a {@link org.opennms.netmgt.xml.event.Event} object.
 	 */
-	public static Event createNodeGainedServiceEvent(String source, int nodeId, InetAddress ifaddr, String service, String nodeLabel, String labelSource, String sysName, String sysDescr) {
+	public static Event createNodeGainedServiceEvent(String source, int nodeId, InetAddress ifaddr, String service, String nodeLabel, NodeLabelSource labelSource, String sysName, String sysDescr) {
 
 	    EventBuilder bldr = createServiceEventBuilder(EventConstants.NODE_GAINED_SERVICE_EVENT_UEI, source, nodeId, InetAddressUtils.str(ifaddr), service, -1);
 
@@ -731,7 +735,9 @@ public abstract class EventUtils {
         
         bldr.addParam(EventConstants.PARM_IP_HOSTNAME, ifaddr.getHostName());
         bldr.addParam(EventConstants.PARM_NODE_LABEL, nodeLabel);
-        bldr.addParam(EventConstants.PARM_NODE_LABEL_SOURCE, labelSource);
+        if (labelSource != null) {
+            bldr.addParam(EventConstants.PARM_NODE_LABEL_SOURCE, labelSource.toString());
+        }
         
         // Add sysName if available
 		if (sysName != null) {
@@ -772,7 +778,9 @@ public abstract class EventUtils {
         
         bldr.addParam(EventConstants.PARM_IP_HOSTNAME, ifaddr.getHostName());
         bldr.addParam(EventConstants.PARM_NODE_LABEL, nodeEntry.getLabel());
-        bldr.addParam(EventConstants.PARM_NODE_LABEL_SOURCE, nodeEntry.getLabelSource());
+        if (nodeEntry.getLabelSource() != null) {
+            bldr.addParam(EventConstants.PARM_NODE_LABEL_SOURCE, nodeEntry.getLabelSource().toString());
+        }
 
         return bldr.getEvent();
     }

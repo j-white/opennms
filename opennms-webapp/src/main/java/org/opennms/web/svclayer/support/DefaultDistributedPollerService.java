@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2006-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -32,7 +32,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
-import org.opennms.netmgt.dao.LocationMonitorDao;
+import org.opennms.netmgt.dao.api.LocationMonitorDao;
 import org.opennms.netmgt.model.OnmsLocationMonitor;
 import org.opennms.netmgt.model.OnmsMonitoringLocationDefinition;
 import org.opennms.netmgt.model.OnmsLocationMonitor.MonitorStatus;
@@ -63,6 +63,7 @@ public class DefaultDistributedPollerService implements
      *
      * @return a {@link org.opennms.web.svclayer.LocationMonitorListModel} object.
      */
+    @Override
     public LocationMonitorListModel getLocationMonitorList() {
         List<OnmsLocationMonitor> monitors = m_locationMonitorDao.findAll();
         
@@ -80,7 +81,7 @@ public class DefaultDistributedPollerService implements
     /**
      * <p>getLocationMonitorDao</p>
      *
-     * @return a {@link org.opennms.netmgt.dao.LocationMonitorDao} object.
+     * @return a {@link org.opennms.netmgt.dao.api.LocationMonitorDao} object.
      */
     public LocationMonitorDao getLocationMonitorDao() {
         return m_locationMonitorDao;
@@ -89,7 +90,7 @@ public class DefaultDistributedPollerService implements
     /**
      * <p>setLocationMonitorDao</p>
      *
-     * @param locationMonitorDao a {@link org.opennms.netmgt.dao.LocationMonitorDao} object.
+     * @param locationMonitorDao a {@link org.opennms.netmgt.dao.api.LocationMonitorDao} object.
      */
     public void setLocationMonitorDao(LocationMonitorDao locationMonitorDao) {
         m_locationMonitorDao = locationMonitorDao;
@@ -104,6 +105,7 @@ public class DefaultDistributedPollerService implements
      */
     public class OnmsLocationMonitorAreaNameComparator
                 implements Comparator<OnmsLocationMonitor> {
+        @Override
         public int compare(OnmsLocationMonitor o1, OnmsLocationMonitor o2) {
             OnmsMonitoringLocationDefinition def1 = null;
             OnmsMonitoringLocationDefinition def2 = null;
@@ -137,6 +139,7 @@ public class DefaultDistributedPollerService implements
     }
 
     /** {@inheritDoc} */
+    @Override
     public LocationMonitorListModel getLocationMonitorDetails(LocationMonitorIdCommand cmd, BindException errors) {
         LocationMonitorListModel model = new LocationMonitorListModel();
         model.setErrors(errors);
@@ -153,6 +156,7 @@ public class DefaultDistributedPollerService implements
     }
 
     /** {@inheritDoc} */
+    @Override
     public void pauseLocationMonitor(LocationMonitorIdCommand command, BindException errors) {
         if (command == null) {
             throw new IllegalStateException("command argument cannot be null");
@@ -180,6 +184,7 @@ public class DefaultDistributedPollerService implements
     }
 
     /** {@inheritDoc} */
+    @Override
     public void resumeLocationMonitor(LocationMonitorIdCommand command, BindException errors) {
         if (command == null) {
             throw new IllegalStateException("command argument cannot be null");
@@ -207,6 +212,7 @@ public class DefaultDistributedPollerService implements
     }
 
     /** {@inheritDoc} */
+    @Override
     public void deleteLocationMonitor(LocationMonitorIdCommand command, BindException errors) {
         if (command == null) {
             throw new IllegalStateException("command argument cannot be null");
@@ -223,10 +229,12 @@ public class DefaultDistributedPollerService implements
         m_locationMonitorDao.delete(monitor);
     }
 
+    @Override
     public void pauseAllLocationMonitors() {
         m_locationMonitorDao.pauseAll();
     }
 
+    @Override
     public void resumeAllLocationMonitors() {
         m_locationMonitorDao.resumeAll();
     }

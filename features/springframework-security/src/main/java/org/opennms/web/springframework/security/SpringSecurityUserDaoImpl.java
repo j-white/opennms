@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2011-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2006-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -38,16 +38,19 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Properties;
 
 import org.opennms.core.utils.BundleLists;
-import org.opennms.core.utils.ThreadCategory;
 import org.opennms.netmgt.config.GroupFactory;
 import org.opennms.netmgt.config.GroupManager;
 import org.opennms.netmgt.config.UserFactory;
 import org.opennms.netmgt.config.UserManager;
 import org.opennms.netmgt.config.groups.Role;
 import org.opennms.netmgt.model.OnmsUser;
+import org.opennms.web.api.Authentication;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.dao.DataRetrievalFailureException;
 import org.springframework.security.core.GrantedAuthority;
@@ -65,6 +68,7 @@ import org.springframework.util.Assert;
  * @author <A HREF="mailto:eric@tuxbot.com">Eric Molitor</A>
  */
 public class SpringSecurityUserDaoImpl implements SpringSecurityUserDao, InitializingBean {
+    private static final Logger LOG = LoggerFactory.getLogger(SpringSecurityUserDaoImpl.class);
     private UserManager m_userManager;
 
     private GroupManager m_groupManager;
@@ -79,8 +83,6 @@ public class SpringSecurityUserDaoImpl implements SpringSecurityUserDao, Initial
     private Map<String, OnmsUser> m_users = null;
     
     private long m_usersLastModified;
-
-    private long m_userFileSize;
 
     private String m_magicUsersConfigurationFile;
 	
@@ -121,10 +123,9 @@ public class SpringSecurityUserDaoImpl implements SpringSecurityUserDao, Initial
             throw new DataRetrievalFailureException("Unable to get user list.", t);
         }
 
-        log().debug("Loaded the users.xml file with " + users.size() + " users");
+        LOG.debug("Loaded the users.xml file with {} users", users.size());
 
         m_usersLastModified = m_userManager.getLastModified();
-        m_userFileSize = m_userManager.getFileSize();
         m_users = users;
     }
     
@@ -159,7 +160,7 @@ public class SpringSecurityUserDaoImpl implements SpringSecurityUserDao, Initial
             }
         }
 
-        log().debug("Loaded roles from groups.xml file for " + roleMap.size() + " users");
+        LOG.debug("Loaded roles from groups.xml file for {} users", roleMap.size());
 
         m_groupsLastModified = lastModified;
 
@@ -219,13 +220,13 @@ public class SpringSecurityUserDaoImpl implements SpringSecurityUserDao, Initial
         for (String role : configuredRoles) {
             String rolename = properties.getProperty("role." + role + ".name");
             if (rolename == null) {
-                  log().warn("Role configuration for '" + role + "' does not have 'name' parameter.  Expecting a 'role." + role + ".name' property. The role will not be usable.");
+                  LOG.warn("Role configuration for '{}' does not have 'name' parameter.  Expecting a 'role.{}.name' property. The role will not be usable.", role, role);
                   continue;
             }
 
             String userList = properties.getProperty("role." + role + ".users");
             if (userList == null) {
-                log().warn("Role configuration for '" + role + "' does not have 'users' parameter.  Expecting a 'role." + role + ".users' property. The role will not be usable.");
+                LOG.warn("Role configuration for '{}' does not have 'users' parameter.  Expecting a 'role.{}.users' property. The role will not be usable.", role, role);
                 continue;
             }
             String[] authUsers = BundleLists.parseBundleList(userList);
@@ -248,11 +249,11 @@ public class SpringSecurityUserDaoImpl implements SpringSecurityUserDao, Initial
             roleAddDefaultMap.put(securityRole, !notInDefaultGroup);
         }
 
-        for (String user : roleMap.keySet()) {
-            roles.put(user, getAuthorityListFromRoleList(roleMap.get(user), roleAddDefaultMap));
+        for (final Entry<String, LinkedList<String>> entry : roleMap.entrySet()) {
+            roles.put(entry.getKey(), getAuthorityListFromRoleList(entry.getValue(), roleAddDefaultMap));
         }
         
-        log().debug("Loaded the magic-users.properties file with " + magicUsers.size() + " magic users, " + configuredRoles.length + " roles, and " + roles.size() + " user roles");
+        LOG.debug("Loaded the magic-users.properties file with {} magic users, {} roles, and {} user roles", magicUsers.size(), configuredRoles.length, roles.size());
 
 
         m_magicUsersLastModified = lastModified; 
@@ -260,7 +261,7 @@ public class SpringSecurityUserDaoImpl implements SpringSecurityUserDao, Initial
         m_roles = roles;
     }
 
-    private Collection<? extends GrantedAuthority> getAuthorityListFromRoleList(LinkedList<String> roleList, Map<String, Boolean> roleAddDefaultMap) {
+    private Collection<? extends GrantedAuthority> getAuthorityListFromRoleList(List<String> roleList, Map<String, Boolean> roleAddDefaultMap) {
         boolean addToDefaultGroup = false;
         
         for (String role : roleList) {
@@ -313,7 +314,7 @@ public class SpringSecurityUserDaoImpl implements SpringSecurityUserDao, Initial
         if (m_users == null) {
             return true;
         } else {
-            return m_userManager.isUpdateNeeded();
+            return m_usersLastModified != m_userManager.getLastModified();
         }
     }
     
@@ -446,13 +447,6 @@ public class SpringSecurityUserDaoImpl implements SpringSecurityUserDao, Initial
         if (isMagicUsersParseNecessary() || (m_useGroups && isGroupsParseNecessary())) {
             parseMagicUsers();
         }
-    }
-
-    /**
-     * Returns the Log4J category for logging web authentication messages.
-     */
-    private final ThreadCategory log() {
-        return ThreadCategory.getInstance(getClass());
     }
 
     /**

@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2010-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2002-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -27,8 +27,6 @@
  *******************************************************************************/
 
 package org.opennms.reporting.datablock;
-
-import org.opennms.core.utils.ThreadCategory;
 
 /**
  * This class holds the service lost and regained time pair for the
@@ -134,15 +132,10 @@ public class Outage extends Object {
      *         the last rolling window
      */
     public long getDownTime(long curTime, long rollingWindow) {
-        String oldPrefix = ThreadCategory.getPrefix();
-        ThreadCategory.setPrefix(LOG4J_CATEGORY);
-        // Category log = ThreadCategory.getInstance(this.getClass());
         long downTime = 0;
 
         // make sure the losttime is greater than current time.
         if (curTime < m_svcLostTime) {
-            // if(log.isDebugEnabled())
-            // log.debug("Downtime " + downTime);
             return downTime;
         }
 
@@ -180,10 +173,7 @@ public class Outage extends Object {
                 }
             }
         }
-        ThreadCategory.setPrefix(oldPrefix);
-        
-        // if(log.isDebugEnabled())
-        // log.debug("Downtime " + downTime);
+
         return downTime;
     }
 
@@ -192,6 +182,7 @@ public class Outage extends Object {
      *
      * @return a {@link java.lang.String} object.
      */
+    @Override
     public String toString() {
         StringBuffer retVal = new StringBuffer();
         retVal.append(" Lost service ").append(new java.util.Date(m_svcLostTime));

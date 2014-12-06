@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2011-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2011-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -117,8 +117,6 @@ public class Snmp4JAgentConfig {
 
     /**
      * Returns a string representation of the SNMP4J version constant
-     * @param version
-     * @return
      */
     public String getVersionString() {
         switch (getVersion()) {
@@ -137,6 +135,7 @@ public class Snmp4JAgentConfig {
         return m_config.getWriteCommunity();
     }
 
+    @Override
     public String toString() {
         return m_config.toString();
     }
@@ -148,11 +147,10 @@ public class Snmp4JAgentConfig {
      * TODO: This needs to be updated when the protocol flag is added to the SNMP Config
      * so that UDP or TCP can be used in v3 operations.
      */
-    private Address convertAddress(InetAddress address, int port) {
+    private static Address convertAddress(InetAddress address, int port) {
         String transportAddress = address.getHostAddress();
         transportAddress += "/" + port;
-        Address targetAddress = new UdpAddress(transportAddress);
-        return targetAddress;
+        return new UdpAddress(transportAddress);
     }
 
     /**
@@ -173,7 +171,7 @@ public class Snmp4JAgentConfig {
         }
     }
 
-    private OctetString createOctetString(String s) {
+    private static OctetString createOctetString(String s) {
         
         if (StringUtils.isBlank(s)) {
             return null;
@@ -229,11 +227,11 @@ public class Snmp4JAgentConfig {
      * @param agentConfig
      * @return
      */
-    private OctetString convertCommunity(String community) {
+    private static OctetString convertCommunity(String community) {
         return new OctetString(community);
     }
 
-    private OID convertAuthProtocol(String authProtocol) {
+    private static OID convertAuthProtocol(String authProtocol) {
         /*
          * Returning null here is okay because the SNMP4J library supports
          * this value as null when creating the SNMP session.

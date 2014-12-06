@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2009-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2005-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -29,6 +29,7 @@
 package org.opennms.core.utils;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -53,6 +54,7 @@ public abstract class PropertiesUtils {
 		PropertyBasedSymbolTable(Properties properties) {
 			m_properties = properties;
 		}
+                @Override
 		public String getSymbolValue(String symbol) {
 			return m_properties.getProperty(symbol);
 		}
@@ -63,6 +65,7 @@ public abstract class PropertiesUtils {
         MapBasedSymbolTable(Map<String,String> properties) {
             m_map = properties;
         }
+        @Override
         public String getSymbolValue(String symbol) {
             return m_map.get(symbol);
         }
@@ -95,11 +98,17 @@ public abstract class PropertiesUtils {
      * @return The string with appropriate substitutions made.
      * @param mapArray a {@link java.util.Map} object.
      */
-    public static String substitute(String initialString, Map<String,String>... mapArray) {
+    public static String substitute(String initialString, Map<String,Object>... mapArray) {
         String workingString = initialString;
-        for (Map<String,String> properties : mapArray) {
-            if (properties != null)
-                workingString = substitute(workingString, new MapBasedSymbolTable(properties), PLACEHOLDER_PREFIX, PLACEHOLDER_SUFFIX, new ArrayList<String>());
+        for (final Map<String,Object> properties : mapArray) {
+            final Map<String,String> convertedProperties = new HashMap<String,String>();
+            for (final Map.Entry<String,Object> entry : properties.entrySet()) {
+                final Object value = entry.getValue();
+                convertedProperties.put(entry.getKey(), value == null? null : value.toString());
+            }
+            if (properties != null) {
+                workingString = substitute(workingString, new MapBasedSymbolTable(convertedProperties), PLACEHOLDER_PREFIX, PLACEHOLDER_SUFFIX, new ArrayList<String>());
+            }
         }
         return workingString;
     }

@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2004-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -54,6 +54,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -81,6 +82,7 @@ public class InstallerDb {
     
     private static Comparator<Constraint> constraintComparator = new Comparator<Constraint>() {
 
+                @Override
 		public int compare(final Constraint o1, final Constraint o2) {
 			return o1.getName().compareTo(o2.getName());
 		}
@@ -117,19 +119,19 @@ public class InstallerDb {
 
     private String m_sql;
 
-    private LinkedList<String> m_tables = null;
+    private List<String> m_tables = null;
 
-    private LinkedList<String> m_sequences = null;
+    private List<String> m_sequences = null;
 
-    private final HashMap<String, List<Insert>> m_inserts = new HashMap<String, List<Insert>>();
+    private final Map<String, List<Insert>> m_inserts = new HashMap<String, List<Insert>>();
 
-    private final HashSet<String> m_drops = new HashSet<String>();
+    private final Set<String> m_drops = new HashSet<String>();
 
-    private final HashSet<String> m_changed = new HashSet<String>();
+    private final Set<String> m_changed = new HashSet<String>();
     
     private Map<String, Integer> m_dbtypes = null;
     
-    private HashMap<String, String[]> m_seqmapping = null;
+    private Map<String, String[]> m_seqmapping = null;
     private Connection m_connection;
     private Connection m_adminConnection;
     private String m_user;
@@ -160,6 +162,7 @@ public class InstallerDb {
 	private final Pattern m_createLanguagePattern = Pattern.compile("(?i)\\s*create\\s+trusted procedural language\\s+[\"']?(\\w+)[\"']?.*");
 
 	private final FileFilter m_sqlFilter = new FileFilter() {
+            @Override
 	    public boolean accept(final File pathname) {
 	        return (pathname.getName().startsWith("get") && pathname.getName().endsWith(".sql"))
 	             || pathname.getName().endsWith("Trigger.sql");
@@ -175,9 +178,9 @@ public class InstallerDb {
 
 	private final SimpleDateFormat m_dateFormatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
-	private final char m_spins[] = { '/', '-', '\\', '|' };
+	private final char[] m_spins = { '/', '-', '\\', '|' };
 
-	private LinkedList<Constraint> m_constraints;
+	private List<Constraint> m_constraints;
 
     /**
      * <p>Constructor for InstallerDb.</p>
@@ -876,7 +879,7 @@ public class InstallerDb {
      * <p>getTableFromSQL</p>
      *
      * @param tableName a {@link java.lang.String} object.
-     * @return a {@link org.opennms.netmgt.dao.db.Table} object.
+     * @return a {@link Table} object.
      * @throws java.lang.Exception if any.
      */
     public Table getTableFromSQL(String tableName) throws Exception {
@@ -973,7 +976,7 @@ public class InstallerDb {
         final Matcher m = Pattern.compile(regex).matcher(getSql());
 
         while (m.find()) {
-            if (m.group(itemGroup).toLowerCase().equals(item)) {
+            if (m.group(itemGroup).equalsIgnoreCase(item)) {
                 return m.group(returnGroup);
             }
         }
@@ -987,7 +990,7 @@ public class InstallerDb {
      *
      * @param columns a {@link java.util.List} object.
      * @param column a {@link java.lang.String} object.
-     * @return a {@link org.opennms.netmgt.dao.db.Column} object.
+     * @return a {@link Column} object.
      */
     public Column findColumn(final List<Column> columns, final String column) {
         for (final Column c : columns) {
@@ -1031,7 +1034,7 @@ public class InstallerDb {
      * <p>getTableFromDB</p>
      *
      * @param tableName a {@link java.lang.String} object.
-     * @return a {@link org.opennms.netmgt.dao.db.Table} object.
+     * @return a {@link Table} object.
      * @throws java.lang.Exception if any.
      */
     public Table getTableFromDB(final String tableName) throws Exception {
@@ -1262,8 +1265,8 @@ public class InstallerDb {
      * <p>changeTable</p>
      *
      * @param table a {@link java.lang.String} object.
-     * @param oldTable a {@link org.opennms.netmgt.dao.db.Table} object.
-     * @param newTable a {@link org.opennms.netmgt.dao.db.Table} object.
+     * @param oldTable a {@link Table} object.
+     * @param newTable a {@link Table} object.
      * @throws java.lang.Exception if any.
      */
     public void changeTable(final String table, final Table oldTable, final Table newTable) throws Throwable {
@@ -1457,7 +1460,7 @@ public class InstallerDb {
      * @throws java.text.ParseException if any.
      * @throws java.lang.Exception if any.
      */
-    public void transformData(final String table, final String oldTable, final TreeMap<String, ColumnChange> columnChanges, final String[] oldColumnNames) throws SQLException, ParseException,
+    public void transformData(final String table, final String oldTable, final Map<String, ColumnChange> columnChanges, final String[] oldColumnNames) throws SQLException, ParseException,
             Exception {
         final Statement st = getConnection().createStatement();
         int i;
@@ -1652,7 +1655,7 @@ public class InstallerDb {
      * <p>checkOldTables</p>
      *
      * @throws java.sql.SQLException if any.
-     * @throws org.opennms.netmgt.dao.db.BackupTablesFoundException if any.
+     * @throws BackupTablesFoundException if any.
      */
     public void checkOldTables() throws SQLException, BackupTablesFoundException {
     	final Statement st = getConnection().createStatement();
@@ -1723,7 +1726,7 @@ public class InstallerDb {
     /**
      * <p>checkConstraint</p>
      *
-     * @param constraint a {@link org.opennms.netmgt.dao.db.Constraint} object.
+     * @param constraint a {@link Constraint} object.
      * @throws java.lang.Exception if any.
      */
     public void checkConstraint(final Constraint constraint) throws Exception {
@@ -1912,7 +1915,7 @@ public class InstallerDb {
     /**
      * <p>fixConstraint</p>
      *
-     * @param constraint a {@link org.opennms.netmgt.dao.db.Constraint} object.
+     * @param constraint a {@link Constraint} object.
      * @param removeRows a boolean.
      * @return a {@link java.lang.String} object.
      * @throws java.lang.Exception if any.
@@ -2008,7 +2011,8 @@ public class InstallerDb {
      * @throws java.sql.SQLException if any.
      */
     public void databaseSetUser() throws SQLException {
-    	final ResultSet rs = getAdminConnection().getMetaData().getTables(null, "public", "%", null);
+    	final String[] tableTypes = {"TABLE"};
+    	final ResultSet rs = getAdminConnection().getMetaData().getTables(null, "public", "%", tableTypes);
         final HashSet<String> objects = new HashSet<String>();
         while (rs.next()) {
             objects.add(rs.getString("TABLE_NAME"));
@@ -2479,7 +2483,7 @@ public class InstallerDb {
     /**
      * <p>getIndexDao</p>
      *
-     * @return a {@link org.opennms.netmgt.dao.db.IndexDao} object.
+     * @return a {@link IndexDao} object.
      */
     public IndexDao getIndexDao() {
         return m_indexDao;
@@ -2534,7 +2538,7 @@ public class InstallerDb {
     /**
      * <p>getTriggerDao</p>
      *
-     * @return a {@link org.opennms.netmgt.dao.db.TriggerDao} object.
+     * @return a {@link TriggerDao} object.
      */
     public TriggerDao getTriggerDao() {
         return m_triggerDao;
@@ -2634,7 +2638,7 @@ public class InstallerDb {
      * <p>addColumnReplacement</p>
      *
      * @param tableColumn a {@link java.lang.String} object.
-     * @param replacement a {@link org.opennms.netmgt.dao.db.ColumnChangeReplacement} object.
+     * @param replacement a {@link ColumnChangeReplacement} object.
      */
     public void addColumnReplacement(final String tableColumn, final ColumnChangeReplacement replacement) {
         m_columnReplacements.put(tableColumn, replacement);

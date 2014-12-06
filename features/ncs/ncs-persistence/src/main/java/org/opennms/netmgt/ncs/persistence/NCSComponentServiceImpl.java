@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2012-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -37,24 +37,27 @@ import java.util.Set;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Response.Status;
 
-import org.hibernate.criterion.Restrictions;
-import org.opennms.core.utils.LogUtils;
-import org.opennms.netmgt.dao.AlarmDao;
-import org.opennms.netmgt.dao.EventDao;
+import org.opennms.core.criteria.Criteria;
+import org.opennms.core.criteria.restrictions.LikeRestriction;
+import org.opennms.netmgt.dao.api.AlarmDao;
+import org.opennms.netmgt.dao.api.EventDao;
 import org.opennms.netmgt.dao.support.UpsertTemplate;
+import org.opennms.netmgt.events.api.EventProxy;
+import org.opennms.netmgt.events.api.EventProxyException;
 import org.opennms.netmgt.model.OnmsAlarm;
-import org.opennms.netmgt.model.OnmsCriteria;
 import org.opennms.netmgt.model.OnmsEvent;
-import org.opennms.netmgt.model.events.EventProxy;
-import org.opennms.netmgt.model.events.EventProxyException;
 import org.opennms.netmgt.model.ncs.NCSComponent;
 import org.opennms.netmgt.ncs.rest.NCSRestService.ComponentList;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.orm.ObjectRetrievalFailureException;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
 
 public class NCSComponentServiceImpl implements NCSComponentService {
+	private static final Logger LOG = LoggerFactory.getLogger(NCSComponentServiceImpl.class);
+
 	private static final Set<NCSComponent> EMPTY_COMPONENT_SET = Collections.unmodifiableSet(new HashSet<NCSComponent>());
 
 	@Autowired
@@ -71,6 +74,7 @@ public class NCSComponentServiceImpl implements NCSComponentService {
 
     EventProxy m_eventProxy;
 
+        @Override
 	public void setEventProxy(final EventProxy proxy) throws Exception {
 		m_eventProxy = proxy;
 	}
@@ -78,14 +82,14 @@ public class NCSComponentServiceImpl implements NCSComponentService {
 	@Override
 	@Transactional
 	public NCSComponent getComponent(final String type, final String foreignSource, final String foreignId) {
-		LogUtils.debugf(this, "getComponent(%s, %s, %s)", type, foreignSource, foreignId);
+		LOG.debug("getComponent({}, {}, {})", type, foreignSource, foreignId);
 		return getComponent(new ComponentIdentifier(null, type, foreignSource, foreignId, null, null));
 	}
 
 	@Override
 	@Transactional
 	public ComponentList findComponentsWithAttribute(final String attrKey, final String attrValue) {
-		LogUtils.debugf(this, "findComponentsWithAttribute(%s, %s)", attrKey, attrValue);
+		LOG.debug("findComponentsWithAttribute({}, {})", attrKey, attrValue);
 		return new ComponentList(m_componentDao.findComponentsWithAttribute(attrKey, attrValue));
 	}
 
@@ -93,13 +97,13 @@ public class NCSComponentServiceImpl implements NCSComponentService {
 	@Transactional
 	public NCSComponent addOrUpdateComponents(final NCSComponent component, final boolean deleteOrphans) {
 		final ComponentIdentifier componentId = getIdentifier(component);
-		LogUtils.debugf(this, "addOrUpdateComponents(%s, %s)", componentId, Boolean.valueOf(deleteOrphans));
+		LOG.debug("addOrUpdateComponents({}, {})", componentId, Boolean.valueOf(deleteOrphans));
 		final ComponentEventQueue ceq = new ComponentEventQueue();
 		final NCSComponent updatedComponent = addOrUpdateComponents(componentId, component, ceq, deleteOrphans);
 		try {
 			ceq.sendAll(m_eventProxy);
 		} catch (final EventProxyException e) {
-			LogUtils.warnf(this, e, "Component %s added, but an error occured while sending add/delete/update events.", componentId);
+			LOG.warn("Component {} added, but an error occured while sending add/delete/update events.", componentId, e);
 		}
 		return updatedComponent;
 	}
@@ -109,7 +113,7 @@ public class NCSComponentServiceImpl implements NCSComponentService {
 	public NCSComponent addSubcomponent(final String type, final String foreignSource, final String foreignId, final NCSComponent subComponent, final boolean deleteOrphans) {
 		final ComponentIdentifier subComponentId = getIdentifier(subComponent);
 		
-		LogUtils.debugf(this, "addSubcomponent(%s, %s, %s, %s, %s)", type, foreignSource, foreignId, subComponentId, Boolean.valueOf(deleteOrphans));
+		LOG.debug("addSubcomponent({}, {}, {}, {}, {})", type, foreignSource, foreignId, subComponentId, Boolean.valueOf(deleteOrphans));
 
 		final NCSComponent component = getComponent(type, foreignSource, foreignId);
 		final ComponentIdentifier id = getIdentifier(component);
@@ -128,7 +132,7 @@ public class NCSComponentServiceImpl implements NCSComponentService {
 		try {
 			ceq.sendAll(m_eventProxy);
 		} catch (final EventProxyException e) {
-			LogUtils.warnf(this, e, "Component %s added to %s, but an error occured while sending add/delete/update events.", subComponentId, id);
+			LOG.warn("Component {} added to {}, but an error occured while sending add/delete/update events.", subComponentId, id, e);
 		}
 
 		return getComponent(id);
@@ -137,7 +141,7 @@ public class NCSComponentServiceImpl implements NCSComponentService {
 	@Override
 	@Transactional
 	public void deleteComponent(final String type, final String foreignSource, final String foreignId, final boolean deleteOrphans) {
-		LogUtils.debugf(this, "deleteSubcomponent(%s, %s, %s, %s)", type, foreignSource, foreignId, Boolean.valueOf(deleteOrphans));
+		LOG.debug("deleteSubcomponent({}, {}, {}, {})", type, foreignSource, foreignId, Boolean.valueOf(deleteOrphans));
 
 		final NCSComponent component = getComponent(type, foreignSource, foreignId);
 		final ComponentIdentifier id = getIdentifier(component);
@@ -146,7 +150,7 @@ public class NCSComponentServiceImpl implements NCSComponentService {
 		try {
 			ceq.sendAll(m_eventProxy);
 		} catch (final EventProxyException e) {
-			LogUtils.warnf(this, e, "Component %s deleted, but an error occured while sending delete/update events.", id);
+			LOG.warn("Component {} deleted, but an error occured while sending delete/update events.", id, e);
 		}
 	}
 
@@ -267,22 +271,22 @@ public class NCSComponentServiceImpl implements NCSComponentService {
 		final Set<ComponentIdentifier> childChildren = getIdentifiers(childComponent.getSubcomponents());
 		final Set<ComponentIdentifier> childParents  = getIdentifiers(childComponent.getParentComponents());
 
-		LogUtils.tracef(this, "handleOrphanedComponents: parent: %s", parentId);
-		LogUtils.tracef(this, "handleOrphanedComponents: child: %s", child);
-		LogUtils.tracef(this, "handleOrphanedComponents: child's children: %s", childChildren);
-		LogUtils.tracef(this, "handleOrphanedComponents: child's parents: %s", childParents);
+		LOG.trace("handleOrphanedComponents: parent: {}", parentId);
+		LOG.trace("handleOrphanedComponents: child: {}", child);
+		LOG.trace("handleOrphanedComponents: child's children: {}", childChildren);
+		LOG.trace("handleOrphanedComponents: child's parents: {}", childParents);
 
 		if (childParents.size() == 1) {
 			final ComponentIdentifier childParent = childParents.iterator().next();
 			if (childParent.equals(parentId)) {
-				LogUtils.tracef(this, "handleOrphanedComponents: child (%s) has only one parent (%s) and it's being deleted.", child, childParent);
+				LOG.trace("handleOrphanedComponents: child ({}) has only one parent ({}) and it's being deleted.", child, childParent);
 				deleteComponent(child, ceq, deleteOrphans);
 			} else {
-				LogUtils.tracef(this, "handleOrphanedComponents: child (%s) has only one parent (%s) but it's not the one we expected. This is weird.", child, childParent);
+				LOG.trace("handleOrphanedComponents: child ({}) has only one parent ({}) but it's not the one we expected. This is weird.", child, childParent);
 				ceq.componentUpdated(childParent);
 			}
 		} else {
-			LogUtils.tracef(this, "handleOrphanedComponents: child (%s) has more than one parent, sending updates for remaining parents.", child);
+			LOG.trace("handleOrphanedComponents: child ({}) has more than one parent, sending updates for remaining parents.", child);
 			for (final ComponentIdentifier childParent : childParents) {
 				ceq.componentUpdated(childParent);
 			}
@@ -290,7 +294,7 @@ public class NCSComponentServiceImpl implements NCSComponentService {
 	}
 
 	private void sendUpdateEvents(final ComponentEventQueue ceq, final Collection<ComponentIdentifier> parentIds) {
-		LogUtils.debugf(this, "sendUpdateEvents: parents = %s", parentIds);
+		LOG.debug("sendUpdateEvents: parents = {}", parentIds);
 		for (final ComponentIdentifier parentId : parentIds) {
         	ceq.componentUpdated(parentId);
         }
@@ -305,9 +309,9 @@ public class NCSComponentServiceImpl implements NCSComponentService {
 	}
 
 	private void deleteAlarms(final String foreignSource, final String foreignId) {
-		final OnmsCriteria alarmCriteria = new OnmsCriteria(OnmsAlarm.class)
-        .add(Restrictions.like("eventParms", "%componentForeignSource=" + foreignSource +"%"))
-        .add(Restrictions.like("eventParms", "%componentForeignId=" + foreignId +"%"));
+		final Criteria alarmCriteria = new Criteria(OnmsAlarm.class)
+            .addRestriction(new LikeRestriction("eventParms", "%componentForeignSource=" + foreignSource +"%"))
+            .addRestriction(new LikeRestriction("eventParms", "%componentForeignId=" + foreignId +"%"));
 
         for(final OnmsAlarm alarm : m_alarmDao.findMatching(alarmCriteria)) {
             m_alarmDao.delete(alarm);
@@ -315,9 +319,9 @@ public class NCSComponentServiceImpl implements NCSComponentService {
 	}
 
 	private void deleteEvents(final String foreignSource, final String foreignId) {
-		final OnmsCriteria eventCriteria = new OnmsCriteria(OnmsEvent.class)
-        .add(Restrictions.like("eventParms", "%componentForeignSource=" + foreignSource +"%"))
-        .add(Restrictions.like("eventParms", "%componentForeignId=" + foreignId +"%"));
+		final Criteria eventCriteria = new Criteria(OnmsEvent.class)
+            .addRestriction(new LikeRestriction("eventParms", "%componentForeignSource=" + foreignSource +"%"))
+            .addRestriction(new LikeRestriction("eventParms", "%componentForeignId=" + foreignId +"%"));
 
         for(final OnmsEvent event : m_eventDao.findMatching(eventCriteria)) {
             m_eventDao.delete(event);

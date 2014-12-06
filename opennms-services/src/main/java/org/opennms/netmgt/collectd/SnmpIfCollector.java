@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2002-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -35,11 +35,12 @@ import java.util.Map;
 import java.util.TreeMap;
 
 import org.opennms.core.utils.InetAddressUtils;
-import org.opennms.core.utils.ThreadCategory;
-import org.opennms.netmgt.config.collector.CollectionSet;
+import org.opennms.netmgt.collection.api.CollectionSet;
 import org.opennms.netmgt.snmp.AggregateTracker;
 import org.opennms.netmgt.snmp.SnmpInstId;
 import org.opennms.netmgt.snmp.SnmpResult;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * The SnmpIfCollector class is responsible for performing the actual SNMP data
@@ -52,10 +53,11 @@ import org.opennms.netmgt.snmp.SnmpResult;
  * GetNext requests or SNMPv2 GetBulk requests depending upon the parms used to
  * construct the collector.
  *
- * @author <A HREF="mailto:mike@opennms.org">Mike </A>
- * @author <A>Jon Whetzel </A>
  */
 public class SnmpIfCollector extends AggregateTracker {
+    
+    private static final Logger LOG = LoggerFactory.getLogger(SnmpIfCollector.class);
+    
     private Map<SnmpInstId, SNMPCollectorEntry> m_results = new TreeMap<SnmpInstId, SNMPCollectorEntry>();
     
     /**
@@ -72,6 +74,7 @@ public class SnmpIfCollector extends AggregateTracker {
      *
      * @return a {@link java.lang.String} object.
      */
+    @Override
     public String toString() {
     	StringBuffer buffer = new StringBuffer();
     	
@@ -106,22 +109,13 @@ public class SnmpIfCollector extends AggregateTracker {
     public SnmpIfCollector(InetAddress address, List<SnmpAttributeType> objList, SnmpCollectionSet collectionSet) {
         super(SnmpAttributeType.getCollectionTrackers(objList));
         
-        log().debug("COLLECTING on list of "+objList.size()+" items");
-        log().debug("List is "+objList);
+        LOG.debug("COLLECTING on list of {} items", objList.size());
+        LOG.debug("List is {}", objList);
         // Process parameters
         //
         m_primaryIf = InetAddressUtils.str(address);
         m_objList = objList;
         m_collectionSet = collectionSet;
-    }
-
-    /**
-     * <p>log</p>
-     *
-     * @return a {@link org.opennms.core.utils.ThreadCategory} object.
-     */
-    protected static ThreadCategory log() {
-        return ThreadCategory.getInstance(SnmpIfCollector.class);
     }
 
     /**
@@ -135,29 +129,33 @@ public class SnmpIfCollector extends AggregateTracker {
     }
     
 	/** {@inheritDoc} */
+    @Override
 	protected void reportGenErr(String msg) {
-        log().warn(m_primaryIf+": genErr collecting ifData. "+msg);
+        LOG.warn("{} : genErr collecting ifData. {}", m_primaryIf, msg);
     }
 
     /** {@inheritDoc} */
+    @Override
     protected void reportNoSuchNameErr(String msg) {
-        log().info(m_primaryIf+": noSuchName collecting ifData. "+msg);
+        LOG.info("{} : noSuchName collecting ifData. {}", m_primaryIf, msg);
     }
 
     /** {@inheritDoc} */
+    @Override
     protected void reportTooBigErr(String msg) {
-        log().info(m_primaryIf+": request tooBig. "+msg);
+        LOG.info("{} : request tooBig. {}", m_primaryIf, msg);
     }
 
     /** {@inheritDoc} */
+    @Override
     protected void storeResult(SnmpResult res) {
         if(res.getBase().toString().equals(SnmpCollector.IFALIAS_OID) && (res.getValue().isNull() || res.getValue().toDisplayString() == null || res.getValue().toDisplayString().equals(""))) {
-            log().debug("Skipping storeResult. Null or zero length ifAlias");
+            LOG.debug("Skipping storeResult. Null or zero length ifAlias");
             return;
         }
         SNMPCollectorEntry entry = m_results.get(res.getInstance());
         if (entry == null) {
-            log().debug("Creating new SNMPCollectorEntry entry");
+            LOG.debug("Creating new SNMPCollectorEntry entry");
             entry = new SNMPCollectorEntry(m_objList, m_collectionSet);
             m_results.put(res.getInstance(), entry);
         }
@@ -177,7 +175,7 @@ public class SnmpIfCollector extends AggregateTracker {
     /**
      * <p>getCollectionSet</p>
      *
-     * @return a {@link org.opennms.netmgt.config.collector.CollectionSet} object.
+     * @return a {@link org.opennms.netmgt.collection.api.CollectionSet} object.
      */
     public CollectionSet getCollectionSet() {
         return m_collectionSet;

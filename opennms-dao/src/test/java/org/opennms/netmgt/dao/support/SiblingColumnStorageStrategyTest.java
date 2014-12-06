@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2010-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2009-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -32,14 +32,14 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
-import junit.framework.Assert;
+import org.junit.Assert;
 
 import org.easymock.EasyMock;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.opennms.core.utils.InetAddressUtils;
-import org.opennms.netmgt.config.StorageStrategyService;
+import org.opennms.netmgt.collection.api.StorageStrategyService;
 import org.opennms.netmgt.config.datacollection.Parameter;
 import org.opennms.netmgt.snmp.SnmpAgentConfig;
 
@@ -89,17 +89,17 @@ public class SiblingColumnStorageStrategyTest {
         // Test Resource Name - root file system (hrStorageTable)
         String parentResource = "1";
         MockCollectionResource resource = new MockCollectionResource(parentResource, "1", "hrStorageIndex");
-        resource.getAttribtueMap().put("hrStorageDescr", "/");
+        resource.getAttributeMap().put("hrStorageDescr", "/");
         String resourceName = strategy.getResourceNameFromIndex(resource);
         Assert.assertEquals("_root_fs", resourceName);
 
         // Test Resource Name - /Volumes/iDisk file system (hrStorageTable)
         resource.setInstance("8");
-        resource.getAttribtueMap().put("hrStorageDescr", "Volumes-iDisk");
+        resource.getAttributeMap().put("hrStorageDescr", "Volumes-iDisk");
         Assert.assertEquals("Volumes-iDisk", strategy.getResourceNameFromIndex(resource));
 
         // Test RelativePath - hrStorageTable
-        Assert.assertEquals("1" + File.separator + "hrStorageIndex" + File.separator + "_root_fs", strategy.getRelativePathForAttribute(parentResource, resourceName, null));
+        Assert.assertEquals("1" + File.separator + "hrStorageIndex" + File.separator + "_root_fs", strategy.getRelativePathForAttribute(parentResource, resourceName));
     }
 
     @Test(expected=IllegalArgumentException.class)

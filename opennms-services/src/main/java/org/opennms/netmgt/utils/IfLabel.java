@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2002-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -36,11 +36,12 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.regex.Pattern;
 
-import org.opennms.core.resource.Vault;
+import org.opennms.core.db.DataSourceFactory;
 import org.opennms.core.utils.AlphaNumeric;
 import org.opennms.core.utils.Querier;
 import org.opennms.core.utils.RowProcessor;
-import org.opennms.core.utils.ThreadCategory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A convenience class for methods to encode/decode ifLabel descriptions for
@@ -50,10 +51,10 @@ import org.opennms.core.utils.ThreadCategory;
  * @author <a href="mailto:larry@opennms.org">Lawrence Karnowski </a>
  * @author <a href="mailto:seth@opennms.org">Seth Leger </a>
  */
-public class IfLabel extends Object {
+public abstract class IfLabel {
 
-    /** Constant <code>log</code> */
-    protected static ThreadCategory log = ThreadCategory.getInstance(IfLabel.class);
+	private static final Logger LOG = LoggerFactory.getLogger(IfLabel.class);
+	
 
     /**
      * Return a map of useful SNMP information for the interface specified by
@@ -80,7 +81,7 @@ public class IfLabel extends Object {
 
         // first I have to strip off the MAC address from the end, if there is
         // one
-        int dashIndex = ifLabel.lastIndexOf("-");
+        int dashIndex = ifLabel.lastIndexOf('-');
 
         if (dashIndex >= 0) {
             desc = ifLabel.substring(0, dashIndex);
@@ -90,7 +91,7 @@ public class IfLabel extends Object {
        final String desc2 = desc;
        final String mac2 = mac;
  
-        log.debug("getInterfaceInfoFromIfLabel: desc=" + desc + " mac=" + mac);
+        LOG.debug("getInterfaceInfoFromIfLabel: desc={} mac={}", desc, mac);
 
         String queryDesc = desc.replace('_', '%');
 
@@ -100,10 +101,11 @@ public class IfLabel extends Object {
                 " WHERE nodeid = "+nodeId+
                 "   AND (snmpifdescr ILIKE '"+queryDesc+"'" +
                 "    OR snmpifname ilike '"+queryDesc+"')";
-        log.debug("getInterfaceInfoFromLabel: query is: "+query);
+        LOG.debug("getInterfaceInfoFromLabel: query is: {}", query);
         
-        Querier q = new Querier(Vault.getDataSource(), query, new RowProcessor() {
+        Querier q = new Querier(DataSourceFactory.getInstance(), query, new RowProcessor() {
 
+            @Override
             public void processRow(ResultSet rs) throws SQLException {
                 // If the description portion of ifLabel matches an entry
                 // in the snmpinterface table...
@@ -125,7 +127,7 @@ public class IfLabel extends Object {
                     // If the mac address portion of the ifLabel matches
                     // an entry in the snmpinterface table...
                     if (mac2 == null || mac2.equals(rs.getString("snmpphysaddr"))) {
-                        ThreadCategory.getInstance(IfLabel.class).debug("getInterfaceInfoFromIfLabel: found match...");
+                        LOG.debug("getInterfaceInfoFromIfLabel: found match...");
                         for (int i = 1; i <= rs.getMetaData().getColumnCount(); i++) {
                             // Get extra information about the interface
                             info.put(rs.getMetaData().getColumnName(i), rs.getString(i));
@@ -136,7 +138,7 @@ public class IfLabel extends Object {
             
         });
         q.execute();
-        log.debug("getInterfaceInfoFromLabel: Querier result count is: "+q.getCount());
+        LOG.debug("getInterfaceInfoFromLabel: Querier result count is: {}", q.getCount());
         
         // The map will remain empty if the information was not located in the
         // DB.
@@ -162,7 +164,8 @@ public class IfLabel extends Object {
         
         final ArrayList<String> list = new ArrayList<String>();
         
-        Querier q = new Querier(Vault.getDataSource(), query, new RowProcessor() {
+        Querier q = new Querier(DataSourceFactory.getInstance(), query, new RowProcessor() {
+            @Override
             public void processRow(ResultSet rs) throws SQLException {
                 String name = rs.getString("snmpifname");
                 String descr = rs.getString("snmpifdescr");
@@ -173,8 +176,7 @@ public class IfLabel extends Object {
             
         });
         q.execute();
-        String[] labels = list.toArray(new String[list.size()]);
-        return labels;
+        return list.toArray(new String[list.size()]);
     }
 
     /**
@@ -214,7 +216,8 @@ public class IfLabel extends Object {
         		"   AND ipinterface.nodeid = "+nodeId+
         		"   AND ipinterface.ipaddr = '"+inetAddr+"'";
         
-        Querier q = new Querier(Vault.getDataSource(), query, new RowProcessor() {
+        Querier q = new Querier(DataSourceFactory.getInstance(), query, new RowProcessor() {
+            @Override
             public void processRow(ResultSet rs) throws SQLException {
                 String name = rs.getString("snmpifname");
                 String descr = rs.getString("snmpifdescr");
@@ -223,7 +226,7 @@ public class IfLabel extends Object {
                 if (name != null || descr != null) {
                     holder.setLabel(getIfLabel(name, descr, physAddr));
                 } else {
-                    log.warn("Interface (nodeId/ipAddr=" + nodeId + "/" + ipAddr + ") has no ifName and no ifDescr...setting to label to 'no_ifLabel'.");
+                    LOG.warn("Interface (nodeId/ipAddr={}/{}) has no ifName and no ifDescr...setting to label to 'no_ifLabel'.", nodeId, ipAddr);
                     holder.setLabel("no_ifLabel");
                 }
             }
@@ -277,8 +280,9 @@ public class IfLabel extends Object {
         		"   AND ipinterface.ifindex= "+ifIndex;
         
         
-        Querier q = new Querier(Vault.getDataSource(), query, new RowProcessor() {
+        Querier q = new Querier(DataSourceFactory.getInstance(), query, new RowProcessor() {
 
+            @Override
             public void processRow(ResultSet rs) throws SQLException {
                 String name = rs.getString("snmpifname");
                 String descr = rs.getString("snmpifdescr");
@@ -287,7 +291,7 @@ public class IfLabel extends Object {
                 if (name != null || descr != null) {
                     holder.setLabel(getIfLabel(name, descr, physAddr));
                 } else {
-                    log.warn("Interface (nodeId/ipAddr=" + nodeId + "/" + ipAddr + ") has no ifName and no ifDescr...setting to label to 'no_ifLabel'.");
+                    LOG.warn("Interface (nodeId/ipAddr={}/{}) has no ifName and no ifDescr...setting to label to 'no_ifLabel'.", nodeId, ipAddr);
                     holder.setLabel("no_ifLabel");
                 }
             }
@@ -329,8 +333,9 @@ public class IfLabel extends Object {
                 "   AND snmpifindex= "+ifIndex;
         
         
-        Querier q = new Querier(Vault.getDataSource(), query, new RowProcessor() {
+        Querier q = new Querier(DataSourceFactory.getInstance(), query, new RowProcessor() {
 
+            @Override
             public void processRow(ResultSet rs) throws SQLException {
                 String name = rs.getString("snmpifname");
                 String descr = rs.getString("snmpifdescr");
@@ -339,7 +344,7 @@ public class IfLabel extends Object {
                 if (name != null || descr != null) {
                     holder.setLabel(getIfLabel(name, descr, physAddr));
                 } else {
-                    log.warn("Interface (nodeId/ifIndex=" + nodeId + "/" + ifIndex + ") has no ifName and no ifDescr...setting to label to 'no_ifLabel'.");
+                    LOG.warn("Interface (nodeId/ifIndex={}/{}) has no ifName and no ifDescr...setting to label to 'no_ifLabel'.", nodeId, ifIndex);
                     holder.setLabel("no_ifLabel");
                 }
             }
@@ -386,9 +391,7 @@ public class IfLabel extends Object {
             if (physAddr.length() == 12) {
                 label = label + "-" + physAddr;
             } else {
-                if (log.isDebugEnabled()) {
-                    log.debug("initialize: physical address len is NOT 12, physAddr=" + physAddr);
-                }
+            	LOG.debug("initialize: physical address len is NOT 12, physAddr={}", physAddr);
             }
         }
 

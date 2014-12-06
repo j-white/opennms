@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2007-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2007-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -33,12 +33,13 @@ import java.io.FileFilter;
 import java.util.LinkedList;
 import java.util.List;
 
-import org.opennms.core.utils.LogUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.opennms.core.xml.JaxbUtils;
 import org.opennms.netmgt.correlation.CorrelationEngine;
 import org.opennms.netmgt.correlation.CorrelationEngineRegistrar;
 import org.opennms.netmgt.correlation.drools.config.EngineConfiguration;
-import org.opennms.netmgt.model.events.EventIpcManager;
+import org.opennms.netmgt.events.api.EventIpcManager;
 import org.springframework.beans.PropertyEditorRegistrySupport;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.context.ApplicationContext;
@@ -56,6 +57,7 @@ import org.springframework.util.Assert;
  * @version $Id: $
  */
 public class DroolsCorrelationEngineBuilder extends PropertyEditorRegistrySupport implements InitializingBean, ApplicationListener<ApplicationEvent> {
+    private static final Logger LOG = LoggerFactory.getLogger(DroolsCorrelationEngineBuilder.class);
 
 	public static final String PLUGIN_CONFIG_FILE_NAME = "drools-engine.xml";
 	
@@ -68,12 +70,12 @@ public class DroolsCorrelationEngineBuilder extends PropertyEditorRegistrySuppor
 		}
 		
 		public void readConfig() {
-			LogUtils.infof(this, "Parsing drools engine configuration at %s.", m_configResource);
+			LOG.info("Parsing drools engine configuration at {}.", m_configResource);
 			m_configuration = JaxbUtils.unmarshal(EngineConfiguration.class, m_configResource);
 		}
 
 		public CorrelationEngine[] constructEngines(ApplicationContext appContext, EventIpcManager eventIpcManager) {
-			LogUtils.infof(this, "Creating drools engins for configuration %s.", m_configResource);
+			LOG.info("Creating drools engins for configuration {}.", m_configResource);
 
 			return m_configuration.constructEngines(m_configResource, appContext, eventIpcManager);
 		}
@@ -133,7 +135,7 @@ public class DroolsCorrelationEngineBuilder extends PropertyEditorRegistrySuppor
 	/**
      * <p>setEventIpcManager</p>
      *
-     * @param eventIpcManager a {@link org.opennms.netmgt.model.events.EventIpcManager} object.
+     * @param eventIpcManager a {@link org.opennms.netmgt.events.api.EventIpcManager} object.
      */
     public void setEventIpcManager(final EventIpcManager eventIpcManager) {
         m_eventIpcManager = eventIpcManager;
@@ -181,7 +183,7 @@ public class DroolsCorrelationEngineBuilder extends PropertyEditorRegistrySuppor
 		
 		// first we see if the config is etc exists 
     	if (m_configResource != null && m_configResource.isReadable()) {
-			LogUtils.infof(this, "Found Drools Plugin config file %s.", m_configResource);
+			LOG.info("Found Drools Plugin config file {}.", m_configResource);
     		pluginConfigs.add(new PluginConfiguration(m_configResource));
     	}
 
@@ -191,9 +193,9 @@ public class DroolsCorrelationEngineBuilder extends PropertyEditorRegistrySuppor
     	for(File pluginDir : pluginDirs) {
     		File configFile = new File(pluginDir, PLUGIN_CONFIG_FILE_NAME);
     		if (!configFile.exists()) {
-    			LogUtils.errorf(this, "Drools Plugin directory %s does not contains a %s config file.  Ignoring plugin.", pluginDir, PLUGIN_CONFIG_FILE_NAME);
+			LOG.error("Drools Plugin directory {} does not contains a {} config file.  Ignoring plugin.", pluginDir, PLUGIN_CONFIG_FILE_NAME);
     		} else {
-    			LogUtils.infof(this, "Found Drools Plugin directory %s containing a %s config file.", pluginDir, PLUGIN_CONFIG_FILE_NAME);
+			LOG.info("Found Drools Plugin directory {} containing a {} config file.", pluginDir, PLUGIN_CONFIG_FILE_NAME);
     			pluginConfigs.add(new PluginConfiguration(new FileSystemResource(configFile)));
     		}
     	}
@@ -203,11 +205,11 @@ public class DroolsCorrelationEngineBuilder extends PropertyEditorRegistrySuppor
 
 	private File[] getPluginDirs() throws Exception {
 
-    	LogUtils.debugf(this, "Checking %s for drools correlation plugins", m_configDirectory);
+	LOG.debug("Checking {} for drools correlation plugins", m_configDirectory);
     	
 
 		if (!m_configDirectory.exists()) {
-			LogUtils.debugf(this, "Plugin configuration directory does not exists.");
+			LOG.debug("Plugin configuration directory does not exists.");
 			return new File[0];
 		}
 
@@ -218,12 +220,13 @@ public class DroolsCorrelationEngineBuilder extends PropertyEditorRegistrySuppor
 				return file.isDirectory();
 			}
 		});
-    	LogUtils.debugf(this, "Found %d drools correlation plugin sub directories", pluginDirs.length);
+	LOG.debug("Found {} drools correlation plugin sub directories", pluginDirs.length);
     	
 		return pluginDirs;
 	}
 
 	/** {@inheritDoc} */
+        @Override
     public void onApplicationEvent(final ApplicationEvent appEvent) {
         if (appEvent instanceof ContextRefreshedEvent) {
             final ApplicationContext appContext = ((ContextRefreshedEvent)appEvent).getApplicationContext();

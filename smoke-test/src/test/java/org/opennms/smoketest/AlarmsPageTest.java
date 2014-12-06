@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2011-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2011-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -28,18 +28,24 @@
 
 package org.opennms.smoketest;
 
+import java.net.InetSocketAddress;
+
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.FixMethodOrder;
 import org.junit.Test;
-import org.opennms.netmgt.EventConstants;
+import org.junit.runners.MethodSorters;
+import org.opennms.netmgt.events.api.EventConstants;
+import org.opennms.netmgt.events.api.EventProxy;
+import org.opennms.netmgt.events.api.support.TcpEventProxy;
 import org.opennms.netmgt.model.events.EventBuilder;
-import org.opennms.netmgt.model.events.EventProxy;
-import org.opennms.netmgt.utils.TcpEventProxy;
 
+@FixMethodOrder(MethodSorters.NAME_ASCENDING)
 public class AlarmsPageTest extends OpenNMSSeleniumTestCase {
     @BeforeClass
     public static void createAlarm() throws Exception {
-        final EventProxy eventProxy = new TcpEventProxy();
+
+        final EventProxy eventProxy = new TcpEventProxy(new InetSocketAddress(OPENNMS_EVENT_HOST, OPENNMS_EVENT_PORT));
         final EventBuilder builder = new EventBuilder(EventConstants.IMPORT_FAILED_UEI, "AlarmsPageTest");
         builder.setParam("importResource", "foo");
         eventProxy.send(builder.getEvent());
@@ -52,7 +58,7 @@ public class AlarmsPageTest extends OpenNMSSeleniumTestCase {
     }
 
     @Test
-    public void testAllTextIsPresent() throws InterruptedException {
+    public void a_testAllTextIsPresent() throws InterruptedException {
         waitForText("Alarm Queries");
         waitForText("Outstanding and acknowledged alarms");
         waitForText("To view acknowledged alarms");
@@ -61,16 +67,16 @@ public class AlarmsPageTest extends OpenNMSSeleniumTestCase {
     }
 
     @Test
-    public void testAllLinksArePresent() throws InterruptedException { 
+    public void b_testAllLinksArePresent() throws InterruptedException { 
         waitForElement("link=All alarms (summary)");
         waitForElement("link=All alarms (detail)");
         waitForElement("link=Advanced Search");
     }
 
     @Test
-    public void testAllLinks() throws InterruptedException{
+    public void c_testAllLinks() throws InterruptedException{
         clickAndWait("link=All alarms (summary)");
-        waitForText("alarm is outstanding");
+        waitForText("Alarm(s) outstanding");
         waitForElement("//input[@value='Go']");
         waitForElement("css=input[type='submit']");
         clickAndWait("css=a[title='Alarms System Page']");
@@ -91,7 +97,7 @@ public class AlarmsPageTest extends OpenNMSSeleniumTestCase {
     }
 
     @Test
-    public void testAlarmLink() throws Exception {
+    public void d_testAlarmLink() throws Exception {
         createAlarm();
         clickAndWait("link=All alarms (summary)");
 
@@ -105,7 +111,7 @@ public class AlarmsPageTest extends OpenNMSSeleniumTestCase {
 
         assertTrue(hasAlarmDetailLink());
 
-        waitForText("alarm is outstanding");
+        waitForText("Alarm(s) outstanding");
         waitForElement("//input[@value='Go']");
         waitForElement("css=input[type='submit']");
         assertTrue(hasAlarmDetailLink());
@@ -116,11 +122,11 @@ public class AlarmsPageTest extends OpenNMSSeleniumTestCase {
     }
 
     @Test
-    public void testAlarmIdNotFoundPage() throws InterruptedException {
+    public void e_testAlarmIdNotFoundPage() throws InterruptedException {
         selenium.open("/opennms/alarm/detail.htm?id=999999999");
         waitForText("Alarm ID Not Found");
     }
-    
+
     private boolean hasAlarmDetailLink() {
         return selenium.isElementPresent("//a[contains(@href,'alarm/detail.htm')]");
     }

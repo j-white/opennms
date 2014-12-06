@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2009-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2009-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -49,7 +49,6 @@ import javax.ws.rs.core.SecurityContext;
 import javax.ws.rs.core.UriInfo;
 
 import org.joda.time.Duration;
-import org.opennms.core.utils.LogUtils;
 import org.opennms.netmgt.provision.persist.ForeignSourceRepository;
 import org.opennms.netmgt.provision.persist.StringIntervalPropertyEditor;
 import org.opennms.netmgt.provision.persist.foreignsource.DetectorCollection;
@@ -59,6 +58,8 @@ import org.opennms.netmgt.provision.persist.foreignsource.ForeignSourceCollectio
 import org.opennms.netmgt.provision.persist.foreignsource.PluginConfig;
 import org.opennms.netmgt.provision.persist.foreignsource.PolicyCollection;
 import org.opennms.netmgt.provision.persist.foreignsource.PolicyWrapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeanWrapper;
 import org.springframework.beans.PropertyAccessorFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -131,6 +132,9 @@ import com.sun.jersey.spi.resource.PerRequest;
 @Scope("prototype")
 @Path("foreignSources")
 public class ForeignSourceRestService extends OnmsRestService {
+	
+	private static final Logger LOG = LoggerFactory.getLogger(ForeignSourceRestService.class);
+
     
     @Autowired
     @Qualifier("pending")
@@ -353,12 +357,12 @@ public class ForeignSourceRestService extends OnmsRestService {
      * @return a {@link javax.ws.rs.core.Response} object.
      */
     @POST
-    @Consumes(MediaType.APPLICATION_XML)
+    @Consumes({MediaType.APPLICATION_XML, MediaType.APPLICATION_JSON, MediaType.APPLICATION_ATOM_XML})
     @Transactional
     public Response addForeignSource(ForeignSource foreignSource) {
         writeLock();
         try {
-            debug("addForeignSource: Adding foreignSource %s", foreignSource.getName());
+            LOG.debug("addForeignSource: Adding foreignSource {}", foreignSource.getName());
             m_pendingForeignSourceRepository.save(foreignSource);
             return Response.seeOther(getRedirectUri(m_uriInfo, foreignSource.getName())).build();
         } finally {
@@ -375,12 +379,12 @@ public class ForeignSourceRestService extends OnmsRestService {
      */
     @POST
     @Path("{foreignSource}/detectors")
-    @Consumes(MediaType.APPLICATION_XML)
+    @Consumes({MediaType.APPLICATION_XML, MediaType.APPLICATION_JSON, MediaType.APPLICATION_ATOM_XML})
     @Transactional
     public Response addDetector(@PathParam("foreignSource") String foreignSource, DetectorWrapper detector) {
         writeLock();
         try {
-            debug("addDetector: Adding detector " + detector.getName());
+            LOG.debug("addDetector: Adding detector {}", detector.getName());
             ForeignSource fs = getActiveForeignSource(foreignSource);
             fs.updateDateStamp();
             fs.addDetector(detector);
@@ -400,12 +404,12 @@ public class ForeignSourceRestService extends OnmsRestService {
      */
     @POST
     @Path("{foreignSource}/policies")
-    @Consumes(MediaType.APPLICATION_XML)
+    @Consumes({MediaType.APPLICATION_XML, MediaType.APPLICATION_JSON, MediaType.APPLICATION_ATOM_XML})
     @Transactional
     public Response addPolicy(@PathParam("foreignSource") String foreignSource, PolicyWrapper policy) {
         writeLock();
         try {
-            debug("addPolicy: Adding policy %s", policy.getName());
+            LOG.debug("addPolicy: Adding policy {}", policy.getName());
             ForeignSource fs = getActiveForeignSource(foreignSource);
             fs.updateDateStamp();
             fs.addPolicy(policy);
@@ -431,7 +435,7 @@ public class ForeignSourceRestService extends OnmsRestService {
         writeLock();
         try {
             ForeignSource fs = getActiveForeignSource(foreignSource);
-            debug("updateForeignSource: updating foreign source %s", foreignSource);
+            LOG.debug("updateForeignSource: updating foreign source {}", foreignSource);
             
             if (params.isEmpty()) return Response.seeOther(getRedirectUri(m_uriInfo)).build();
 
@@ -445,7 +449,7 @@ public class ForeignSourceRestService extends OnmsRestService {
                     wrapper.setPropertyValue(key, value);
                 }
             }
-            debug("updateForeignSource: foreign source %s updated", foreignSource);
+            LOG.debug("updateForeignSource: foreign source {} updated", foreignSource);
             fs.updateDateStamp();
             m_pendingForeignSourceRepository.save(fs);
             return Response.seeOther(getRedirectUri(m_uriInfo)).build();
@@ -467,7 +471,7 @@ public class ForeignSourceRestService extends OnmsRestService {
         writeLock();
         try {
             ForeignSource fs = getForeignSource(foreignSource);
-            debug("deletePendingForeignSource: deleting foreign source %s", foreignSource);
+            LOG.debug("deletePendingForeignSource: deleting foreign source {}", foreignSource);
             m_pendingForeignSourceRepository.delete(fs);
             return Response.ok().build();
         } finally {
@@ -488,7 +492,7 @@ public class ForeignSourceRestService extends OnmsRestService {
         writeLock();
         try {
             ForeignSource fs = getForeignSource(foreignSource);
-            debug("deleteDeployedForeignSource: deleting foreign source %s", foreignSource);
+            LOG.debug("deleteDeployedForeignSource: deleting foreign source {}", foreignSource);
             m_deployedForeignSourceRepository.delete(fs);
             return Response.ok().build();
         } finally {
@@ -580,7 +584,5 @@ public class ForeignSourceRestService extends OnmsRestService {
         return fs;
     }
 
-    private void debug(final String format, final Object... args) {
-        LogUtils.debugf(this, format, args);
-    }
+    
 }

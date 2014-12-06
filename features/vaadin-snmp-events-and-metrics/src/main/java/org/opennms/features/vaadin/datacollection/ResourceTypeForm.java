@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2012-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -25,21 +25,19 @@
  *     http://www.opennms.org/
  *     http://www.opennms.com/
  *******************************************************************************/
+
 package org.opennms.features.vaadin.datacollection;
 
+import org.opennms.netmgt.config.datacollection.PersistenceSelectorStrategy;
 import org.opennms.netmgt.config.datacollection.ResourceType;
+import org.opennms.netmgt.config.datacollection.StorageStrategy;
+import org.opennms.netmgt.dao.support.IndexStorageStrategy;
 
-import com.vaadin.data.util.BeanItem;
-import com.vaadin.ui.Button;
-import com.vaadin.ui.Button.ClickEvent;
-import com.vaadin.ui.Button.ClickListener;
-import com.vaadin.ui.themes.Runo;
-import com.vaadin.ui.Form;
-import com.vaadin.ui.HorizontalLayout;
-
-import de.steinwedel.vaadin.MessageBox;
-import de.steinwedel.vaadin.MessageBox.ButtonType;
-import de.steinwedel.vaadin.MessageBox.EventListener;
+import com.vaadin.data.fieldgroup.BeanFieldGroup;
+import com.vaadin.data.fieldgroup.FieldGroup.CommitException;
+import com.vaadin.ui.CustomComponent;
+import com.vaadin.ui.FormLayout;
+import com.vaadin.ui.TextField;
 
 /**
  * The Class Event Form.
@@ -47,57 +45,60 @@ import de.steinwedel.vaadin.MessageBox.EventListener;
  * @author <a href="mailto:agalue@opennms.org">Alejandro Galue</a> 
  */
 @SuppressWarnings("serial")
-public abstract class ResourceTypeForm extends Form implements ClickListener {
+public class ResourceTypeForm extends CustomComponent {
 
-    /** The Constant FORM_ITEMS. */
-    public static final String[] FORM_ITEMS = new String[] {
-        "name",
-        "label",
-        "resourceLabel",
-        "storageStrategy",
-        "persistenceSelectorStrategy"
-    };
+    /** The name. */
+    final TextField name = new TextField("Resource Type Name");
 
-    /** The Edit button. */
-    private final Button edit = new Button("Edit");
+    /** The label. */
+    final TextField label = new TextField("Resource Type Label");
 
-    /** The Delete button. */
-    private final Button delete = new Button("Delete");
+    /** The resource label. */
+    final TextField resourceLabel = new TextField("Resource Label");
 
-    /** The Save button. */
-    private final Button save = new Button("Save");
+    /** The storage strategy. */
+    final StorageStrategyField storageStrategy = new StorageStrategyField("Storage Strategy");
 
-    /** The Cancel button. */
-    private final Button cancel = new Button("Cancel");
+    /** The persistence selector strategy. */
+    final PersistSelectorStrategyField persistenceSelectorStrategy = new PersistSelectorStrategyField("Persist Selector Strategy");
+
+    /** The Event editor. */
+    final BeanFieldGroup<ResourceType> resourceTypeEditor = new BeanFieldGroup<ResourceType>(ResourceType.class);
+
+    /** The event layout. */
+    final FormLayout resourceTypeLayout = new FormLayout();
 
     /**
      * Instantiates a new resource type form.
      */
     public ResourceTypeForm() {
         setCaption("Resource Type Detail");
-        setWriteThrough(false);
-        setVisible(false);
-        setFormFieldFactory(new ResourceTypeFieldFactory());
-        initToolbar();
-    }
+        resourceTypeLayout.setMargin(true);
 
-    /**
-     * Initialize the Toolbar.
-     */
-    private void initToolbar() {
-        save.addListener((ClickListener)this);
-        cancel.addListener((ClickListener)this);
-        edit.addListener((ClickListener)this);
-        delete.addListener((ClickListener)this);
+        name.setRequired(true);
+        name.setWidth("100%");
+        resourceTypeLayout.addComponent(name);
 
-        HorizontalLayout toolbar = new HorizontalLayout();
-        toolbar.setSpacing(true);
-        toolbar.addComponent(edit);
-        toolbar.addComponent(delete);
-        toolbar.addComponent(save);
-        toolbar.addComponent(cancel);
+        label.setRequired(true);
+        label.setWidth("100%");
+        resourceTypeLayout.addComponent(label);
 
-        setFooter(toolbar);
+        resourceLabel.setRequired(false);
+        resourceLabel.setWidth("100%");
+        resourceTypeLayout.addComponent(resourceLabel);
+
+        resourceTypeLayout.addComponent(storageStrategy);
+        resourceTypeLayout.addComponent(persistenceSelectorStrategy);
+
+        setResourceType(createBasicResourceType());
+
+        resourceTypeEditor.bind(name, "name");
+        resourceTypeEditor.bind(label, "label");
+        resourceTypeEditor.bind(resourceLabel, "resourceLabel");
+        resourceTypeEditor.bind(storageStrategy, "storageStrategy");
+        resourceTypeEditor.bind(persistenceSelectorStrategy,  "persistenceSelectorStrategy");
+
+        setCompositionRoot(resourceTypeLayout);
     }
 
     /**
@@ -105,76 +106,77 @@ public abstract class ResourceTypeForm extends Form implements ClickListener {
      *
      * @return the resource type
      */
-    @SuppressWarnings("unchecked")
-    private ResourceType getResourceType() {
-        if (getItemDataSource() instanceof BeanItem) {
-            BeanItem<ResourceType> item = (BeanItem<ResourceType>) getItemDataSource();
-            return item.getBean();
-        }
-        return null;
+    public ResourceType getResourceType() {
+        return resourceTypeEditor.getItemDataSource().getBean();
+    }
+
+    /**
+     * Sets the resource type.
+     *
+     * @param resourceType the new resource type
+     */
+    public void setResourceType(ResourceType resourceType) {
+        resourceTypeEditor.setItemDataSource(resourceType);
+    }
+
+    /**
+     * Creates the basic resource type.
+     *
+     * @return the resource type
+     */
+    public ResourceType createBasicResourceType() {
+        ResourceType rt = new ResourceType();
+        rt.setName("New Resource Type");
+        rt.setLabel("New Resource Type");
+        rt.setResourceLabel("{index}");
+        PersistenceSelectorStrategy persistence = new PersistenceSelectorStrategy();
+        persistence.setClazz("org.opennms.netmgt.collectd.PersistAllSelectorStrategy"); // To avoid requires opennms-services
+        rt.setPersistenceSelectorStrategy(persistence);
+        StorageStrategy storage = new StorageStrategy();
+        storage.setClazz(IndexStorageStrategy.class.getName());
+        rt.setStorageStrategy(storage);
+        return rt;
+    }
+
+    /**
+     * Discard.
+     */
+    public void discard() {
+        resourceTypeEditor.discard();
+    }
+
+    /**
+     * Commit.
+     *
+     * @throws CommitException the commit exception
+     */
+    public void commit() throws CommitException {
+        resourceTypeEditor.commit();
     }
 
     /* (non-Javadoc)
-     * @see com.vaadin.ui.Form#setReadOnly(boolean)
+     * @see com.vaadin.ui.AbstractComponent#setReadOnly(boolean)
      */
     @Override
     public void setReadOnly(boolean readOnly) {
         super.setReadOnly(readOnly);
-        save.setVisible(!readOnly);
-        cancel.setVisible(!readOnly);
-        edit.setVisible(readOnly);
-        delete.setVisible(readOnly);
+        resourceTypeEditor.setReadOnly(readOnly);
     }
 
     /* (non-Javadoc)
-     * @see com.vaadin.ui.Button.ClickListener#buttonClick(com.vaadin.ui.Button.ClickEvent)
+     * @see com.vaadin.ui.AbstractComponent#isReadOnly()
      */
-    public void buttonClick(ClickEvent event) {
-        Button source = event.getButton();
-        if (source == save) {
-            commit();
-            setReadOnly(true);
-            saveResourceType(getResourceType());
-        }
-        if (source == cancel) {
-            discard();
-            setReadOnly(true);
-        }
-        if (source == edit) {
-            setReadOnly(false);
-        }
-        if (source == delete) {
-            // FIXME You cannot delete a resource type if it is being used on any group
-            MessageBox mb = new MessageBox(getApplication().getMainWindow(),
-                                           "Are you sure?",
-                                           MessageBox.Icon.QUESTION,
-                                           "Do you really want to remove the Resource Type " + getResourceType().getName() + "?<br/>This action cannot be undone.",
-                                           new MessageBox.ButtonConfig(MessageBox.ButtonType.YES, "Yes"),
-                                           new MessageBox.ButtonConfig(MessageBox.ButtonType.NO, "No"));
-            mb.addStyleName(Runo.WINDOW_DIALOG);
-            mb.show(new EventListener() {
-                public void buttonClicked(ButtonType buttonType) {
-                    if (buttonType == MessageBox.ButtonType.YES) {
-                        setVisible(false);
-                        deleteResourceType(getResourceType());
-                    }
-                }
-            });
-        }
+    @Override
+    public boolean isReadOnly() {
+        return super.isReadOnly() && resourceTypeEditor.isReadOnly();
     }
 
     /**
-     * Save resource type.
+     * Gets the resource type name.
      *
-     * @param resourceType the resource type
+     * @return the resource type name
      */
-    public abstract void saveResourceType(ResourceType resourceType);
-
-    /**
-     * Delete resource type.
-     *
-     * @param resourceType the resource type
-     */
-    public abstract void deleteResourceType(ResourceType resourceType);
-
+    public String getResourceTypeName() {
+        return name.getValue();
+    }
 }

@@ -2,22 +2,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2009-2013 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2013 The OpenNMS Group, Inc.
+ * Copyright (C) 2013-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -40,14 +40,27 @@
 <%@page language="java"
         contentType="text/html"
         session="true"
-        import="org.opennms.web.alarm.*,org.opennms.web.servlet.MissingParameterException,org.opennms.core.utils.WebSecurityUtils,org.opennms.netmgt.model.OnmsSeverity" %>
+        import="
+          org.opennms.web.alarm.*,
+          org.opennms.web.alarm.AcknowledgeType,
+          org.opennms.web.alarm.filter.AlarmCriteria,
+          org.opennms.web.alarm.filter.NodeFilter,
+          org.opennms.web.filter.Filter,
+          org.opennms.web.servlet.MissingParameterException,
+          org.opennms.core.spring.BeanUtils,
+          org.opennms.core.utils.WebSecurityUtils,
+          org.opennms.netmgt.model.OnmsAlarm,
+          org.opennms.netmgt.model.OnmsSeverity,
+          org.opennms.netmgt.dao.api.AlarmRepository
+        "
+%>
 
 <%
     int nodeId = -1;
     int maxSeverity = 3;
     int ackCount    = 0;
     int unackCount  = 0;
-    Alarm[] alarms = new Alarm[0];
+    OnmsAlarm[] alarms = new OnmsAlarm[0];
 
     String nodeIdStr = request.getParameter("nodeId");
 
@@ -55,13 +68,18 @@
         throw new MissingParameterException("node");
     } else {
         nodeId = WebSecurityUtils.safeParseInt(nodeIdStr);
-        alarms = AlarmFactory.getAlarmsForNode(nodeId, SortStyle.ID, AcknowledgeType.BOTH, getServletContext());
+        NodeFilter filter = new NodeFilter(nodeId, getServletContext());
+        AlarmCriteria criteria = new AlarmCriteria(new Filter[] { filter }, SortStyle.ID, AcknowledgeType.BOTH, AlarmCriteria.NO_LIMIT, AlarmCriteria.NO_OFFSET);
+        AlarmRepository repository = BeanUtils.getBean("daoContext", "alarmRepository", AlarmRepository.class);
+        if (repository != null) {
+            alarms = repository.getMatchingAlarms(AlarmUtil.getOnmsCriteria(criteria));
+        }
     }
 
     boolean nodeDown = false;
     int intfDown = 0;
     int servDown = 0;
-    for (Alarm alarm : alarms) {
+    for (OnmsAlarm alarm : alarms) {
         if (alarm.getSeverity().getId() <= 3) {
             continue;
         }
@@ -79,7 +97,7 @@
         } else {
             unackCount++;
         }
-        if (alarm.getSeverity().getId() > maxSeverity) {
+        if (alarm.getSeverity().getId() > maxSeverity && alarm.getAckTime() == null) {
             maxSeverity = alarm.getSeverity().getId();
         }
     }

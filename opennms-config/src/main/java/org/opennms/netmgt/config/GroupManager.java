@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2002-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -42,6 +42,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Set;
 
 import org.exolab.castor.xml.MarshalException;
 import org.exolab.castor.xml.Marshaller;
@@ -49,9 +51,8 @@ import org.exolab.castor.xml.ValidationException;
 import org.opennms.core.utils.OwnedInterval;
 import org.opennms.core.utils.OwnedIntervalSequence;
 import org.opennms.core.utils.Owner;
-import org.opennms.core.utils.ThreadCategory;
 import org.opennms.core.xml.CastorUtils;
-import org.opennms.netmgt.EventConstants;
+import org.opennms.netmgt.config.api.GroupConfig;
 import org.opennms.netmgt.config.groups.Group;
 import org.opennms.netmgt.config.groups.Groupinfo;
 import org.opennms.netmgt.config.groups.Groups;
@@ -60,8 +61,11 @@ import org.opennms.netmgt.config.groups.Role;
 import org.opennms.netmgt.config.groups.Roles;
 import org.opennms.netmgt.config.groups.Schedule;
 import org.opennms.netmgt.config.users.DutySchedule;
+import org.opennms.netmgt.events.api.EventConstants;
 import org.opennms.netmgt.model.OnmsGroup;
 import org.opennms.netmgt.model.OnmsGroupList;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 /**
@@ -72,14 +76,54 @@ import org.opennms.netmgt.model.OnmsGroupList;
  * @author <a href="mailto:ayres@net.orst.edu">Bill Ayres</a>
  * @author <a href="mailto:dj@gregor.com">DJ Gregor</a>
  */
-public abstract class GroupManager {
+public abstract class GroupManager implements GroupConfig {
+
+    public static class OnmsGroupMapper {
+
+        public Group map(OnmsGroup inputGroup) {
+            if (inputGroup == null) return null;
+            Group castorGroup = new Group();
+            castorGroup.setName(inputGroup.getName());
+            castorGroup.setComments(inputGroup.getComments());
+            castorGroup.setUser(inputGroup.getUsers().toArray(EMPTY_STRING_ARRAY));
+            return castorGroup;
+        }
+
+        public OnmsGroup map(Group inputGroup) {
+            if (inputGroup == null) return null;
+            final OnmsGroup xmlGroup = new OnmsGroup(inputGroup.getName());
+            xmlGroup.setComments(inputGroup.getComments());
+            xmlGroup.setUsers(inputGroup.getUserCollection());
+            return xmlGroup;
+        }
+
+        public Collection<OnmsGroup> map(Collection<Group> inputGroups) {
+            Collection<OnmsGroup> xmlGroups = new ArrayList<OnmsGroup>();
+            for (Group eachGroup : inputGroups) {
+                if (eachGroup == null) continue;
+                xmlGroups.add(map(eachGroup));
+            }
+            return xmlGroups;
+        }
+    }
+
+    public static class OnmsGroupListMapper {
+        public OnmsGroupList map(Collection<OnmsGroup> groups) {
+            final OnmsGroupList list = new OnmsGroupList();
+            list.addAll(groups);
+            list.setTotalCount(list.getCount());
+            return list;
+        }
+    }
+
+    private static final Logger LOG = LoggerFactory.getLogger(GroupManager.class);
 
     private static final String[] EMPTY_STRING_ARRAY = new String[0];
 
     /**
      * The duty schedules for each group
      */
-    protected static HashMap<String, List<DutySchedule>> m_dutySchedules;
+    protected static Map<String, List<DutySchedule>> m_dutySchedules;
 
     /**
      * A mapping of Group object by name
@@ -144,25 +188,14 @@ public abstract class GroupManager {
     }
 
     public OnmsGroupList getOnmsGroupList() throws MarshalException, ValidationException, IOException {
-        final OnmsGroupList list = new OnmsGroupList();
-        
-        for (final String name : getGroupNames()) {
-            list.add(getOnmsGroup(name));
-        }
-        list.setTotalCount(list.getCount());
-
-        return list;
+        return new OnmsGroupListMapper().map(
+                new OnmsGroupMapper().map(getGroups().values()));
     }
 
     public OnmsGroup getOnmsGroup(final String groupName) throws MarshalException, ValidationException, IOException {
         final Group castorGroup = getGroup(groupName);
         if (castorGroup == null) return null;
-        
-        final OnmsGroup group = new OnmsGroup(groupName);
-        group.setComments(castorGroup.getComments());
-        group.setUsers(castorGroup.getUserCollection());
-        
-        return group;
+        return new OnmsGroupMapper().map(castorGroup);
     }
 
     public synchronized void save(final OnmsGroup group) throws Exception {
@@ -276,14 +309,13 @@ public abstract class GroupManager {
      */
     private static void buildDutySchedules(Map<String, Group> groups) {
         m_dutySchedules = new HashMap<String, List<DutySchedule>>();
-        Iterator<String> i = groups.keySet().iterator();
-        while(i.hasNext()) {
-            String key = i.next();
-            Group curGroup = groups.get(key);
+        for (final Entry<String, Group> entry : groups.entrySet()) {
+            final String key = entry.getKey();
+            final Group curGroup = entry.getValue();
             if (curGroup.getDutyScheduleCount() > 0) {
-                List<DutySchedule> dutyList = new ArrayList<DutySchedule>();
-                for (String duty : curGroup.getDutyScheduleCollection()) {
-                	dutyList.add(new DutySchedule(duty));
+                final List<DutySchedule> dutyList = new ArrayList<DutySchedule>();
+                for (final String duty : curGroup.getDutyScheduleCollection()) {
+                    dutyList.add(new DutySchedule(duty));
                 }
                 m_dutySchedules.put(key, dutyList);
             }
@@ -328,7 +360,6 @@ public abstract class GroupManager {
      * @throws org.exolab.castor.xml.ValidationException if any.
      */
     public long groupNextOnDuty(String group, Calendar time) throws IOException, MarshalException, ValidationException {
-        ThreadCategory log = ThreadCategory.getInstance(this.getClass());
         long next = -1;
         update();
         //if the group has no duty schedules then it is on duty
@@ -340,9 +371,7 @@ public abstract class GroupManager {
             DutySchedule curSchedule = dutySchedules.get(i);
             long tempnext =  curSchedule.nextInSchedule(time);
             if( tempnext < next || next == -1 ) {
-                if (log.isDebugEnabled()) {
-                    log.debug("isGroupOnDuty: On duty in " + tempnext + " millisec from schedule " + i);
-                }
+                LOG.debug("isGroupOnDuty: On duty in {} millisec from schedule {}", i, tempnext);
                 next = tempnext;
             }
         }
@@ -531,7 +560,8 @@ public abstract class GroupManager {
      * @return an array of {@link java.lang.String} objects.
      */
     public String[] getRoleNames() {
-        return (String[]) m_roles.keySet().toArray(new String[m_roles.keySet().size()]);
+        final Set<String> keys = m_roles.keySet();
+        return (String[]) keys.toArray(new String[keys.size()]);
     }
     
     /**

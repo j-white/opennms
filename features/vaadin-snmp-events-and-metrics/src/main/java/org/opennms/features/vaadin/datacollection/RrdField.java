@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2012-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -25,34 +25,28 @@
  *     http://www.opennms.org/
  *     http://www.opennms.com/
  *******************************************************************************/
-package org.opennms.features.vaadin.datacollection;
 
-import java.util.ArrayList;
-import java.util.List;
+package org.opennms.features.vaadin.datacollection;
 
 import org.opennms.features.vaadin.api.OnmsBeanContainer;
 import org.opennms.netmgt.config.datacollection.Rrd;
-import org.vaadin.addon.customfield.CustomField;
+import org.vaadin.dialogs.ConfirmDialog;
 
 import com.vaadin.data.Container;
-import com.vaadin.data.Property;
-import com.vaadin.data.validator.DoubleValidator;
-import com.vaadin.data.validator.IntegerValidator;
+import com.vaadin.data.util.converter.StringToDoubleConverter;
+import com.vaadin.data.util.converter.StringToIntegerConverter;
 import com.vaadin.ui.Alignment;
 import com.vaadin.ui.Button;
 import com.vaadin.ui.ComboBox;
 import com.vaadin.ui.Component;
+import com.vaadin.ui.CustomField;
 import com.vaadin.ui.DefaultFieldFactory;
 import com.vaadin.ui.Field;
 import com.vaadin.ui.HorizontalLayout;
+import com.vaadin.ui.Notification;
 import com.vaadin.ui.Table;
 import com.vaadin.ui.TextField;
 import com.vaadin.ui.VerticalLayout;
-import com.vaadin.ui.themes.Runo;
-
-import de.steinwedel.vaadin.MessageBox;
-import de.steinwedel.vaadin.MessageBox.ButtonType;
-import de.steinwedel.vaadin.MessageBox.EventListener;
 
 /**
  * The RRD Field.
@@ -60,40 +54,37 @@ import de.steinwedel.vaadin.MessageBox.EventListener;
  * @author <a href="mailto:agalue@opennms.org">Alejandro Galue</a> 
  */
 @SuppressWarnings("serial")
-public class RrdField extends CustomField implements Button.ClickListener {
+public class RrdField extends CustomField<Rrd> implements Button.ClickListener {
 
     /** The Step. */
-    private TextField step = new TextField();
-
-    /** The RRA Table. */
-    private Table table = new Table();
+    private final TextField step = new TextField("RRD Step (in seconds)");
 
     /** The Container. */
-    private OnmsBeanContainer<RRA> container = new OnmsBeanContainer<RRA>(RRA.class);
+    private final OnmsBeanContainer<RRA> container = new OnmsBeanContainer<RRA>(RRA.class);
+
+    /** The RRA Table. */
+    private final Table table = new Table("RRA List", container);
 
     /** The Toolbar. */
-    private HorizontalLayout toolbar = new HorizontalLayout();
+    private final HorizontalLayout toolbar = new HorizontalLayout();
 
     /** The add button. */
-    private Button add;
+    private final Button add = new Button("Add", this);
 
     /** The delete button. */
-    private Button delete;
+    private final Button delete = new Button("Delete", this);
 
     /**
      * Instantiates a new RRD field.
      */
     public RrdField() {
-        step.setCaption("RRD Step (in seconds)");
         step.setRequired(true);
         step.setImmediate(true);
         step.setValidationVisible(true);
         step.setNullSettingAllowed(false);
-        step.addValidator(new IntegerValidator("Invalid integer {0}"));
+        step.setConverter(new StringToIntegerConverter());
 
-        table.setCaption("RRA List");
-        table.setContainerDataSource(container);
-        table.setStyleName(Runo.TABLE_SMALL);
+        table.addStyleName("light");
         table.setVisibleColumns(new Object[]{"cf", "xff", "steps", "rows"});
         table.setColumnHeaders(new String[]{"Consolidation Function", "XFF", "Steps", "Rows"});
         table.setEditable(!isReadOnly());
@@ -103,7 +94,7 @@ public class RrdField extends CustomField implements Button.ClickListener {
         table.setWidth("100%");
         table.setTableFieldFactory(new DefaultFieldFactory() {
             @Override
-            public Field createField(Container container, Object itemId, Object propertyId, Component uiContext) {
+            public Field<?> createField(Container container, Object itemId, Object propertyId, Component uiContext) {
                 if (propertyId.equals("cf")) {
                     final ComboBox field = new ComboBox();
                     field.setImmediate(true);
@@ -119,43 +110,44 @@ public class RrdField extends CustomField implements Button.ClickListener {
                     final TextField field = new TextField();
                     field.setImmediate(true);
                     field.setRequired(true);
-                    field.setNullRepresentation("");
                     field.setNullSettingAllowed(false);
-                    field.addValidator(new IntegerValidator("Invalid integer {0}"));
+                    field.setConverter(new StringToIntegerConverter());
                     return field;
                 }
                 if (propertyId.equals("xff")) {
                     final TextField field = new TextField();
                     field.setImmediate(true);
                     field.setRequired(true);
-                    field.setNullRepresentation("");
                     field.setNullSettingAllowed(false);
-                    field.addValidator(new DoubleValidator("Invalid double {0}"));
+                    field.setConverter(new StringToDoubleConverter());
                     return field;
                 }
                 return null;
             }
         });
 
-        add = new Button("Add", (Button.ClickListener) this);
-        delete = new Button("Delete", (Button.ClickListener) this);
         toolbar.addComponent(add);
         toolbar.addComponent(delete);
         toolbar.setVisible(table.isEditable());
+    }
 
+    /* (non-Javadoc)
+     * @see com.vaadin.ui.CustomField#initContent()
+     */
+    @Override
+    public Component initContent() {
         VerticalLayout layout = new VerticalLayout();
         layout.addComponent(step);
         layout.addComponent(table);
         layout.addComponent(toolbar);
         layout.setComponentAlignment(toolbar, Alignment.MIDDLE_RIGHT);
-
-        setWriteThrough(false);
-        setCompositionRoot(layout);
+        return layout;
     }
 
     /**
      * Instantiates a new RRD field.
-     * 
+     *
+     * @param caption the caption
      * @Param caption the field's caption
      */
     public RrdField(String caption) {
@@ -164,48 +156,45 @@ public class RrdField extends CustomField implements Button.ClickListener {
     }
 
     /* (non-Javadoc)
-     * @see org.vaadin.addon.customfield.CustomField#getType()
+     * @see com.vaadin.ui.AbstractField#getType()
      */
     @Override
-    public Class<?> getType() {
+    public Class<Rrd> getType() {
         return Rrd.class;
     }
 
     /* (non-Javadoc)
-     * @see org.vaadin.addon.customfield.CustomField#setPropertyDataSource(com.vaadin.data.Property)
+     * @see com.vaadin.ui.AbstractField#setInternalValue(java.lang.Object)
      */
     @Override
-    public void setPropertyDataSource(Property newDataSource) {
-        Object value = newDataSource.getValue();
-        if (value instanceof Rrd) {
-            Rrd dto = (Rrd) value;
-            step.setValue(dto.getStep().toString());
-            container.removeAllItems();
-            List<RRA> rras = new ArrayList<RRA>();
-            for (String rra : dto.getRraCollection()) {
-                try {
-                    rras.add(new RRA(rra));
-                } catch (Exception e) {} // Silently discard any bad RRAs.
-            }
-            container.addAll(rras);
-            table.setPageLength(dto.getRraCount());
-        } else {
-            throw new ConversionException("Invalid type");
+    protected void setInternalValue(Rrd rrd) {
+        boolean stepState = step.isReadOnly();
+        step.setReadOnly(false);
+        step.setValue(rrd.getStep().toString());
+        if (stepState) {
+            step.setReadOnly(true);
         }
-        super.setPropertyDataSource(newDataSource);
+        container.removeAllItems();
+        for (String rra : rrd.getRras()) {
+            container.addOnmsBean(new RRA(rra));
+        }
     }
 
     /* (non-Javadoc)
-     * @see org.vaadin.addon.customfield.CustomField#getValue()
+     * @see com.vaadin.ui.AbstractField#getInternalValue()
      */
     @Override
-    public Object getValue() {
-        Rrd dto = new Rrd();
-        dto.setStep(new Integer((String) step.getValue()));
-        for (Object itemId: container.getItemIds()) {
-            dto.addRra(container.getItem(itemId).getBean().getRra());
+    protected Rrd getInternalValue() {
+        Rrd rrd = new Rrd();
+        try {
+            rrd.setStep(Integer.valueOf((String) step.getValue()));
+        } catch (NumberFormatException e) {
+            rrd.setStep(null);
         }
-        return dto;
+        for (RRA rra: container.getOnmsBeans()) {
+            rrd.addRra(rra.getRra());
+        }
+        return rrd;
     }
 
     /* (non-Javadoc)
@@ -222,6 +211,7 @@ public class RrdField extends CustomField implements Button.ClickListener {
     /* (non-Javadoc)
      * @see com.vaadin.ui.Button.ClickListener#buttonClick(com.vaadin.ui.Button.ClickEvent)
      */
+    @Override
     public void buttonClick(Button.ClickEvent event) {
         final Button btn = event.getButton();
         if (btn == add) {
@@ -242,7 +232,6 @@ public class RrdField extends CustomField implements Button.ClickListener {
         rra.setSteps(0);
         rra.setRows(0);
         container.addOnmsBean(rra);
-        table.setCurrentPageFirstItemIndex(container.size());
     }
 
     /**
@@ -251,18 +240,16 @@ public class RrdField extends CustomField implements Button.ClickListener {
     private void deleteHandler() {
         final Object itemId = table.getValue();
         if (itemId == null) {
-            getApplication().getMainWindow().showNotification("Please select a RRA from the table.");
+            Notification.show("Please select a RRA from the table.");
         } else {
-            MessageBox mb = new MessageBox(getApplication().getMainWindow(),
-                                           "Are you sure?",
-                                           MessageBox.Icon.QUESTION,
-                                           "Do you really want to remove the selected RRA?<br/>This action cannot be undone.",
-                                           new MessageBox.ButtonConfig(MessageBox.ButtonType.YES, "Yes"),
-                                           new MessageBox.ButtonConfig(MessageBox.ButtonType.NO, "No"));
-            mb.addStyleName(Runo.WINDOW_DIALOG);
-            mb.show(new EventListener() {
-                public void buttonClicked(ButtonType buttonType) {
-                    if (buttonType == MessageBox.ButtonType.YES) {
+            ConfirmDialog.show(getUI(),
+                               "Are you sure?",
+                               "Do you really want to remove the selected RRA?\nThis action cannot be undone.",
+                               "Yes",
+                               "No",
+                               new ConfirmDialog.Listener() {
+                public void onClose(ConfirmDialog dialog) {
+                    if (dialog.isConfirmed()) {
                         table.removeItem(itemId);
                     }
                 }
@@ -270,4 +257,13 @@ public class RrdField extends CustomField implements Button.ClickListener {
         }
     }
 
+    /**
+     * Gets the step value.
+     *
+     * @return the step value
+     */
+    public Integer getStepValue() {
+        final String value = step.getValue();
+        return value == null ? null : Integer.valueOf(value);
+    }
 }

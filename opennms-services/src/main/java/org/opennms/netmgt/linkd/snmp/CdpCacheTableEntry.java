@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2006-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -31,10 +31,10 @@ package org.opennms.netmgt.linkd.snmp;
 import java.net.InetAddress;
 
 import org.opennms.core.utils.InetAddressUtils;
-import org.opennms.netmgt.capsd.snmp.NamedSnmpVar;
-import org.opennms.netmgt.capsd.snmp.SnmpStore;
+import org.opennms.netmgt.snmp.NamedSnmpVar;
 import org.opennms.netmgt.snmp.SnmpObjId;
 import org.opennms.netmgt.snmp.SnmpResult;
+import org.opennms.netmgt.snmp.SnmpStore;
 import org.opennms.netmgt.snmp.SnmpUtils;
 
 /**
@@ -172,7 +172,7 @@ public final class CdpCacheTableEntry extends SnmpStore {
 		 *  indicates no Port-ID field (TLV) was reported in the
 		 *  most recent CDP message.</P>
 		 */
-		new NamedSnmpVar(NamedSnmpVar.SNMPOCTETSTRING, CDP_DEVICEPORT, ".1.3.6.1.4.1.9.9.23.1.2.1.1.7", 6)
+		new NamedSnmpVar(NamedSnmpVar.SNMPOCTETSTRING, CDP_DEVICEPORT, ".1.3.6.1.4.1.9.9.23.1.2.1.1.7", 7)
 
 		/**
 		 * <P>The Device's Hardware Platform as reported in the most
@@ -446,6 +446,7 @@ public final class CdpCacheTableEntry extends SnmpStore {
 	 */
 	private static InetAddress getIpAddressByHexString(String ipaddrhexstrng) {
 
+	    try {
 		long ipAddr = Long.parseLong(ipaddrhexstrng, 16);
 		byte[] bytes = new byte[4];
 		bytes[3] = (byte) (ipAddr & 0xff);
@@ -454,6 +455,10 @@ public final class CdpCacheTableEntry extends SnmpStore {
 		bytes[0] = (byte) ((ipAddr >> 24) & 0xff);
 
 		return InetAddressUtils.getInetAddress(bytes);
+	    } catch (NumberFormatException nfe) {
+	       
+	    }
+		return null;
 	}
 
 

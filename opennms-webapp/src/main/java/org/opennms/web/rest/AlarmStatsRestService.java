@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2011-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2011-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -51,10 +51,11 @@ import org.opennms.core.criteria.Alias.JoinType;
 import org.opennms.core.criteria.Criteria;
 import org.opennms.core.criteria.CriteriaBuilder;
 import org.opennms.core.criteria.Fetch.FetchType;
-import org.opennms.core.utils.LogUtils;
 import org.opennms.netmgt.dao.stats.AlarmStatisticsService;
 import org.opennms.netmgt.model.OnmsAlarm;
 import org.opennms.netmgt.model.OnmsSeverity;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
@@ -73,6 +74,9 @@ import com.sun.jersey.spi.resource.PerRequest;
 @Path("stats/alarms")
 @Transactional
 public class AlarmStatsRestService extends AlarmRestServiceBase {
+	
+	private static final Logger LOG = LoggerFactory.getLogger(AlarmStatsRestService.class);
+
 
     private static final String[] EMPTY_STRING_ARRAY = new String[0];
 
@@ -127,9 +131,7 @@ public class AlarmStatsRestService extends AlarmRestServiceBase {
         final CriteriaBuilder builder = getCriteriaBuilder(m_uriInfo.getQueryParameters(), false);
 
         // note: this is just the *total count* criteria, so no ordering, and count everything
-        builder.clearOrder();
-        builder.limit(null);
-        builder.offset(0);
+        builder.count();
 
         if (severity != null) {
             builder.eq("severity", severity);
@@ -137,7 +139,7 @@ public class AlarmStatsRestService extends AlarmRestServiceBase {
 
         final Criteria criteria = builder.toCriteria();
         
-        LogUtils.debugf(this, "criteria = %s", criteria);
+        LOG.debug("criteria = {}", criteria);
 
         final int count = m_statisticsService.getTotalCount(criteria);
         stats.setTotalCount(count);
@@ -157,7 +159,7 @@ public class AlarmStatsRestService extends AlarmRestServiceBase {
         builder.orderBy("id").desc();
         builder.limit(1);
         final Criteria criteria = builder.toCriteria();
-        LogUtils.debugf(this, "getNewestAcknowledged(%s) criteria = %s", severity, criteria);
+        LOG.debug("getNewestAcknowledged({}) criteria = {}", severity, criteria);
         return m_statisticsService.getAcknowledged(criteria);
     }
 
@@ -167,7 +169,7 @@ public class AlarmStatsRestService extends AlarmRestServiceBase {
         builder.orderBy("id").desc();
         builder.limit(1);
         final Criteria criteria = builder.toCriteria();
-        LogUtils.debugf(this, "getNewestUnacknowledged(%s) criteria = %s", severity, criteria);
+        LOG.debug("getNewestUnacknowledged({}) criteria = {}", severity, criteria);
         return m_statisticsService.getUnacknowledged(criteria);
     }
 
@@ -177,7 +179,7 @@ public class AlarmStatsRestService extends AlarmRestServiceBase {
         builder.orderBy("id").asc();
         builder.limit(1);
         final Criteria criteria = builder.toCriteria();
-        LogUtils.debugf(this, "getOldestAcknowledged(%s) criteria = %s", severity, criteria);
+        LOG.debug("getOldestAcknowledged({}) criteria = {}", severity, criteria);
         return m_statisticsService.getAcknowledged(criteria);
     }
 
@@ -187,7 +189,7 @@ public class AlarmStatsRestService extends AlarmRestServiceBase {
         builder.orderBy("id").asc();
         builder.limit(1);
         final Criteria criteria = builder.toCriteria();
-        LogUtils.debugf(this, "getOldestUnacknowledged(%s) criteria = %s", severity, criteria);
+        LOG.debug("getOldestUnacknowledged({}) criteria = {}", severity, criteria);
         return m_statisticsService.getUnacknowledged(criteria);
     }
 

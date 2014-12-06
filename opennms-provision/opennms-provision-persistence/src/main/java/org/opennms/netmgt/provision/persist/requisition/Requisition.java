@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2009-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2009-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -47,6 +47,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.Map.Entry;
 
 import javax.persistence.Transient;
 import javax.xml.bind.ValidationException;
@@ -61,7 +62,8 @@ import javax.xml.datatype.DatatypeFactory;
 import javax.xml.datatype.XMLGregorianCalendar;
 
 import org.apache.commons.lang.builder.CompareToBuilder;
-import org.opennms.core.utils.LogUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.opennms.core.xml.ValidateUsing;
 import org.opennms.netmgt.provision.persist.OnmsNodeRequisition;
 import org.opennms.netmgt.provision.persist.RequisitionVisitor;
@@ -77,6 +79,7 @@ import org.springframework.core.io.Resource;
 @XmlRootElement(name="model-import")
 @ValidateUsing("model-import.xsd")
 public class Requisition implements Serializable, Comparable<Requisition> {
+    private static final Logger LOG = LoggerFactory.getLogger(Requisition.class);
     private static final long serialVersionUID = 1629774241824443273L;
 
     @XmlTransient
@@ -108,7 +111,7 @@ public class Requisition implements Serializable, Comparable<Requisition> {
         if (m_nodes != null) {
             for (RequisitionNode n : m_nodes) {
                 if (n.getForeignId().equals(foreignId)) {
-                	LogUtils.debugf(this, "returning node '%s' for foreign id '%s'", n, foreignId);
+                	LOG.debug("returning node '{}' for foreign id '{}'", n, foreignId);
                     return n;
                 }
             }
@@ -237,7 +240,7 @@ public class Requisition implements Serializable, Comparable<Requisition> {
         try {
             m_dateStamp = DatatypeFactory.newInstance().newXMLGregorianCalendar(new GregorianCalendar());
         } catch (final DatatypeConfigurationException e) {
-            LogUtils.warnf(this, e, "unable to update datestamp");
+            LOG.warn("unable to update datestamp", e);
         }
     }
 
@@ -288,7 +291,7 @@ public class Requisition implements Serializable, Comparable<Requisition> {
         try {
             m_lastImport = DatatypeFactory.newInstance().newXMLGregorianCalendar(new GregorianCalendar());
         } catch (final DatatypeConfigurationException e) {
-            LogUtils.warnf(this, e, "unable to update last import datestamp");
+            LOG.warn("unable to update last import datestamp", e);
         }
     }
 
@@ -348,7 +351,7 @@ public class Requisition implements Serializable, Comparable<Requisition> {
         updateNodeCacheIfNecessary();
 
         if (visitor == null) {
-            LogUtils.warnf(this, "no visitor specified!");
+            LOG.warn("no visitor specified!");
             return;
         }
 
@@ -460,8 +463,9 @@ public class Requisition implements Serializable, Comparable<Requisition> {
 			foreignSourceCounts.put(foreignId, count == null? 1 : ++count);
     	}
     	
-    	for (final String foreignId : foreignSourceCounts.keySet()) {
-    		final Integer count = foreignSourceCounts.get(foreignId);
+    	for (final Entry<String,Integer> entry : foreignSourceCounts.entrySet()) {
+    	    final String foreignId = entry.getKey();
+    		final Integer count = entry.getValue();
     		if (count > 1) {
     			errors.add( foreignId + " (" + count + " found)");
     		}
@@ -494,7 +498,7 @@ public class Requisition implements Serializable, Comparable<Requisition> {
         try {
             setDateStamp(DatatypeFactory.newInstance().newXMLGregorianCalendar(calendar));
         } catch (final DatatypeConfigurationException e) {
-            LogUtils.warnf(this, "Failed to turn %s into an XML date.", date);
+            LOG.warn("Failed to turn {} into an XML date.", date);
         }
     }
 }

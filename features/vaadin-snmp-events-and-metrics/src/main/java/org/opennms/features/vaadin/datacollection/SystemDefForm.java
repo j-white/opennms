@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2012-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -25,96 +25,71 @@
  *     http://www.opennms.org/
  *     http://www.opennms.com/
  *******************************************************************************/
+
 package org.opennms.features.vaadin.datacollection;
 
-import java.util.ArrayList;
 import java.util.List;
 
-import org.opennms.netmgt.config.DataCollectionConfigDao;
-import org.opennms.netmgt.config.datacollection.DatacollectionGroup;
-import org.opennms.netmgt.config.datacollection.Group;
+import org.opennms.netmgt.config.datacollection.Collect;
 import org.opennms.netmgt.config.datacollection.SystemDef;
 
-import com.vaadin.data.util.BeanItem;
-import com.vaadin.ui.Button;
-import com.vaadin.ui.Button.ClickEvent;
-import com.vaadin.ui.Button.ClickListener;
-import com.vaadin.ui.themes.Runo;
-import com.vaadin.ui.Form;
-import com.vaadin.ui.HorizontalLayout;
-
-import de.steinwedel.vaadin.MessageBox;
-import de.steinwedel.vaadin.MessageBox.ButtonType;
-import de.steinwedel.vaadin.MessageBox.EventListener;
+import com.vaadin.data.fieldgroup.BeanFieldGroup;
+import com.vaadin.data.fieldgroup.FieldGroup.CommitException;
+import com.vaadin.ui.CustomComponent;
+import com.vaadin.ui.FormLayout;
+import com.vaadin.ui.TextField;
 
 /**
  * The Class System Definition Form.
  * 
  * @author <a href="mailto:agalue@opennms.org">Alejandro Galue</a> 
  */
-// TODO when a new group is added, the group list passed to SystemDefFieldFactory must be updated.
+// TODO when a new group is added, the group list passed to this form (i.e. groupNames) must be updated.
 @SuppressWarnings("serial")
-public abstract class SystemDefForm extends Form implements ClickListener {
+public class SystemDefForm extends CustomComponent {
 
-    /** The Constant FORM_ITEMS. */
-    public static final String[] FORM_ITEMS = new String[] {
-        "name",
-        "systemDefChoice",
-        "collect"
-    };
+    /** The name. */
+    final TextField name = new TextField("Group Name");
 
-    /** The Edit button. */
-    private final Button edit = new Button("Edit");
+    /** The system definition choice. */
+    final SystemDefChoiceField systemDefChoice = new SystemDefChoiceField("System OID/Mask");
 
-    /** The Delete button. */
-    private final Button delete = new Button("Delete");
+    /** The collect field. */
+    final CollectField collect;
 
-    /** The Save button. */
-    private final Button save = new Button("Save");
+    /** The Event editor. */
+    final BeanFieldGroup<SystemDef> systemDefEditor = new BeanFieldGroup<SystemDef>(SystemDef.class);
 
-    /** The Cancel button. */
-    private final Button cancel = new Button("Cancel");
+    /** The event layout. */
+    final FormLayout systemDefLayout = new FormLayout();
 
     /**
      * Instantiates a new system definition form.
      *
-     * @param dataCollectionConfigDao the OpenNMS Data Collection Configuration DAO
-     * @param source the OpenNMS Data Collection Group object
+     * @param groupNames the group names
      */
-    public SystemDefForm(final DataCollectionConfigDao dataCollectionConfigDao, final DatacollectionGroup source) {
+    public SystemDefForm(final List<String> groupNames) {
         setCaption("System Definition Detail");
-        setWriteThrough(false);
-        setVisible(false);
+        systemDefLayout.setMargin(true);
 
-        // Adding all groups already defined on this source
-        final List<String> groups = new ArrayList<String>();
-        for (Group group : source.getGroupCollection()) {
-            groups.add(group.getName());
-        }
-        // Adding all defined groups
-        groups.addAll(dataCollectionConfigDao.getAvailableMibGroups());
+        name.setRequired(true);
+        name.setWidth("100%");
+        systemDefLayout.addComponent(name);
 
-        setFormFieldFactory(new SystemDefFieldFactory(groups));
-        initToolbar();
-    }
+        systemDefChoice.setRequired(true);
+        systemDefLayout.addComponent(systemDefChoice);
 
-    /**
-     * Initialize the Toolbar.
-     */
-    private void initToolbar() {
-        save.addListener((ClickListener)this);
-        cancel.addListener((ClickListener)this);
-        edit.addListener((ClickListener)this);
-        delete.addListener((ClickListener)this);
+        collect = new CollectField("MIB Groups", groupNames);
+        collect.setRequired(true);
+        systemDefLayout.addComponent(collect);
 
-        HorizontalLayout toolbar = new HorizontalLayout();
-        toolbar.setSpacing(true);
-        toolbar.addComponent(edit);
-        toolbar.addComponent(delete);
-        toolbar.addComponent(save);
-        toolbar.addComponent(cancel);
+        setSystemDef(createBasicSystemDef());
 
-        setFooter(toolbar);
+        systemDefEditor.bind(name, "name");
+        systemDefEditor.bind(systemDefChoice, "systemDefChoice");
+        systemDefEditor.bind(collect, "collect");
+
+        setCompositionRoot(systemDefLayout);
     }
 
     /**
@@ -122,75 +97,71 @@ public abstract class SystemDefForm extends Form implements ClickListener {
      *
      * @return the system definition
      */
-    @SuppressWarnings("unchecked")
-    private SystemDef getSystemDef() {
-        if (getItemDataSource() instanceof BeanItem) {
-            BeanItem<SystemDef> item = (BeanItem<SystemDef>) getItemDataSource();
-            return item.getBean();
-        }
-        return null;
+    public SystemDef getSystemDef() {
+        return systemDefEditor.getItemDataSource().getBean();
+    }
+
+    /**
+     * Sets the system definition.
+     *
+     * @param systemDef the new system definition
+     */
+    public void setSystemDef(SystemDef systemDef) {
+        systemDefEditor.setItemDataSource(systemDef);
+    }
+
+    /**
+     * Creates the basic system definition.
+     *
+     * @return the system definition
+     */
+    public SystemDef createBasicSystemDef() {
+        SystemDef sysDef = new SystemDef();
+        sysDef.setName("New System Definition");
+        sysDef.setSysoidMask(".1.3.6.1.4.1.");
+        sysDef.setCollect(new Collect());
+        return sysDef;
+    }
+
+    /**
+     * Discard.
+     */
+    public void discard() {
+        systemDefEditor.discard();
+    }
+
+    /**
+     * Commit.
+     *
+     * @throws CommitException the commit exception
+     */
+    public void commit() throws CommitException {
+        systemDefEditor.commit();
     }
 
     /* (non-Javadoc)
-     * @see com.vaadin.ui.Form#setReadOnly(boolean)
+     * @see com.vaadin.ui.AbstractComponent#setReadOnly(boolean)
      */
     @Override
     public void setReadOnly(boolean readOnly) {
         super.setReadOnly(readOnly);
-        save.setVisible(!readOnly);
-        cancel.setVisible(!readOnly);
-        edit.setVisible(readOnly);
-        delete.setVisible(readOnly);
+        systemDefEditor.setReadOnly(readOnly);
     }
 
     /* (non-Javadoc)
-     * @see com.vaadin.ui.Button.ClickListener#buttonClick(com.vaadin.ui.Button.ClickEvent)
+     * @see com.vaadin.ui.AbstractComponent#isReadOnly()
      */
-    public void buttonClick(ClickEvent event) {
-        Button source = event.getButton();
-        if (source == save) {
-            commit();
-            setReadOnly(true);
-            saveSystemDef(getSystemDef());
-        }
-        if (source == cancel) {
-            discard();
-            setReadOnly(true);
-        }
-        if (source == edit) {
-            setReadOnly(false);
-        }
-        if (source == delete) {
-            MessageBox mb = new MessageBox(getApplication().getMainWindow(),
-                                           "Are you sure?",
-                                           MessageBox.Icon.QUESTION,
-                                           "Do you really want to remove the System Definition" + getSystemDef().getName() + "?<br/>This action cannot be undone.",
-                                           new MessageBox.ButtonConfig(MessageBox.ButtonType.YES, "Yes"),
-                                           new MessageBox.ButtonConfig(MessageBox.ButtonType.NO, "No"));
-            mb.addStyleName(Runo.WINDOW_DIALOG);
-            mb.show(new EventListener() {
-                public void buttonClicked(ButtonType buttonType) {
-                    if (buttonType == MessageBox.ButtonType.YES) {
-                        setVisible(false);
-                        deleteSystemDef(getSystemDef());
-                    }
-                }
-            });
-        }
+    @Override
+    public boolean isReadOnly() {
+        return super.isReadOnly() && systemDefEditor.isReadOnly();
     }
 
     /**
-     * Save system definition.
+     * Gets the system definition name.
      *
-     * @param group the group
+     * @return the system definition name
      */
-    public abstract void saveSystemDef(SystemDef group);
-
-    /**
-     * Delete system definition.
-     *
-     * @param group the group
-     */
-    public abstract void deleteSystemDef(SystemDef group);
-
+    public String getSystemDefName() {
+        return name.getValue();
+    }
 }

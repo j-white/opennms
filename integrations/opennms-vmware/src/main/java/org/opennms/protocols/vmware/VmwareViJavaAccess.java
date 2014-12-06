@@ -1,26 +1,26 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2012-2013 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2013 The OpenNMS Group, Inc.
+ * Copyright (C) 2013-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
- * Additional permission under GNU GPL version 3 section 7
+ * Additional permission under GNU AGPL version 3 section 7
  *
  * If you modify this Program, or any covered work, by linking or
  * combining it with SBLIM (or a modified version of that library),
@@ -64,7 +64,7 @@ import javax.net.ssl.X509TrustManager;
 import org.exolab.castor.xml.MarshalException;
 import org.exolab.castor.xml.ValidationException;
 
-import org.opennms.core.utils.BeanUtils;
+import org.opennms.core.spring.BeanUtils;
 import org.opennms.netmgt.collectd.vmware.vijava.VmwarePerformanceValues;
 import org.opennms.netmgt.config.vmware.VmwareServer;
 import org.opennms.netmgt.dao.VmwareConfigDao;
@@ -279,6 +279,7 @@ public class VmwareViJavaAccess {
         }
 
         HttpsURLConnection.setDefaultHostnameVerifier(new HostnameVerifier() {
+            @Override
             public boolean verify(String s, SSLSession sslSession) {
                 return true;
             }
@@ -606,7 +607,7 @@ public class VmwareViJavaAccess {
         if (m_serviceInstance != null) {
             String apiVersion = m_serviceInstance.getAboutInfo().getApiVersion();
 
-            String arr[] = apiVersion.split("\\.");
+            String[] arr = apiVersion.split("\\.");
 
             if (arr.length > 1) {
                 int apiMajorVersion = Integer.valueOf(arr[0]);

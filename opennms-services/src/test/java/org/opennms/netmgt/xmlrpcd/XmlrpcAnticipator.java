@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2008-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2008-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -34,6 +34,9 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.net.ConnectException;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -47,9 +50,10 @@ import junit.framework.AssertionFailedError;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.builder.HashCodeBuilder;
-import org.apache.log4j.Logger;
 import org.apache.xmlrpc.WebServer;
 import org.apache.xmlrpc.XmlRpcHandler;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 
@@ -158,19 +162,19 @@ public class XmlrpcAnticipator implements XmlRpcHandler {
         }
     }
 
-    private List<XmlrpcCall> m_anticipated = new ArrayList<XmlrpcCall>();
+    private final List<XmlrpcCall> m_anticipated = new ArrayList<XmlrpcCall>();
 
-    private List<XmlrpcCall> m_unanticipated = new ArrayList<XmlrpcCall>();
+    private final List<XmlrpcCall> m_unanticipated = new ArrayList<XmlrpcCall>();
     
     private WebServer m_webServer = null;
     
     private int m_port;
 
     /** default port number */
-    private static final int DEFAULT_PORT_NUMBER = 9000;
+    private static final int DEFAULT_PORT_NUMBER = 59000;
 
     /** logger */
-    private Logger m_logger = Logger.getLogger(getClass().getName());
+    private Logger m_logger = LoggerFactory.getLogger(getClass());
 
     private static final String CHECK_METHOD_NAME = "XmlrpcAnticipatorCheck";
 
@@ -192,7 +196,16 @@ public class XmlrpcAnticipator implements XmlRpcHandler {
     public void setupWebServer() throws IOException {
         m_logger.info("XmlrpcAnticipator starting on port number " + m_port);
 
-        m_webServer = new WebServer(m_port);
+        m_webServer = new WebServer(m_port) {
+            @Override
+            protected ServerSocket createServerSocket(int port, int backlog, InetAddress addr) throws Exception {
+                ServerSocket sock = new ServerSocket();
+                sock.setReuseAddress(true);
+                sock.bind(new InetSocketAddress(addr, port), backlog);
+                return sock;
+            }
+            
+        };
         m_webServer.addHandler("$default", this);
         m_webServer.start();
         waitForStartup();
@@ -286,16 +299,21 @@ public class XmlrpcAnticipator implements XmlRpcHandler {
         }
     }
     
-    public void anticipateCall(String method, Object... args) {
+    public synchronized void anticipateCall(String method, Object... args) {
         Vector<Object> params = new Vector<Object>();
         for(Object arg: args) {
-            params.add(arg);
+            if (arg instanceof Hashtable<?,?>) {
+                params.add(arg);
+            } else {
+                params.add(String.valueOf(arg));
+            }
         }
         m_anticipated.add(new XmlrpcCall(method, params));
     }
 
     // Implements Apache XMLRPC API
     @SuppressWarnings("unchecked")
+    @Override
     public Object execute(String method, Vector vector) {
         if (m_webServer == null) {
             String message = "Hey!  We aren't initialized (anymore)!  "
@@ -328,19 +346,19 @@ public class XmlrpcAnticipator implements XmlRpcHandler {
         return Collections.unmodifiableCollection(m_anticipated);
     }
 
-    public void reset() {
-        m_anticipated = new ArrayList<XmlrpcCall>();
-        m_unanticipated = new ArrayList<XmlrpcCall>();
+    public synchronized void reset() {
+        m_anticipated.clear();
+        m_unanticipated.clear();
     }
 
     /**
      * @return
      */
-    public Collection<XmlrpcCall> unanticipatedEvents() {
+    public synchronized Collection<XmlrpcCall> unanticipatedEvents() {
         return Collections.unmodifiableCollection(m_unanticipated);
     }
 
-    public void verifyAnticipated() {
+    public synchronized void verifyAnticipated() {
         StringBuffer problems = new StringBuffer();
 
         if (m_anticipated.size() > 0) {
@@ -375,6 +393,7 @@ public class XmlrpcAnticipator implements XmlRpcHandler {
         return b.toString();
     }
 
+    @Override
     protected void finalize() {
         try {
             shutdown();

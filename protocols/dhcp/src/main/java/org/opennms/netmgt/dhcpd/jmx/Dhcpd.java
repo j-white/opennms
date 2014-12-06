@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2011-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2002-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -28,7 +28,9 @@
 
 package org.opennms.netmgt.dhcpd.jmx;
 
-import org.opennms.core.utils.ThreadCategory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 
 /**
  * <p>Dhcpd class.</p>
@@ -37,9 +39,13 @@ import org.opennms.core.utils.ThreadCategory;
  * @version $Id: $
  */
 public class Dhcpd implements DhcpdMBean {
+	
+	private static final Logger LOG = LoggerFactory.getLogger(Dhcpd.class);
+
     /**
      * <p>init</p>
      */
+    @Override
     public void init() {
         // No initialization necessary
     }
@@ -47,6 +53,7 @@ public class Dhcpd implements DhcpdMBean {
     /**
      * <p>start</p>
      */
+    @Override
     public void start() {
         org.opennms.netmgt.dhcpd.Dhcpd dhcpd = org.opennms.netmgt.dhcpd.Dhcpd.getInstance();
         dhcpd.start();
@@ -55,6 +62,7 @@ public class Dhcpd implements DhcpdMBean {
     /**
      * <p>stop</p>
      */
+    @Override
     public void stop() {
         org.opennms.netmgt.dhcpd.Dhcpd dhcpd = org.opennms.netmgt.dhcpd.Dhcpd.getInstance();
         dhcpd.stop();
@@ -65,6 +73,7 @@ public class Dhcpd implements DhcpdMBean {
      *
      * @return a int.
      */
+    @Override
     public int getStatus() {
         org.opennms.netmgt.dhcpd.Dhcpd dhcpd = org.opennms.netmgt.dhcpd.Dhcpd.getInstance();
         return dhcpd.getStatus();
@@ -75,6 +84,7 @@ public class Dhcpd implements DhcpdMBean {
      *
      * @return a {@link java.lang.String} object.
      */
+    @Override
     public String status() {
         return org.opennms.core.fiber.Fiber.STATUS_NAMES[getStatus()];
     }
@@ -84,10 +94,11 @@ public class Dhcpd implements DhcpdMBean {
      *
      * @return a {@link java.lang.String} object.
      */
+    @Override
     public String getStatusText() {
         int status = getStatus();
         String statusText = org.opennms.core.fiber.Fiber.STATUS_NAMES[status];
-        ThreadCategory.getInstance(getClass()).debug("getStatusText: status = "+status+", statusText = "+statusText);
+        LOG.debug("getStatusText: status = {}, statusText = {}", status, statusText);
         return statusText;
     }
 }

@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2008-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2008-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -48,8 +48,9 @@ import javax.ws.rs.core.UriInfo;
 
 import org.joda.time.format.DateTimeFormatter;
 import org.joda.time.format.ISODateTimeFormat;
+import org.opennms.core.criteria.Alias.JoinType;
 import org.opennms.core.criteria.CriteriaBuilder;
-import org.opennms.netmgt.dao.EventDao;
+import org.opennms.netmgt.dao.api.EventDao;
 import org.opennms.netmgt.model.OnmsEvent;
 import org.opennms.netmgt.model.OnmsEventCollection;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -95,7 +96,7 @@ public class EventRestService extends OnmsRestService {
     public OnmsEvent getEvent(@PathParam("eventId") final String eventId) {
         readLock();
         try {
-            return m_eventDao.get(new Integer(eventId));
+            return m_eventDao.get(Integer.valueOf(eventId));
         } finally {
             readUnlock();
         }
@@ -123,7 +124,7 @@ public class EventRestService extends OnmsRestService {
      * Returns all the events which match the filter/query in the query
      * parameters
      * 
-     * @return Collection of OnmsEvents (ready to be XML-ified)
+     * @return Collection of OnmsEventCollection (ready to be XML-ified)
      * @throws java.text.ParseException
      *             if any.
      */
@@ -134,12 +135,11 @@ public class EventRestService extends OnmsRestService {
         readLock();
 
         try {
-            final CriteriaBuilder builder = new CriteriaBuilder(OnmsEvent.class);
-            applyQueryFilters(m_uriInfo.getQueryParameters(), builder);
+            final CriteriaBuilder builder = getCriteriaBuilder(m_uriInfo.getQueryParameters());
             builder.orderBy("eventTime").asc();
 
             final OnmsEventCollection coll = new OnmsEventCollection(m_eventDao.findMatching(builder.toCriteria()));
-            coll.setTotalCount(m_eventDao.countMatching(builder.clearOrder().toCriteria()));
+            coll.setTotalCount(m_eventDao.countMatching(builder.count().toCriteria()));
 
             return coll;
         } finally {
@@ -151,7 +151,7 @@ public class EventRestService extends OnmsRestService {
      * Returns all the events which match the filter/query in the query
      * parameters
      * 
-     * @return Collection of OnmsEvents (ready to be XML-ified)
+     * @return Collection of OnmsEventCollection (ready to be XML-ified)
      * @throws java.text.ParseException
      *             if any.
      */
@@ -163,7 +163,6 @@ public class EventRestService extends OnmsRestService {
         readLock();
 
         try {
-            final CriteriaBuilder builder = new CriteriaBuilder(OnmsEvent.class);
             final MultivaluedMap<String, String> params = m_uriInfo.getQueryParameters();
 
             final String column;
@@ -196,7 +195,7 @@ public class EventRestService extends OnmsRestService {
                 end = new Date();
             }
 
-            applyQueryFilters(params, builder);
+            final CriteriaBuilder builder = getCriteriaBuilder(params);
             builder.match("all");
             try {
                 builder.between(column, begin, end);
@@ -205,7 +204,7 @@ public class EventRestService extends OnmsRestService {
             }
 
             final OnmsEventCollection coll = new OnmsEventCollection(m_eventDao.findMatching(builder.toCriteria()));
-            coll.setTotalCount(m_eventDao.countMatching(builder.clearOrder().toCriteria()));
+            coll.setTotalCount(m_eventDao.countMatching(builder.count().toCriteria()));
 
             return coll;
         } finally {
@@ -231,7 +230,7 @@ public class EventRestService extends OnmsRestService {
         writeLock();
 
         try {
-            final OnmsEvent event = m_eventDao.get(new Integer(eventId));
+            final OnmsEvent event = m_eventDao.get(Integer.valueOf(eventId));
             if (ack == null) {
                 throw new IllegalArgumentException("Must supply the 'ack' parameter, set to either 'true' or 'false'");
             }
@@ -263,8 +262,7 @@ public class EventRestService extends OnmsRestService {
                 formProperties.remove("ack");
             }
 
-            final CriteriaBuilder builder = new CriteriaBuilder(OnmsEvent.class);
-            applyQueryFilters(formProperties, builder);
+            final CriteriaBuilder builder = getCriteriaBuilder(formProperties);
             builder.orderBy("eventTime").desc();
 
             for (final OnmsEvent event : m_eventDao.findMatching(builder.toCriteria())) {
@@ -286,4 +284,16 @@ public class EventRestService extends OnmsRestService {
         }
         m_eventDao.save(event);
     }
+
+    private CriteriaBuilder getCriteriaBuilder(final MultivaluedMap<String, String> params) {
+        final CriteriaBuilder builder = new CriteriaBuilder(OnmsEvent.class);
+        builder.alias("node", "node", JoinType.LEFT_JOIN);
+        builder.alias("node.snmpInterfaces", "snmpInterface", JoinType.LEFT_JOIN);
+        builder.alias("node.ipInterfaces", "ipInterface", JoinType.LEFT_JOIN);
+        builder.alias("serviceType", "serviceType", JoinType.LEFT_JOIN);
+
+        applyQueryFilters(params, builder);
+        return builder;
+    }
+
 }

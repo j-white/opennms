@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2012-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -25,150 +25,102 @@
  *     http://www.opennms.org/
  *     http://www.opennms.com/
  *******************************************************************************/
+
 package org.opennms.features.vaadin.datacollection;
 
 import java.util.List;
+import java.util.Set;
+import java.util.TreeSet;
 
 import org.opennms.netmgt.config.datacollection.Collect;
-import org.vaadin.addon.customfield.CustomField;
 
-import com.vaadin.data.Property;
-import com.vaadin.ui.Alignment;
-import com.vaadin.ui.Button;
-import com.vaadin.ui.ComboBox;
+import com.vaadin.ui.Component;
+import com.vaadin.ui.CustomField;
 import com.vaadin.ui.HorizontalLayout;
-import com.vaadin.ui.ListSelect;
+import com.vaadin.ui.TwinColSelect;
 
 /**
  * The Collect Field.
  * 
+ * TODO: when a new group is added, the groupField must be updated.
+ * 
  * @author <a href="mailto:agalue@opennms.org">Alejandro Galue</a> 
  */
-// TODO when a new group is added, the groupField must be updated.
 @SuppressWarnings("serial")
-public class CollectField extends CustomField implements Button.ClickListener {
+public class CollectField extends CustomField<Collect> {
 
-    /** The group field. */
-    private ComboBox groupField = new ComboBox();
-
-    /** The list field. */
-    private ListSelect listField = new ListSelect();
-
-    /** The Toolbar. */
-    private HorizontalLayout toolbar = new HorizontalLayout();
-
-    /** The add button. */
-    private Button add;
-
-    /** The delete button. */
-    private Button delete;
+    /** The selection field. */
+    private final TwinColSelect selectField = new TwinColSelect();
 
     /**
      * Instantiates a new collect field.
      *
+     * @param caption the caption
      * @param groups the available groups
      */
-    public CollectField(List<String> groups) {
-        listField.setRows(10);
+    public CollectField(String caption, List<String> groups) {
+        setCaption(caption);
+        selectField.setRows(10);
+        selectField.setLeftColumnCaption("Available");
+        selectField.setRightColumnCaption("Selected");
 
         for (String group : groups) {
-            groupField.addItem(group);
+            selectField.addItem(group);
         }
 
-        add = new Button("Add Group", (Button.ClickListener) this);
-        delete = new Button("Delete Selected", (Button.ClickListener) this);
-        toolbar.addComponent(delete);
-        toolbar.addComponent(groupField);
-        toolbar.addComponent(add);
-        toolbar.setVisible(listField.isReadOnly());
-
-        HorizontalLayout layout = new HorizontalLayout();
-        layout.addComponent(listField);
-        layout.addComponent(toolbar);
-        layout.setComponentAlignment(toolbar, Alignment.BOTTOM_RIGHT);
-
-        setWriteThrough(false);
-        setCompositionRoot(layout);
     }
 
     /* (non-Javadoc)
-     * @see org.vaadin.addon.customfield.CustomField#getType()
+     * @see com.vaadin.ui.CustomField#initContent()
      */
     @Override
-    public Class<?> getType() {
+    public Component initContent() {
+        HorizontalLayout layout = new HorizontalLayout();
+        layout.addComponent(selectField);
+        return layout;
+    }
+
+    /* (non-Javadoc)
+     * @see com.vaadin.ui.AbstractField#getType()
+     */
+    @Override
+    public Class<Collect> getType() {
         return Collect.class;
     }
 
     /* (non-Javadoc)
-     * @see org.vaadin.addon.customfield.CustomField#setPropertyDataSource(com.vaadin.data.Property)
+     * @see com.vaadin.ui.AbstractField#getInternalValue()
      */
     @Override
-    public void setPropertyDataSource(Property newDataSource) {
-        Object value = newDataSource.getValue();
-        if (value instanceof Collect) {
-            Collect dto = (Collect) value;
-            listField.removeAllItems();
-            for (String group : dto.getIncludeGroupCollection()) {
-                listField.addItem(group);
+    @SuppressWarnings("unchecked")
+    protected Collect getInternalValue() {
+        Collect collect = new Collect();
+        if (selectField.getValue() instanceof Set) {
+            Set<String> selected = (Set<String>) selectField.getValue();
+            for (String value : selected) {
+                collect.addIncludeGroup(value);
             }
         } else {
-            throw new ConversionException("Invalid type");
+            collect.addIncludeGroup((String)selectField.getValue());
         }
-        super.setPropertyDataSource(newDataSource);
+        return collect;
     }
 
     /* (non-Javadoc)
-     * @see org.vaadin.addon.customfield.CustomField#getValue()
+     * @see com.vaadin.ui.AbstractField#setInternalValue(java.lang.Object)
      */
     @Override
-    public Object getValue() {
-        Collect dto = new Collect();
-        for (Object itemId: listField.getItemIds()) {
-            dto.getIncludeGroupCollection().add((String) itemId);
-        }
-        return dto;
+    protected void setInternalValue(Collect value) {
+        selectField.setValue(new TreeSet<String>(value.getIncludeGroups()));
     }
 
     /* (non-Javadoc)
-     * @see com.vaadin.ui.AbstractComponent#setReadOnly(boolean)
+     * @see com.vaadin.ui.AbstractField#setReadOnly(boolean)
      */
     @Override
     public void setReadOnly(boolean readOnly) {
-        listField.setReadOnly(readOnly);
-        toolbar.setVisible(!readOnly);
+        selectField.setReadOnly(readOnly);
         super.setReadOnly(readOnly);
-    }
-
-    /* (non-Javadoc)
-     * @see com.vaadin.ui.Button.ClickListener#buttonClick(com.vaadin.ui.Button.ClickEvent)
-     */
-    public void buttonClick(Button.ClickEvent event) {
-        final Button btn = event.getButton();
-        if (btn == add) {
-            addHandler();
-        }
-        if (btn == delete) {
-            deleteHandler();
-        }
-    }
-
-    /**
-     * Adds the handler.
-     */
-    private void addHandler() {
-        listField.addItem((String) groupField.getValue());
-    }
-
-    /**
-     * Delete handler.
-     */
-    private void deleteHandler() {
-        final Object itemId = listField.getValue();
-        if (itemId == null) {
-            getApplication().getMainWindow().showNotification("Please select a MIB Group from the table.");
-        } else {
-            listField.removeItem(itemId);
-        }
     }
 
 }

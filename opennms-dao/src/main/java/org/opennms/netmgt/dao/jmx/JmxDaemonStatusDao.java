@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2006-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -39,9 +39,9 @@ import javax.management.MalformedObjectNameException;
 import javax.management.ObjectName;
 import javax.management.QueryExp;
 
-import org.opennms.netmgt.dao.DaemonStatusDao;
-import org.opennms.netmgt.dao.ServiceInfo;
+import org.opennms.netmgt.dao.api.DaemonStatusDao;
 import org.opennms.netmgt.model.ServiceDaemon;
+import org.opennms.netmgt.model.ServiceInfo;
 import org.springframework.dao.support.DataAccessUtils;
 import org.springframework.jmx.access.MBeanProxyFactoryBean;
 
@@ -63,6 +63,7 @@ public class JmxDaemonStatusDao implements DaemonStatusDao {
 	 *
 	 * @return a {@link java.util.Map} object.
 	 */
+        @Override
 	public Map<String, ServiceInfo> getCurrentDaemonStatus() {
 		// TODO Auto-generated method stub
 		Map<String, ServiceInfo> serviceInfo = new HashMap<String, ServiceInfo>();
@@ -110,6 +111,7 @@ public class JmxDaemonStatusDao implements DaemonStatusDao {
 	}
 	
 	/** {@inheritDoc} */
+        @Override
 	public ServiceDaemon getServiceHandle(String service) {
 		Set<ObjectName> mBeanNames;
 		try {

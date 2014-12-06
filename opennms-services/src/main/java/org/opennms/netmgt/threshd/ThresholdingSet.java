@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2009-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2009-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -37,22 +37,24 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
-import org.opennms.core.utils.LogUtils;
-import org.opennms.core.utils.ThreadCategory;
+import org.opennms.netmgt.collection.api.CollectionAttribute;
+import org.opennms.netmgt.collection.api.CollectionResource;
 import org.opennms.netmgt.config.PollOutagesConfigFactory;
 import org.opennms.netmgt.config.ThreshdConfigFactory;
 import org.opennms.netmgt.config.ThreshdConfigManager;
 import org.opennms.netmgt.config.ThresholdingConfigFactory;
-import org.opennms.netmgt.config.collector.CollectionAttribute;
-import org.opennms.netmgt.config.poller.Outage;
+import org.opennms.netmgt.config.poller.outages.Outage;
 import org.opennms.netmgt.config.threshd.ResourceFilter;
-import org.opennms.netmgt.model.RrdRepository;
+import org.opennms.netmgt.rrd.RrdRepository;
 import org.opennms.netmgt.xml.event.Event;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * <p>Abstract ThresholdingSet class.</p>
@@ -60,17 +62,19 @@ import org.opennms.netmgt.xml.event.Event;
  * @author <a href="mailto:agalue@opennms.org">Alejandro Galue</a>
  */
 public class ThresholdingSet {
-    
+
+    private static final Logger LOG = LoggerFactory.getLogger(ThresholdingSet.class);
+
     protected final int m_nodeId;
     protected final String m_hostAddress;
     protected final String m_serviceName;
     protected final RrdRepository m_repository;
-    
+
     protected ThresholdsDao m_thresholdsDao;
-    
+
     private boolean m_initialized = false;
     private boolean m_hasThresholds = false;
-    
+
     protected final List<ThresholdGroup> m_thresholdGroups = new LinkedList<ThresholdGroup>();
     protected final List<String> m_scheduledOutages = new ArrayList<String>();
 
@@ -80,7 +84,7 @@ public class ThresholdingSet {
      * @param nodeId a int.
      * @param hostAddress a {@link java.lang.String} object.
      * @param serviceName a {@link java.lang.String} object.
-     * @param repository a {@link org.opennms.netmgt.model.RrdRepository} object.
+     * @param repository a {@link org.opennms.netmgt.rrd.RrdRepository} object.
      * @param interval a long.
      */
     public ThresholdingSet(int nodeId, String hostAddress, String serviceName, RrdRepository repository) {
@@ -91,12 +95,12 @@ public class ThresholdingSet {
         initThresholdsDao();
         initialize();
     }
-    
+
     /**
      * <p>initialize</p>
      */
     protected void initialize() {
-        final String logHeader = "initialize(nodeId=" + m_nodeId + ",ipAddr=" + m_hostAddress + ",svc=" + m_serviceName + "): ";
+        final String logHeader = "initialize(nodeId=" + m_nodeId + ",ipAddr=" + m_hostAddress + ",svc=" + m_serviceName + ")";
         List<String> groupNameList = getThresholdGroupNames(m_nodeId, m_hostAddress, m_serviceName);
         synchronized(m_thresholdGroups) {
             m_thresholdGroups.clear();
@@ -104,15 +108,13 @@ public class ThresholdingSet {
                 try {
                     ThresholdGroup thresholdGroup = m_thresholdsDao.get(groupName);
                     if (thresholdGroup == null) {
-                        log().error(logHeader + "Could not get threshold group with name " + groupName);
+                        LOG.error("{}: Could not get threshold group with name {}", logHeader, groupName);
                     } else {
                         m_thresholdGroups.add(thresholdGroup);
-                        if (log().isDebugEnabled()) {
-                            log().debug(logHeader + "Adding threshold group: " + thresholdGroup);
-                        }
+                        LOG.debug("{}: Adding threshold group: {}", logHeader, thresholdGroup);
                     }
                 } catch (Throwable e) {
-                    log().error(logHeader + "Can't process threshold group " + groupName, e);
+                    LOG.error("{}: Can't process threshold group {}", logHeader, groupName, e);
                 }
             }
             m_hasThresholds = !m_thresholdGroups.isEmpty();
@@ -141,18 +143,18 @@ public class ThresholdingSet {
      * <p>mergeThresholdGroups</p>
      */
     private void mergeThresholdGroups(final int nodeId, final String hostAddress, final String serviceName) {
-        final String logHeader = "mergeThresholdGroups(nodeId=" + nodeId + ",ipAddr=" + hostAddress + ",svc=" + serviceName + "): ";
-        log().debug(logHeader + "Begin merging operation");
+        final String logHeader = "mergeThresholdGroups(nodeId=" + nodeId + ",ipAddr=" + hostAddress + ",svc=" + serviceName + ")";
+        LOG.debug("{}: Begin merging operation", logHeader);
         List<String> groupNameList = getThresholdGroupNames(nodeId, hostAddress, serviceName);
         synchronized(m_thresholdGroups) {
             // If size differs its because some groups where deleted.
             if (groupNameList.size() != m_thresholdGroups.size()) {
                 // Deleting Groups
-                log().debug(logHeader + "New group name list differs from current threshold group list");
+                LOG.debug("{}: New group name list differs from current threshold group list", logHeader);
                 for (Iterator<ThresholdGroup> i = m_thresholdGroups.iterator(); i.hasNext();) {
                     ThresholdGroup group = i.next();
                     if (!groupNameList.contains(group.getName())) {
-                        log().info(logHeader + "deleting group " + group);
+                        LOG.info("{}: deleting group {}", logHeader, group);
                         group.delete();
                         i.remove();
                     }
@@ -170,20 +172,16 @@ public class ThresholdingSet {
                     // Add new group
                     ThresholdGroup thresholdGroup = m_thresholdsDao.get(groupName);
                     if (thresholdGroup == null) {
-                        log().error(logHeader + "Could not get threshold group with name " + groupName);
+                        LOG.error("{}: Could not get threshold group with name {}", logHeader, groupName);
                     } else {
                         newThresholdGroupList.add(thresholdGroup);
-                        if (log().isDebugEnabled()) {
-                            log().debug(logHeader + "Adding threshold group: " + thresholdGroup);
-                        }
+                        LOG.debug("{}: Adding threshold group: {}", logHeader, thresholdGroup);
                     }
                 } else {
                     // Merge existing data with current data
                     ThresholdGroup thresholdGroup = m_thresholdsDao.merge(foundGroup);
                     newThresholdGroupList.add(thresholdGroup);
-                    if (log().isDebugEnabled()) {
-                        log().debug(logHeader + "Merging threshold group: " + thresholdGroup);
-                    }
+                    LOG.debug("{}: Merging threshold group: {}", logHeader, thresholdGroup);
                 }
             }
             m_thresholdGroups.clear();
@@ -211,20 +209,21 @@ public class ThresholdingSet {
      * @param attributeName a {@link java.lang.String} object.
      * @return a boolean.
      */
-    public boolean hasThresholds(String resourceTypeName, String attributeName) {
+    public boolean hasThresholds(final String resourceTypeName, final String attributeName) {
         boolean ok = false;
         synchronized(m_thresholdGroups) {
             for (ThresholdGroup group : m_thresholdGroups) {
                 Map<String,Set<ThresholdEntity>> entityMap = getEntityMap(group, resourceTypeName);
                 if (entityMap != null) {
-                    for(String key : entityMap.keySet()) {
-                        for (ThresholdEntity thresholdEntity : entityMap.get(key)) {
-                            Collection<String> requiredDatasources = thresholdEntity.getRequiredDatasources();
+                    for (final Entry<String, Set<ThresholdEntity>> entry : entityMap.entrySet()) {
+                        final Set<ThresholdEntity> value = entry.getValue();
+                        for (final ThresholdEntity thresholdEntity : value) {
+                            final Collection<String> requiredDatasources = thresholdEntity.getRequiredDatasources();
                             if (requiredDatasources.contains(attributeName)) {
                                 ok = true;
-                                LogUtils.debugf(ThresholdingSet.class, "hasThresholds: %s@%s? %s", resourceTypeName, attributeName, ok);
+                                LOG.debug("hasThresholds: {}@{}? {}", resourceTypeName, attributeName, ok);
                             } else {
-                                LogUtils.tracef(ThresholdingSet.class, "hasThresholds: %s@%s? %s", resourceTypeName, attributeName, ok);
+                                LOG.trace("hasThresholds: {}@{}? {}", resourceTypeName, attributeName, ok);
                             }
                         }
                     }
@@ -240,9 +239,9 @@ public class ThresholdingSet {
         synchronized(m_scheduledOutages) {
             for (String outageName : m_scheduledOutages) {
                 if (outageFactory.isCurTimeInOutage(outageName)) {
-                    log().debug("isNodeInOutage[node=" + m_nodeId + "]: current time is on outage using '" + outageName + "'; checking the node with IP " + m_hostAddress);
+                    LOG.debug("isNodeInOutage[node={}]: current time is on outage using '{}'; checking the node with IP {}", m_nodeId, outageName, m_hostAddress);
                     if (outageFactory.isNodeIdInOutage(m_nodeId, outageName) || outageFactory.isInterfaceInOutage(m_hostAddress, outageName)) {
-                        log().debug("isNodeInOutage[node=" + m_nodeId + "]: configured outage '" + outageName + "' applies, interface " + m_hostAddress + " will be ignored for threshold processing");
+                        LOG.debug("isNodeInOutage[node={}]: configured outage '{}' applies, interface {} will be ignored for threshold processing", m_nodeId, outageName, m_hostAddress);
                         outageFound = true;
                         break;
                     }
@@ -263,43 +262,45 @@ public class ThresholdingSet {
     protected final List<Event> applyThresholds(CollectionResourceWrapper resourceWrapper, Map<String, CollectionAttribute> attributesMap) {
         List<Event> eventsList = new LinkedList<Event>();
         if (attributesMap == null || attributesMap.size() == 0) {
-            log().debug("applyThresholds: Ignoring resource " + resourceWrapper + " because required attributes map is empty.");
+            LOG.debug("applyThresholds: Ignoring resource {} because required attributes map is empty.", resourceWrapper);
             return eventsList;
         }
-        log().debug("applyThresholds: Applying thresholds on " + resourceWrapper + " using " + attributesMap.size() + " attributes.");
+        LOG.debug("applyThresholds: Applying thresholds on {} using {} attributes.", resourceWrapper, attributesMap.size());
         Date date = new Date();
         synchronized(m_thresholdGroups) {
             for (ThresholdGroup group : m_thresholdGroups) {
                 Map<String,Set<ThresholdEntity>> entityMap = getEntityMap(group, resourceWrapper.getResourceTypeName());
                 if (entityMap != null) {
-                    for(String key : entityMap.keySet()) {
-                        for (ThresholdEntity thresholdEntity : entityMap.get(key)) {
+                    for (final Entry<String, Set<ThresholdEntity>> entry : entityMap.entrySet()) {
+                        final String key = entry.getKey();
+                        final Set<ThresholdEntity> value = entry.getValue();
+                        for (final ThresholdEntity thresholdEntity : value) {
                             if (passedThresholdFilters(resourceWrapper, thresholdEntity)) {
-                                log().info("applyThresholds: Processing threshold " + key + " : " + thresholdEntity + " on resource " + resourceWrapper);
+                                LOG.info("applyThresholds: Processing threshold {} : {} on resource {}", key, thresholdEntity, resourceWrapper);
                                 Collection<String> requiredDatasources = thresholdEntity.getThresholdConfig().getRequiredDatasources();
-                                Map<String, Double> values = new HashMap<String,Double>();
+                                final Map<String, Double> values = new HashMap<String,Double>();
                                 boolean valueMissing = false;
                                 boolean relaxed = thresholdEntity.getThresholdConfig().getBasethresholddef().isRelaxed();
-                                for(String ds: requiredDatasources) {
-                                    Double dsValue = resourceWrapper.getAttributeValue(ds);
+                                for(final String ds : requiredDatasources) {
+                                    final Double dsValue = resourceWrapper.getAttributeValue(ds);
                                     if(dsValue == null) {
-                                        log().info("applyThresholds: Could not get data source value for '" + ds + "', " + (relaxed ? "but the expression will be evaluated (relaxed mode enabled)" : "not evaluating threshold"));
+                                        LOG.info("applyThresholds: Could not get data source value for '{}', {}", ds, (relaxed ? "but the expression will be evaluated (relaxed mode enabled)" : "not evaluating threshold"));
                                         valueMissing = true;
                                     }
                                     values.put(ds,dsValue);
                                 }
                                 if(!valueMissing || relaxed) {
-                                    log().info("applyThresholds: All attributes found for " + resourceWrapper + ", evaluating");
+                                    LOG.info("applyThresholds: All attributes found for {}, evaluating", resourceWrapper);
                                     resourceWrapper.setDsLabel(thresholdEntity.getDatasourceLabel());
                                     try {
                                         List<Event> thresholdEvents = thresholdEntity.evaluateAndCreateEvents(resourceWrapper, values, date);
                                         eventsList.addAll(thresholdEvents);
                                     } catch (Exception e) {
-                                        log().warn("applyThresholds: Can't evaluate " + key + " on " + resourceWrapper + " because " + e.getMessage(), e);
+                                        LOG.warn("applyThresholds: Can't evaluate {} on {} because {}", key, resourceWrapper, e.getMessage());
                                     }
-                                } 
+                                }
                             } else {
-                                log().info("applyThresholds: Not processing threshold " + key + " : " + thresholdEntity + " because no filters matched");
+                                LOG.info("applyThresholds: Not processing threshold {} : {} because no filters matched", key, thresholdEntity);
                             }
                         }
                     }
@@ -308,7 +309,7 @@ public class ThresholdingSet {
         }
         return eventsList;
     }
-    
+
     /**
      * <p>passedThresholdFilters</p>
      *
@@ -321,16 +322,12 @@ public class ThresholdingSet {
         ResourceFilter[] filters = thresholdEntity.getThresholdConfig().getBasethresholddef().getResourceFilter();
         if (filters.length == 0) return true;
         // Threshold definition with filters must match ThresholdEntity (checking DataSource and ResourceType)
-        if (log().isDebugEnabled()) {
-            log().debug("passedThresholdFilters: applying " + filters.length + " filters to resource " + resource);
-        }
+        LOG.debug("passedThresholdFilters: applying {} filters to resource {}", filters.length, resource);
         int count = 1;
         String operator = thresholdEntity.getThresholdConfig().getBasethresholddef().getFilterOperator().toLowerCase();
         boolean andResult = true;
         for (ResourceFilter f : filters) {
-            if (log().isDebugEnabled()) {
-                log().debug("passedThresholdFilters: filter #" + count + ": field=" + f.getField() + ", regex='" + f.getContent() + "'");
-            }
+            LOG.debug("passedThresholdFilters: filter #{}: field={}, regex='{}'", count, f.getField(), f.getContent());
             count++;
             // Read Resource Attribute and apply filter rules if attribute is not null
             String attr = resource.getFieldValue(f.getField());
@@ -339,9 +336,7 @@ public class ThresholdingSet {
                     final Pattern p = Pattern.compile(f.getContent());
                     final Matcher m = p.matcher(attr);
                     boolean pass = m.matches();
-                    if (log().isDebugEnabled()) {
-                        log().debug("passedThresholdFilters: the value of " + f.getField() + " is " + attr + ". Pass filter? " + pass);
-                    }
+                    LOG.debug("passedThresholdFilters: the value of {} is {}. Pass filter? {}", f.getField(), attr, pass);
                     if (operator.equals("or") && pass) {
                         return true;
                     }
@@ -351,11 +346,11 @@ public class ThresholdingSet {
                             return false;
                     }
                 } catch (PatternSyntaxException e) {
-                    log().warn("passedThresholdFilters: the regular expression " + f.getContent() + " is invalid: " + e.getMessage(), e);
+                    LOG.warn("passedThresholdFilters: the regular expression {} is invalid: {}", f.getContent(), e.getMessage(), e);
                     return false;
                 }
             } else {
-                log().warn("passedThresholdFilters: can't find value of " + f.getField() + " for resource " + resource);
+                LOG.warn("passedThresholdFilters: can't find value of {} for resource {}", f.getField(), resource);
                 if (operator.equals("and")) {
                     return false;
                 }
@@ -366,13 +361,13 @@ public class ThresholdingSet {
         }
         return false;
     }
-    
+
     /**
      * <p>initThresholdsDao</p>
      */
     protected final void initThresholdsDao() {
         if (!m_initialized) {
-            log().debug("initThresholdsDao: Initializing Factories and DAOs");
+            LOG.debug("initThresholdsDao: Initializing Factories and DAOs");
             m_initialized = true;
             DefaultThresholdsDao defaultThresholdsDao = new DefaultThresholdsDao();
             try {
@@ -380,19 +375,19 @@ public class ThresholdingSet {
                 defaultThresholdsDao.setThresholdingConfigFactory(ThresholdingConfigFactory.getInstance());
                 defaultThresholdsDao.afterPropertiesSet();
             } catch (Throwable t) {
-                log().error("initThresholdsDao: Could not initialize DefaultThresholdsDao: " + t, t);
+                LOG.error("initThresholdsDao: Could not initialize DefaultThresholdsDao", t);
                 throw new RuntimeException("Could not initialize DefaultThresholdsDao: " + t, t);
             }
             try {
                 ThreshdConfigFactory.init();
             } catch (Throwable t) {
-                log().error("initThresholdsDao: Could not initialize ThreshdConfigFactory: " + t, t);
+                LOG.error("initThresholdsDao: Could not initialize ThreshdConfigFactory", t);
                 throw new RuntimeException("Could not initialize ThreshdConfigFactory: " + t, t);
             }
             m_thresholdsDao = defaultThresholdsDao;
         }
     }
-    
+
     /*
      * The next code was extracted from Threshd.scheduleService.
      * 
@@ -408,17 +403,14 @@ public class ThresholdingSet {
 
             // Make certain the the current service is in the package and enabled!
             if (!configManager.serviceInPackageAndEnabled(serviceName, pkg)) {
-                if (log().isDebugEnabled())
-                    log().debug("getThresholdGroupNames: address/service: " + hostAddress + "/" + serviceName + " not scheduled, service is not enabled or does not exist in package: " + pkg.getName());
+                LOG.debug("getThresholdGroupNames: address/service: {}/{} not scheduled, service is not enabled or does not exist in package: {}", hostAddress, serviceName, pkg.getName());
                 continue;
             }
 
             // Is the interface in the package?
-            if (log().isDebugEnabled())
-                log().debug("getThresholdGroupNames: checking ipaddress " + hostAddress + " for inclusion in pkg " + pkg.getName());
+            LOG.debug("getThresholdGroupNames: checking ipaddress {} for inclusion in pkg {}", hostAddress, pkg.getName());
             if (!configManager.interfaceInPackage(hostAddress, pkg)) {
-                if (log().isDebugEnabled())
-                    log().debug("getThresholdGroupNames: address/service: " + hostAddress + "/" + serviceName + " not scheduled, interface does not belong to package: " + pkg.getName());
+                LOG.debug("getThresholdGroupNames: address/service: {}/{} not scheduled, interface does not belong to package: {}", hostAddress, serviceName, pkg.getName());
                 continue;
             }
 
@@ -429,15 +421,13 @@ public class ThresholdingSet {
                         if (parameter.getKey().equals("thresholding-group")) {
                             String groupName = parameter.getValue();
                             groupNameList.add(groupName);
-                            if (log().isDebugEnabled()) {
-                                log().debug("getThresholdGroupNames:  address/service: " + hostAddress + "/" + serviceName + ". Adding Group " + groupName);
-                            }
+                            LOG.debug("getThresholdGroupNames:  address/service: {}/{}. Adding Group {}", hostAddress, serviceName, groupName);
                         }
                     }
                 }
             }
         }
-        
+
         return groupNameList;
     }
 
@@ -447,39 +437,39 @@ public class ThresholdingSet {
             ThreshdConfigManager configManager = ThreshdConfigFactory.getInstance();
             for (org.opennms.netmgt.config.threshd.Package pkg : configManager.getConfiguration().getPackage()) {
                 for (String outageCal : pkg.getOutageCalendarCollection()) {
-                    log().info("updateScheduledOutages[node=" + m_nodeId + "]: checking scheduled outage '" + outageCal + "'");
+                    LOG.info("updateScheduledOutages[node={}]: checking scheduled outage '{}'", m_nodeId, outageCal);
                     try {
                         Outage outage = PollOutagesConfigFactory.getInstance().getOutage(outageCal);
                         if (outage == null) {
-                            log().info("updateScheduledOutages[node=" + m_nodeId + "]: scheduled outage '" + outageCal + "' is not defined.");
+                            LOG.info("updateScheduledOutages[node={}]: scheduled outage '{}' is not defined.", m_nodeId, outageCal);
                         } else {
-                            log().debug("updateScheduledOutages[node=" + m_nodeId + "]: outage calendar '" + outage.getName() + "' found on package '" + pkg.getName() + "'");
+                            LOG.debug("updateScheduledOutages[node={}]: outage calendar '{}' found on package '{}'", m_nodeId, outage.getName(), pkg.getName());
                             m_scheduledOutages.add(outageCal);
                         }
                     } catch (Exception e) {
-                        log().info("updateScheduledOutages[node=" + m_nodeId + "]: scheduled outage '" + outageCal + "' does not exist.");                    
+                        LOG.info("updateScheduledOutages[node={}]: scheduled outage '{}' does not exist.", m_nodeId, outageCal);
                     }
                 }
             }
         }
     }
 
-    private Map<String, Set<ThresholdEntity>> getEntityMap(ThresholdGroup thresholdGroup, String resourceType) {
-        LogUtils.tracef(ThresholdingSet.class, "getEntityMap: checking if the resourceType '%s' exists on threshold group %s", resourceType, thresholdGroup);
+    private static Map<String, Set<ThresholdEntity>> getEntityMap(ThresholdGroup thresholdGroup, String resourceType) {
+        LOG.trace("getEntityMap: checking if the resourceType '{}' exists on threshold group {}", resourceType, thresholdGroup);
         Map<String, Set<ThresholdEntity>> entityMap = null;
-        if ("node".equals(resourceType)) {
+        if (CollectionResource.RESOURCE_TYPE_NODE.equals(resourceType)) {
             entityMap = thresholdGroup.getNodeResourceType().getThresholdMap();
-        } else if ("if".equals(resourceType)) {
+        } else if (CollectionResource.RESOURCE_TYPE_IF.equals(resourceType)) {
             entityMap = thresholdGroup.getIfResourceType().getThresholdMap();
         } else {
             Map<String, ThresholdResourceType> typeMap = thresholdGroup.getGenericResourceTypeMap();
             if (typeMap == null) {
-                LogUtils.errorf(ThresholdingSet.class, "getEntityMap: Generic Resource Type map was null (this shouldn't happen) for threshold group %s", thresholdGroup.getName());
+                LOG.error("getEntityMap: Generic Resource Type map was null (this shouldn't happen) for threshold group {}", thresholdGroup.getName());
                 return null;
             }
             ThresholdResourceType thisResourceType = typeMap.get(resourceType);
             if (thisResourceType == null) {
-                LogUtils.debugf(ThresholdingSet.class, "getEntityMap: No thresholds configured for resource type '%s' in threshold group %s. Skipping this group.", resourceType, thresholdGroup.getName());
+                LOG.debug("getEntityMap: No thresholds configured for resource type '{}' in threshold group {}. Skipping this group.", resourceType, thresholdGroup.getName());
                 return null;
             }
             entityMap = thisResourceType.getThresholdMap();
@@ -494,14 +484,4 @@ public class ThresholdingSet {
             return m_thresholdGroups.toString();
         }
     }
-
-    /**
-     * <p>log</p>
-     *
-     * @return a {@link org.opennms.core.utils.ThreadCategory} object.
-     */
-    protected final static ThreadCategory log() {
-        return ThreadCategory.getInstance(ThresholdingSet.class);
-    }
-
 }

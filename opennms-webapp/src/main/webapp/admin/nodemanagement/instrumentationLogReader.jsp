@@ -2,22 +2,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2010-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2002-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -35,8 +35,8 @@
 %>
 
 <%@page import="org.opennms.util.ilr.Collector"%>
-<%@page import="org.opennms.util.ilr.Filter"%>
 <%@page import="java.io.*"%>
+<%@page import="org.slf4j.*"%>
 <%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"%>
 <%@ taglib uri="http://java.sun.com/jsp/jstl/fmt" prefix="fmt"%>
 <%@ taglib uri="http://java.sun.com/jsp/jstl/functions" prefix="fn"%>
@@ -55,6 +55,8 @@
 
 <%
 
+final Logger LOG = LoggerFactory.getLogger("instrumentationLogReader.jsp");
+
 String opennmsHome = System.getProperty("opennms.home");
 
 Collector c = new Collector();
@@ -72,26 +74,31 @@ if(sortOrder!=null) {
 if(searchString != null) {
 	c.setSearchString(searchString);
 }
-String baseFileName = opennmsHome + "/logs/daemon/instrumentation.log";
 
+LOG.debug("creating FilenameFilter");
 
-for(int i = 5; i > 0; i--) {
-	String fileName = baseFileName + "." + i;
-	File file = new File(fileName);
-	if (file.exists()) {
-		c.readLogMessagesFromFile(fileName);
+final FilenameFilter filter = new FilenameFilter() {
+	public boolean accept(final File dir, final String name) {
+		return name.startsWith("instrumentation.log");
+	}
+};
+
+LOG.debug("FilenameFilter = {}", filter);
+
+int filesMatched = 0;
+
+LOG.debug("scanning LogDir");
+
+final File logDir = new File(opennmsHome, "logs");
+if (logDir.exists()) {
+	for (final File file : logDir.listFiles(filter)) {
+		if (file.length() == 0) continue;
+		c.readLogMessagesFromFile(file.getPath());
+		filesMatched++;
 	}
 }
-File file = new File(baseFileName);
 
-
-
-if(file.exists() && file.length() != 0) {
-	c.readLogMessagesFromFile(baseFileName);
-}
-
-
-pageContext.setAttribute("fileLength",file.length());
+pageContext.setAttribute("filesMatched",filesMatched);
 pageContext.setAttribute("collector",c);
 pageContext.setAttribute("OpennmsHome",opennmsHome);
 pageContext.setAttribute("sortColumn", sortColumn);
@@ -101,37 +108,35 @@ pageContext.setAttribute("searchString",searchString);
 
 
 %>
-<c_rt:set var="nan" value="<%=java.lang.Double.NaN%>"/>
-<div style="float:left;">
-<form id="ILRfilter" action="admin/nodemanagement/instrumentationLogReader.jsp" method=get>
-<tableborder="0" cellpadding="0" cellspacing="0">
-<th>Filtering</th>
-<br>
-<input type="text" name="searchString" size=15 value="${searchString}"></td>
-<input type="submit" value="Submit">
+
+<body>
+<c:set var="nan" value="<%=java.lang.Double.NaN%>"/>
+<h3>Filtering</h3>
+
+<form id="ILRfilter" action="admin/nodemanagement/instrumentationLogReader.jsp" method="get" style="display:inline">
+	<input type="text" name="searchString" size="15" value="${searchString}"/>
+	<input type="submit" value="Submit"/>
 </form>
-</div>
-<div style="padding-top:20px">
-<form action="admin/nodemanagement/instrumentationLogReader.jsp" method=get>
-<input type="hidden" name="searchString" value="">
-<input type="submit" value="Reset">
+
+<form id="ILRreset" action="admin/nodemanagement/instrumentationLogReader.jsp" method="get" style="display:inline">
+	<input type="hidden" name="searchString" value=""/>
+	<input type="submit" value="Reset"/>
 </form>
-</div>
 
 <c:choose>
-	<c:when test="${fileLength == 0}">
+	<c:when test="${filesMatched == 0}">
 		<script type="text/javascript">
-			alert ("Instrumentation.log either does not exist or is empty. Check to see if you have it set to DEBUG in log4j.properties")
+			alert ("instrumentation.log either does not exist or is empty. Check to see if you have it set to INFO in log4j2.xml")
 		</script>
 	</c:when>
 </c:choose>
 
-<br/>
+<br/><br/>
 <p>
-StartTime: ${collector.startTime == null ? "N/A" : collector.startTime}
+Start time: ${collector.startTime == null ? "N/A" : collector.startTime}
 </p>
 <p>
-EndTime: ${collector.endTime == null ? "N/A" : collector.endTime}
+End time: ${collector.endTime == null ? "N/A" : collector.endTime}
 </p>
 <p>
 Duration: ${collector.formattedDuration}
@@ -146,8 +151,8 @@ Threads Used: ${collector.threadCount}
 <c:if test="${collector.startTime == null && collector.endTime == null}">
 <p>
 No service collector data is available. Be sure that the <strong>Collectd</strong> and
-<strong>Instrumentation</strong> appenders are set to log at <strong>DEBUG</strong> in
-the <em>log4j.properties</em> configuration file.
+<strong>Instrumentation</strong> appenders are set to log at <strong>INFO</strong> in
+the <em>log4j2.xml</em> configuration file.
 </p>
 </c:if>
 
@@ -337,3 +342,4 @@ the <em>log4j.properties</em> configuration file.
 
 	<hr />
 <jsp:include page="/includes/footer.jsp" flush="false"/>
+</body>

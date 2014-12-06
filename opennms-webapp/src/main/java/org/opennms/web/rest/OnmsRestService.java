@@ -2,22 +2,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2008-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2008-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -34,7 +34,6 @@ import java.lang.reflect.Method;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.MediaType;
@@ -47,17 +46,22 @@ import javax.xml.datatype.XMLGregorianCalendar;
 
 import org.opennms.core.criteria.Criteria;
 import org.opennms.core.criteria.CriteriaBuilder;
-import org.opennms.core.utils.LogUtils;
-import org.opennms.core.utils.ThreadCategory;
+import org.opennms.netmgt.model.OnmsArpInterface.StatusType;
 import org.opennms.netmgt.model.OnmsSeverity;
 import org.opennms.netmgt.model.OnmsSeverityEditor;
 import org.opennms.netmgt.model.PrimaryType;
 import org.opennms.netmgt.model.PrimaryTypeEditor;
+import org.opennms.netmgt.model.StatusTypeEditor;
 import org.opennms.netmgt.provision.persist.StringXmlCalendarPropertyEditor;
 import org.opennms.web.rest.support.InetAddressTypeEditor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.helpers.MessageFormatter;
 import org.springframework.beans.BeanWrapper;
 import org.springframework.beans.BeanWrapperImpl;
 
+import com.googlecode.concurentlocks.ReadWriteUpdateLock;
+import com.googlecode.concurentlocks.ReentrantReadWriteUpdateLock;
 import com.sun.jersey.core.util.MultivaluedMapImpl;
 
 /**
@@ -68,9 +72,11 @@ import com.sun.jersey.core.util.MultivaluedMapImpl;
  * @since 1.8.1
  */
 public class OnmsRestService {
-    private final ReentrantReadWriteLock m_globalLock = new ReentrantReadWriteLock();
-    private final Lock m_readLock = m_globalLock.readLock();
-    private final Lock m_writeLock = m_globalLock.writeLock();
+	private static final Logger LOG = LoggerFactory.getLogger(OnmsRestService.class);
+
+	private final ReadWriteUpdateLock m_globalLock = new ReentrantReadWriteUpdateLock();
+	private final Lock m_readLock = m_globalLock.updateLock();
+	private final Lock m_writeLock = m_globalLock.writeLock();
 
 	protected static final int DEFAULT_LIMIT = 10;
 
@@ -88,24 +94,15 @@ public class OnmsRestService {
 	}
 	
 	protected void readUnlock() {
-	    if (m_globalLock.getReadHoldCount() > 0) {
-	        m_readLock.unlock();
-	    }
+	    m_readLock.unlock();
 	}
 
 	protected void writeLock() {
-	    if (m_globalLock.getWriteHoldCount() == 0) {
-	        while (m_globalLock.getReadHoldCount() > 0) {
-	            m_readLock.unlock();
-	        }
-	        m_writeLock.lock();
-	    }
+	    m_writeLock.lock();
 	}
 
 	protected void writeUnlock() {
-	    if (m_globalLock.getWriteHoldCount() > 0) {
-	        m_writeLock.unlock();
-	    }
+	    m_writeLock.unlock();
 	}
 
 	protected void applyQueryFilters(final MultivaluedMap<String,String> p, final CriteriaBuilder builder) {
@@ -165,7 +162,9 @@ public class OnmsRestService {
 		final Criteria currentCriteria = builder.toCriteria();
 
 		for (final String key : params.keySet()) {
-			for (final String paramValue : params.get(key)) {
+			for (final String paramValue : params.get(key)) { // NOSONAR
+                        // NOSONAR the interface of MultivaluedMap.class declares List<String> as return value, 
+                        // the actual implementation com.sun.jersey.core.util.MultivaluedMapImpl returns a String, so this is fine in some way ...
 				if ("null".equalsIgnoreCase(paramValue)) {
 					builder.isNull(key);
 				} else if ("notnull".equalsIgnoreCase(paramValue)) {
@@ -176,21 +175,21 @@ public class OnmsRestService {
                     try {
                         type = currentCriteria.getType(key);
                     } catch (final IntrospectionException e) {
-                        LogUtils.debugf(this, "Unable to determine type for key %s", key);
+                        LOG.debug("Unable to determine type for key {}", key);
                     }
                     if (type == null) {
                         type = Object.class;
                     }
-                    LogUtils.warnf(this, "comparator = %s, key = %s, propertyType = %s", comparatorParam, key, type);
+                    LOG.warn("comparator = {}, key = {}, propertyType = {}", comparatorParam, key, type);
 
                     if (comparatorParam.equals("contains") || comparatorParam.equals("iplike") || comparatorParam.equals("ilike") || comparatorParam.equals("like")) {
 						value = paramValue;
 					} else {
-				        LogUtils.debugf(this, "convertIfNecessary(%s, %s)", key, paramValue);
+				        LOG.debug("convertIfNecessary({}, {})", key, paramValue);
 				        try {
                             value = wrapper.convertIfNecessary(paramValue, type);
                         } catch (final Throwable t) {
-                            LogUtils.debugf(this, t, "failed to introspect (key = %s, value = %s)", key, paramValue);
+                            LOG.debug("failed to introspect (key = {}, value = {})", key, paramValue, t);
                             value = paramValue;
                         }
 					}
@@ -199,7 +198,7 @@ public class OnmsRestService {
 	    				final Method m = builder.getClass().getMethod(comparatorParam, String.class, Object.class);
 						m.invoke(builder, new Object[] { key, value });
 					} catch (final Throwable t) {
-    					LogUtils.warnf(this, t, "Unable to find method for comparator: %s, key: %s, value: %s", comparatorParam, key, value);
+    					LOG.warn("Unable to find method for comparator: {}, key: {}, value: {}", comparatorParam, key, value, t);
 					}
 				}
 			}
@@ -213,6 +212,7 @@ public class OnmsRestService {
 		wrapper.registerCustomEditor(java.net.InetAddress.class, new InetAddressTypeEditor());
 		wrapper.registerCustomEditor(OnmsSeverity.class, new OnmsSeverityEditor());
 		wrapper.registerCustomEditor(PrimaryType.class, new PrimaryTypeEditor());
+		wrapper.registerCustomEditor(StatusType.class, new StatusTypeEditor());
 		return wrapper;
 	}
 
@@ -244,24 +244,17 @@ public class OnmsRestService {
      * @param <T> a T object.
      * @return a T object.
      */
-    protected <T> WebApplicationException getException(final Status status, final String msg) throws WebApplicationException {
-        log().error(msg);
+    protected <T> WebApplicationException getException(final Status status, String msg, String... params) throws WebApplicationException {
+        if (params != null) msg = MessageFormatter.arrayFormat(msg, params).getMessage();
+        LOG.error(msg);
         return new WebApplicationException(Response.status(status).type(MediaType.TEXT_PLAIN).entity(msg).build());
     }
 
     protected <T> WebApplicationException getException(Status status, Throwable t) throws WebApplicationException {
-        log().error(t.getMessage(), t);
+        LOG.error(t.getMessage(), t);
         return new WebApplicationException(Response.status(status).type(MediaType.TEXT_PLAIN).entity(t.getMessage()).build());
     }
 
-    /**
-     * <p>log</p>
-     *
-     * @return a {@link org.opennms.core.utils.ThreadCategory} object.
-     */
-    protected ThreadCategory log() {
-        return ThreadCategory.getInstance(getClass());
-    }
 
     /**
      * Convert a column name with underscores to the corresponding property name using "camel case".  A name

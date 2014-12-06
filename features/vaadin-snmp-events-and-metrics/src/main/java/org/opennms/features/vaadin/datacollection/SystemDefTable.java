@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2012-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -25,16 +25,15 @@
  *     http://www.opennms.org/
  *     http://www.opennms.com/
  *******************************************************************************/
+
 package org.opennms.features.vaadin.datacollection;
 
+import java.util.List;
+
 import org.opennms.features.vaadin.api.OnmsBeanContainer;
-import org.opennms.netmgt.config.datacollection.DatacollectionGroup;
 import org.opennms.netmgt.config.datacollection.SystemDef;
 
-import com.vaadin.data.Property;
-import com.vaadin.data.util.BeanItem;
 import com.vaadin.ui.Table;
-import com.vaadin.ui.themes.Runo;
 
 /**
  * The Class System Definition Table.
@@ -42,74 +41,71 @@ import com.vaadin.ui.themes.Runo;
  * @author <a href="mailto:agalue@opennms.org">Alejandro Galue</a> 
  */
 @SuppressWarnings("serial")
-public abstract class SystemDefTable extends Table {
+public class SystemDefTable extends Table {
 
-    /** The Constant COLUMN_NAMES. */
-    public static final String[] COLUMN_NAMES = new String[] { "name", "oid", "count" };
-
-    /** The Constant COLUMN_LABELS. */
-    public static final String[] COLUMN_LABELS = new String[] { "System Definition", "OID", "# Groups" };
+    /** The SNMP System Definitions Container. */
+    private OnmsBeanContainer<SystemDef> container = new OnmsBeanContainer<SystemDef>(SystemDef.class);
 
     /**
      * Instantiates a new system definition table.
      *
-     * @param group the OpenNMS Data Collection Group
+     * @param systemDefs the system definitions
      */
-    public SystemDefTable(final DatacollectionGroup group) {
-        OnmsBeanContainer<SystemDef> container = new OnmsBeanContainer<SystemDef>(SystemDef.class);
-        container.addAll(group.getSystemDefCollection());
+    public SystemDefTable(final List<SystemDef> systemDefs) {
+        container.addAll(systemDefs);
         setContainerDataSource(container);
-        setStyleName(Runo.TABLE_SMALL);
+        addStyleName("light");
         setImmediate(true);
         setSelectable(true);
         setWidth("100%");
         setHeight("250px");
         addGeneratedColumn("count", new ColumnGenerator() {
             @Override
-            @SuppressWarnings("unchecked")
             public Object generateCell(Table source, Object itemId, Object columnId) {
-                BeanItem<SystemDef> item = (BeanItem<SystemDef>) getContainerDataSource().getItem(itemId);
-                return item.getBean().getCollect() == null ? 0 : item.getBean().getCollect().getIncludeGroupCount();
+                final SystemDef s = container.getItem(itemId).getBean();
+                return s.getCollect() == null ? 0 : s.getCollect().getIncludeGroups().size();
             }
         });
         addGeneratedColumn("oid", new ColumnGenerator() {
             @Override
-            @SuppressWarnings("unchecked")
             public Object generateCell(Table source, Object itemId, Object columnId) {
-                BeanItem<SystemDef> item = (BeanItem<SystemDef>) getContainerDataSource().getItem(itemId);
-                final SystemDef s = item.getBean();
+                final SystemDef s = container.getItem(itemId).getBean();
                 final String value = s.getSysoid() == null ? s.getSysoidMask() : s.getSysoid();
                 return value == null ? "N/A" : value;
             }
         });
-        addListener(new Property.ValueChangeListener() {
-            @SuppressWarnings("unchecked")
-            public void valueChange(Property.ValueChangeEvent event) {
-                if (getValue() != null) {
-                    BeanItem<SystemDef> item = (BeanItem<SystemDef>) getContainerDataSource().getItem(getValue());
-                    updateExternalSource(item);
-                }
-            }
-        });
-        setVisibleColumns(COLUMN_NAMES);
-        setColumnHeaders(COLUMN_LABELS);
+        setVisibleColumns(new Object[] { "name", "oid", "count" });
+        setColumnHeaders(new String[] { "System Definition", "OID", "# SystemDefs" });
     }
 
     /**
-     * Update external source.
+     * Gets the systemDef.
      *
-     * @param item the item
+     * @param systemDefId the systemDef ID (the Item ID associated with the container)
+     * @return the event
      */
-    public abstract void updateExternalSource(BeanItem<SystemDef> item);
-
-    /**
-     * Adds a system definition.
-     *
-     * @param systemDef the system definition
-     */
-    @SuppressWarnings("unchecked")
-    public void addSystemDef(SystemDef systemDef) {
-        ((OnmsBeanContainer<SystemDef>) getContainerDataSource()).addOnmsBean(systemDef);
+    public SystemDef getSystemDef(Object systemDefId) {
+        return container.getOnmsBean(systemDefId);
     }
 
+    /**
+     * Adds the system definition.
+     *
+     * @param systemDef the new system definition
+     * @return the systemDefId
+     */
+    public Object addSystemDef(SystemDef systemDef) {
+        Object systemDefId = container.addOnmsBean(systemDef);
+        select(systemDefId);
+        return systemDefId;
+    }
+
+    /**
+     * Gets the systemDefs.
+     *
+     * @return the systemDefs
+     */
+    public List<SystemDef> getSystemDefs() {
+        return container.getOnmsBeans();
+    }
 }

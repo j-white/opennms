@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2010-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2010-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -37,10 +37,12 @@ import java.util.TimeZone;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.opennms.core.utils.LogUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 public class SyslogParser {
+    private static final Logger LOG = LoggerFactory.getLogger(SyslogParser.class);
     private static Pattern m_pattern = Pattern.compile("^.*$");
     private Matcher m_matcher = null;
     private final String m_text;
@@ -50,7 +52,7 @@ public class SyslogParser {
 
     protected SyslogParser(final String text) {
         m_text = text;
-        m_traceEnabled = LogUtils.isTraceEnabled(this);
+        m_traceEnabled = LOG.isTraceEnabled();
     }
 
     public boolean find() {
@@ -123,7 +125,7 @@ public class SyslogParser {
                 c.set(Calendar.YEAR, Calendar.getInstance().get(Calendar.YEAR));
                 date = c.getTime();
             } catch (final Exception e2) {
-                LogUtils.debugf(this, e2, "Unable to parse date '%s'", dateString);
+                LOG.debug("Unable to parse date '{}'", dateString, e2);
                 date = null;
             }
         }

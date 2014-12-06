@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2010-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2010-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -37,13 +37,17 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.opennms.core.utils.LogUtils;
 import org.opennms.netmgt.xml.eventconf.Decode;
 import org.opennms.netmgt.xml.eventconf.Varbindsdecode;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 
 public class SpectrumUtils {
+	
+    private static final Logger LOG = LoggerFactory.getLogger(SpectrumUtils.class);
+
     private String m_modelTypeAssetField = "manufacturer";
     private Map<String,EventTable> m_eventTableCache;
     
@@ -56,9 +60,9 @@ public class SpectrumUtils {
         String translated = untranslated;
         Matcher m = Pattern.compile("(?s)(\\{.*?\\})").matcher(untranslated);
         while (m.find()) {
-            LogUtils.debugf(this, "Found a token [%s], replacing it with token [%s]", m.group(1), translateFormatSubstToken(m.group(1)));
+            LOG.debug("Found a token [{}], replacing it with token [{}]", m.group(1), translateFormatSubstToken(m.group(1)));
             translated = translated.replace(m.group(1), translateFormatSubstToken(m.group(1)));
-            LogUtils.debugf(this, "New translated string: %s", translated);
+            LOG.debug("New translated string: {}", translated);
         }
         return translated;
     }
@@ -98,17 +102,17 @@ public class SpectrumUtils {
         for (String token : ef.getSubstTokens()) {
             Matcher mat = pat.matcher(token);
             if (mat.matches()) {
-                LogUtils.debugf(this, "Token [%s] looks like an event-table, processing it", token);
+                LOG.debug("Token [{}] looks like an event-table, processing it", token);
                 EventTable et = loadEventTable(eventTablePath, mat.group(1));
                 String parmId = "parm[#" + mat.group(2) + "]";
                 Varbindsdecode vbd = translateEventTable(et, parmId);
-                LogUtils.debugf(this, "Loaded event-table [%s] with parm-ID [%s], with %d mappings", et.getTableName(), parmId, vbd.getDecodeCount());
+                LOG.debug("Loaded event-table [{}] with parm-ID [{}], with {} mappings", et.getTableName(), parmId, vbd.getDecodeCount());
                 vbds.add(translateEventTable(et, parmId));
             } else {
-                LogUtils.debugf(this, "Token [%s] does not look like an event-table, skipping it", token);
+                LOG.debug("Token [{}] does not look like an event-table, skipping it", token);
             }
         }
-        LogUtils.debugf(this, "Translated %d event-tables for event-code [%s]", vbds.size(), ef.getEventCode());
+        LOG.debug("Translated %d event-tables for event-code [{}]", vbds.size(), ef.getEventCode());
         return vbds;
     }
     
@@ -141,15 +145,15 @@ public class SpectrumUtils {
     
     private EventTable loadEventTable(String eventTablePath, String tableName) throws IOException {
         if (m_eventTableCache.containsKey(tableName)) {
-            LogUtils.debugf(this, "Retrieving event-table [%s] from cache", tableName);
+            LOG.debug("Retrieving event-table [{}] from cache", tableName);
             return m_eventTableCache.get(tableName);
         }
         
         Resource tableFile = new FileSystemResource(eventTablePath + File.separator + tableName);
         EventTableReader etr = new EventTableReader(tableFile);
-        LogUtils.debugf(this, "Attempting to load event-table [%s] from [%s]", tableName, tableFile);
+        LOG.debug("Attempting to load event-table [{}] from [{}]", tableName, tableFile);
         EventTable et = etr.getEventTable();
-        LogUtils.debugf(this, "Storing event-table [%s] in cache", tableName);
+        LOG.debug("Storing event-table [{}] in cache", tableName);
         return et;
     }
     

@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2002-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -51,7 +51,8 @@ import org.opennms.core.utils.ConfigFileConstants;
 import org.opennms.core.utils.IPLike;
 import org.opennms.core.utils.InetAddressComparator;
 import org.opennms.core.utils.InetAddressUtils;
-import org.opennms.core.utils.ThreadCategory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.opennms.core.xml.CastorUtils;
 import org.opennms.netmgt.config.wmi.Definition;
 import org.opennms.netmgt.config.wmi.Range;
@@ -77,6 +78,7 @@ import org.springframework.core.io.FileSystemResource;
  * @author <a href="mailto:matt.raykowski@gmail.com">Matt Raykowski</a>
  */
 public class WmiPeerFactory {
+    private static final Logger LOG = LoggerFactory.getLogger(WmiPeerFactory.class);
     /**
      * The singleton instance of this factory
      */
@@ -142,15 +144,11 @@ public class WmiPeerFactory {
 
         File cfgFile = ConfigFileConstants.getFile(ConfigFileConstants.WMI_CONFIG_FILE_NAME);
 
-        log().debug("init: config file path: " + cfgFile.getPath());
+        LOG.debug("init: config file path: {}", cfgFile.getPath());
 
         m_singleton = new WmiPeerFactory(cfgFile.getPath());
 
         m_loaded = true;
-    }
-
-    private static ThreadCategory log() {
-        return ThreadCategory.getInstance(WmiPeerFactory.class);
     }
 
     /**
@@ -212,15 +210,14 @@ public class WmiPeerFactory {
      * @throws UnknownHostException
      */
     static void optimize() throws UnknownHostException {
-        ThreadCategory log = log();
 
         // First pass: Remove empty definition elements
         for (Iterator<Definition> definitionsIterator = m_config.getDefinitionCollection().iterator();
         definitionsIterator.hasNext();) {
             Definition definition = definitionsIterator.next();
             if (definition.getSpecificCount() == 0 && definition.getRangeCount() == 0) {
-                if (log.isDebugEnabled())
-                    log.debug("optimize: Removing empty definition element");
+
+                LOG.debug("optimize: Removing empty definition element");
                 definitionsIterator.remove();
             }
         }

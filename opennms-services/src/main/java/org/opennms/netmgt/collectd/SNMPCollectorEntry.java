@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2002-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -32,12 +32,13 @@ import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
 
-import org.opennms.core.utils.ThreadCategory;
 import org.opennms.netmgt.config.MibObject;
 import org.opennms.netmgt.snmp.AbstractSnmpStore;
 import org.opennms.netmgt.snmp.SnmpInstId;
 import org.opennms.netmgt.snmp.SnmpObjId;
 import org.opennms.netmgt.snmp.SnmpResult;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * <P>
@@ -58,6 +59,9 @@ import org.opennms.netmgt.snmp.SnmpResult;
  * @version $Id: $
  */
 public final class SNMPCollectorEntry extends AbstractSnmpStore {
+    
+    private static final Logger LOG = LoggerFactory.getLogger(SNMPCollectorEntry.class);
+    
     /**
      * The list of MIBObjects that will used for associating the the data within
      * the map.
@@ -81,10 +85,6 @@ public final class SNMPCollectorEntry extends AbstractSnmpStore {
     }
 
 
-    private ThreadCategory log() {
-        return ThreadCategory.getInstance(getClass());
-    }
-    
     private List<SnmpAttributeType> findAttributeTypeForOid(SnmpObjId base, SnmpInstId inst) {
         List<SnmpAttributeType> matching = new LinkedList<SnmpAttributeType>();
         for (SnmpAttributeType attrType : m_attrList) {
@@ -97,6 +97,7 @@ public final class SNMPCollectorEntry extends AbstractSnmpStore {
 
 
     /** {@inheritDoc} */
+    @Override
     public void storeResult(SnmpResult res) {
         String key = res.getAbsoluteInstance().toString();
         putValue(key, res.getValue());
@@ -110,7 +111,7 @@ public final class SNMPCollectorEntry extends AbstractSnmpStore {
                 putIfIndex(res.getInstance().toInt());
             }
             attrType.storeResult(m_collectionSet, this, res);
-            log().debug("storeResult: added value for "+attrType.getAlias()+": " + res.toString());
+            LOG.debug("storeResult: added value for {}: {}", attrType.getAlias(), res.toString());
         }
     }
 

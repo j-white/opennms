@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2006-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -35,14 +35,13 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import org.opennms.core.utils.LogUtils;
 import org.opennms.netmgt.config.surveillanceViews.Category;
 import org.opennms.netmgt.config.surveillanceViews.ColumnDef;
 import org.opennms.netmgt.config.surveillanceViews.RowDef;
 import org.opennms.netmgt.config.surveillanceViews.View;
-import org.opennms.netmgt.dao.CategoryDao;
-import org.opennms.netmgt.dao.NodeDao;
-import org.opennms.netmgt.dao.SurveillanceViewConfigDao;
+import org.opennms.netmgt.dao.api.CategoryDao;
+import org.opennms.netmgt.dao.api.NodeDao;
+import org.opennms.netmgt.dao.api.SurveillanceViewConfigDao;
 import org.opennms.netmgt.model.OnmsCategory;
 import org.opennms.netmgt.model.OnmsNode;
 import org.opennms.web.api.Util;
@@ -51,6 +50,8 @@ import org.opennms.web.svclayer.AggregateStatus;
 import org.opennms.web.svclayer.ProgressMonitor;
 import org.opennms.web.svclayer.SimpleWebTable;
 import org.opennms.web.svclayer.SurveillanceService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.orm.ObjectRetrievalFailureException;
 import org.springframework.util.StringUtils;
 
@@ -63,6 +64,9 @@ import org.springframework.util.StringUtils;
  * @since 1.8.1
  */
 public class DefaultSurveillanceService implements SurveillanceService {
+	
+	private static final Logger LOG = LoggerFactory.getLogger(DefaultSurveillanceService.class);
+
 
     private NodeDao m_nodeDao;
     private CategoryDao m_categoryDao;
@@ -80,6 +84,7 @@ public class DefaultSurveillanceService implements SurveillanceService {
             return m_nodeDao.findAllByCategoryList(categories);
         }
 
+        @Override
         public SurveillanceStatus[][] calculateCellStatus(final SurveillanceView sView, final ProgressMonitor progressMonitor) {
 
         	final List<Collection<OnmsNode>> nodesByRowIndex = new ArrayList<Collection<OnmsNode>>();
@@ -120,6 +125,7 @@ public class DefaultSurveillanceService implements SurveillanceService {
             return cellStatus;
         }
 
+        @Override
         public int getPhaseCount(final SurveillanceView sView) {
             return sView.getRowCount()+sView.getColumnCount()+1;
         }
@@ -146,6 +152,7 @@ public class DefaultSurveillanceService implements SurveillanceService {
         }
         
 
+        @Override
         public SurveillanceStatus[][] calculateCellStatus(final SurveillanceView sView, final ProgressMonitor progressMonitor) {
         	final SurveillanceStatus[][] cellStatus = new SurveillanceStatus[sView.getRowCount()][sView.getColumnCount()];
 
@@ -168,6 +175,7 @@ public class DefaultSurveillanceService implements SurveillanceService {
         }
 
 
+        @Override
         public int getPhaseCount(final SurveillanceView sView) {
             return sView.getRowCount()*sView.getColumnCount();
         }
@@ -194,6 +202,7 @@ public class DefaultSurveillanceService implements SurveillanceService {
         }
         
 
+        @Override
         public SurveillanceStatus[][] calculateCellStatus(final SurveillanceView sView, final ProgressMonitor progressMonitor) {
 
         	final SurveillanceStatus[][] cellStatus = new SurveillanceStatus[sView.getRowCount()][sView.getColumnCount()];
@@ -218,6 +227,7 @@ public class DefaultSurveillanceService implements SurveillanceService {
         }
 
 
+        @Override
         public int getPhaseCount(final SurveillanceView sView) {
             return sView.getRowCount()*sView.getColumnCount();
         }
@@ -233,7 +243,7 @@ public class DefaultSurveillanceService implements SurveillanceService {
         return createSurveillanceTable("default", new ProgressMonitor());
     }
 
-    public class SurveillanceView {
+    public static class SurveillanceView {
     	private final SurveillanceViewConfigDao m_surveillanceConfigDao;
         private final CategoryDao m_categoryDao;
         private final View m_view;
@@ -305,6 +315,7 @@ public class DefaultSurveillanceService implements SurveillanceService {
      * Creates a custom table object containing intersected rows and
      * columns and categories.
      */
+    @Override
     public SimpleWebTable createSurveillanceTable(final String surveillanceViewName, final ProgressMonitor progressMonitor) {
         
         CellStatusStrategy strategy = getCellStatusStrategy();
@@ -345,7 +356,7 @@ public class DefaultSurveillanceService implements SurveillanceService {
             	final SurveillanceStatus survStatus = cellStatus[rowIndex][colIndex];
 
                 final String text = survStatus.getDownEntityCount()+" of "+survStatus.getTotalEntityCount();
-				LogUtils.debugf(this, "Text: %s, Style %s", text, survStatus.getStatus());
+				LOG.debug("Text: {}, Style {}", text, survStatus.getStatus());
 				final SimpleWebTable.Cell cell = webTable.addCell(text, survStatus.getStatus());
 
                 if (survStatus.getDownEntityCount() > 0) {
@@ -385,13 +396,13 @@ public class DefaultSurveillanceService implements SurveillanceService {
     	try {
     		columns = view.getCategoriesForColumn(colIndex); 
     	} catch (final ObjectRetrievalFailureException e) {
-    		LogUtils.warnf(this, "An error occurred while getting categories for view %s, column %d", view, colIndex);
+    		LOG.warn("An error occurred while getting categories for view {}, column {}", view, colIndex);
     	}
 
     	try {
     		rows = view.getCategoriesForRow(rowIndex);
     	} catch (final ObjectRetrievalFailureException e) {
-    		LogUtils.warnf(this, "An error occurred while getting categories for view %s, row %d", view, rowIndex);
+    		LOG.warn("An error occurred while getting categories for view {}, row {}", view, rowIndex);
     	}
 
     	final List<String> params = new ArrayList<String>(columns.size() + rows.size());
@@ -408,7 +419,7 @@ public class DefaultSurveillanceService implements SurveillanceService {
     /**
      * <p>getNodeDao</p>
      *
-     * @return a {@link org.opennms.netmgt.dao.NodeDao} object.
+     * @return a {@link org.opennms.netmgt.dao.api.NodeDao} object.
      */
     public NodeDao getNodeDao() {
         return m_nodeDao;
@@ -417,7 +428,7 @@ public class DefaultSurveillanceService implements SurveillanceService {
     /**
      * <p>setNodeDao</p>
      *
-     * @param nodeDao a {@link org.opennms.netmgt.dao.NodeDao} object.
+     * @param nodeDao a {@link org.opennms.netmgt.dao.api.NodeDao} object.
      */
     public void setNodeDao(final NodeDao nodeDao) {
         m_nodeDao = nodeDao;
@@ -426,7 +437,7 @@ public class DefaultSurveillanceService implements SurveillanceService {
     /**
      * <p>getCategoryDao</p>
      *
-     * @return a {@link org.opennms.netmgt.dao.CategoryDao} object.
+     * @return a {@link org.opennms.netmgt.dao.api.CategoryDao} object.
      */
     public CategoryDao getCategoryDao() {
         return m_categoryDao;
@@ -435,7 +446,7 @@ public class DefaultSurveillanceService implements SurveillanceService {
     /**
      * <p>setCategoryDao</p>
      *
-     * @param categoryDao a {@link org.opennms.netmgt.dao.CategoryDao} object.
+     * @param categoryDao a {@link org.opennms.netmgt.dao.api.CategoryDao} object.
      */
     public void setCategoryDao(final CategoryDao categoryDao) {
         m_categoryDao = categoryDao;
@@ -444,7 +455,7 @@ public class DefaultSurveillanceService implements SurveillanceService {
     /**
      * <p>getSurveillanceConfigDao</p>
      *
-     * @return a {@link org.opennms.netmgt.dao.SurveillanceViewConfigDao} object.
+     * @return a {@link org.opennms.netmgt.dao.api.SurveillanceViewConfigDao} object.
      */
     public SurveillanceViewConfigDao getSurveillanceConfigDao() {
         return m_surveillanceConfigDao;
@@ -453,18 +464,20 @@ public class DefaultSurveillanceService implements SurveillanceService {
     /**
      * <p>setSurveillanceConfigDao</p>
      *
-     * @param surveillanceConfigDao a {@link org.opennms.netmgt.dao.SurveillanceViewConfigDao} object.
+     * @param surveillanceConfigDao a {@link org.opennms.netmgt.dao.api.SurveillanceViewConfigDao} object.
      */
     public void setSurveillanceConfigDao(final SurveillanceViewConfigDao surveillanceConfigDao) {
         m_surveillanceConfigDao = surveillanceConfigDao;
     }
 
     /** {@inheritDoc} */
+    @Override
     public String getHeaderRefreshSeconds(final String viewName) {
         return m_surveillanceConfigDao.getView(viewName == null ? m_surveillanceConfigDao.getDefaultView().getName() : viewName).getRefreshSeconds();
     }
 
     /** {@inheritDoc} */
+    @Override
     public boolean isViewName(final String viewName) {
         View view = ( viewName == null ? m_surveillanceConfigDao.getDefaultView() : m_surveillanceConfigDao.getView(viewName) );
         return (view == null) ? false : true;
@@ -475,6 +488,7 @@ public class DefaultSurveillanceService implements SurveillanceService {
      *
      * @return a {@link java.util.List} object.
      */
+    @Override
     public List<String> getViewNames() {
     	final List<String> viewNames = new ArrayList<String>(m_surveillanceConfigDao.getViews().getViewCount());
         for (final View view : getViewCollection()) {

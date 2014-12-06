@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2008-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2007-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -32,8 +32,10 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.opennms.netmgt.EventConstants;
+import org.opennms.netmgt.events.api.EventConstants;
 import org.opennms.netmgt.xml.event.Event;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.util.Assert;
 
 /**
@@ -44,15 +46,17 @@ import org.springframework.util.Assert;
  * @version $Id: $
  */
 public class ThresholdEvaluatorAbsoluteChange implements ThresholdEvaluator {
-    
+    private static final Logger LOG = LoggerFactory.getLogger(ThresholdEvaluatorAbsoluteChange.class);
     private static final String TYPE = "absoluteChange";
 
     /** {@inheritDoc} */
+    @Override
     public ThresholdEvaluatorState getThresholdEvaluatorState(BaseThresholdDefConfigWrapper threshold) {
         return new ThresholdEvaluatorStateAbsoluteChange(threshold);
     }
 
     /** {@inheritDoc} */
+    @Override
     public boolean supportsType(String type) {
         return TYPE.equals(type);
     }
@@ -89,10 +93,12 @@ public class ThresholdEvaluatorAbsoluteChange implements ThresholdEvaluator {
             setChange(thresholdConfig.getValue());
         }
 
+        @Override
         public BaseThresholdDefConfigWrapper getThresholdConfig() {
             return m_thresholdConfig;
         }
 
+        @Override
         public Status evaluate(double dsValue) {
             if(!Double.isNaN(getLastSample())) {
                 double threshold = getLastSample()+getChange();
@@ -102,7 +108,7 @@ public class ThresholdEvaluatorAbsoluteChange implements ThresholdEvaluator {
                     if (dsValue <= threshold) {
                         setPreviousTriggeringSample(getLastSample());
                         setLastSample(dsValue);
-                        log().debug("evaluate: absolute negative change threshold triggered");
+                        LOG.debug("evaluate: absolute negative change threshold triggered");
                         return Status.TRIGGERED;
                     }
                 } else {
@@ -110,7 +116,7 @@ public class ThresholdEvaluatorAbsoluteChange implements ThresholdEvaluator {
                     if (dsValue >= threshold) {
                         setPreviousTriggeringSample(getLastSample());
                         setLastSample(dsValue);
-                        log().debug("evaluate: absolute positive change threshold triggered");
+                        LOG.debug("evaluate: absolute positive change threshold triggered");
                         return Status.TRIGGERED;
                     }
                 }
@@ -127,6 +133,7 @@ public class ThresholdEvaluatorAbsoluteChange implements ThresholdEvaluator {
             m_lastSample = lastSample;
         }
 
+        @Override
         public Event getEventForState(Status status, Date date, double dsValue, CollectionResourceWrapper resource) {
             if (status == Status.TRIGGERED) {
                 String uei=getThresholdConfig().getTriggeredUEI();
@@ -163,16 +170,19 @@ public class ThresholdEvaluatorAbsoluteChange implements ThresholdEvaluator {
             m_change = change;
         }
 
+        @Override
         public ThresholdEvaluatorState getCleanClone() {
             return new ThresholdEvaluatorStateAbsoluteChange(m_thresholdConfig);
         }
 
         // FIXME This must be implemented correctly
+        @Override
         public boolean isTriggered() {
             return false;
         }
 
         // FIXME This must be implemented correctly
+        @Override
         public void clearState() {
         }
     }

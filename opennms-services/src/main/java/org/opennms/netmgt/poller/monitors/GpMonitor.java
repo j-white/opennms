@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2003-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -32,18 +32,18 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.util.Map;
 
-import org.apache.log4j.Level;
 import org.opennms.core.utils.ExecRunner;
 import org.opennms.core.utils.InetAddressUtils;
 import org.opennms.core.utils.ParameterMap;
-import org.opennms.core.utils.ThreadCategory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.opennms.core.utils.TimeoutTracker;
-import org.opennms.netmgt.model.PollStatus;
 import org.opennms.netmgt.poller.Distributable;
 import org.opennms.netmgt.poller.DistributionContext;
 import org.opennms.netmgt.poller.MonitoredService;
 import org.opennms.netmgt.poller.NetworkInterface;
 import org.opennms.netmgt.poller.NetworkInterfaceNotSupportedException;
+import org.opennms.netmgt.poller.PollStatus;
 
 /**
  * This class is designed to be used by the service poller framework to test the
@@ -66,6 +66,7 @@ import org.opennms.netmgt.poller.NetworkInterfaceNotSupportedException;
  */
 @Deprecated
 final public class GpMonitor extends AbstractServiceMonitor {
+    private static final Logger LOG = LoggerFactory.getLogger(GpMonitor.class);
     /**
      * Default retries.
      */
@@ -93,13 +94,13 @@ final public class GpMonitor extends AbstractServiceMonitor {
      * The timeout is handled by ExecRunner and is also passed as a parameter to
      * the script or program being called.
      */
+    @Override
     public PollStatus poll(MonitoredService svc, Map<String, Object> parameters) {
         NetworkInterface<InetAddress> iface = svc.getNetInterface();
 
         //
         // Process parameters
         //
-        ThreadCategory log = ThreadCategory.getInstance(getClass());
 
         //
         // Get interface address from NetworkInterface
@@ -140,8 +141,8 @@ final public class GpMonitor extends AbstractServiceMonitor {
         InetAddress ipv4Addr = (InetAddress) iface.getAddress();
 
         final String hostAddress = InetAddressUtils.str(ipv4Addr);
-		if (log.isDebugEnabled())
-            log.debug("poll: address = " + hostAddress + ", script = " + script + ", arguments = " + args + ", " + tracker);
+
+		LOG.debug("poll: address = {}, script = {}, arguments = {}, {}", tracker, hostAddress, script, args);
 
         // Give it a whirl
         //
@@ -171,22 +172,26 @@ final public class GpMonitor extends AbstractServiceMonitor {
                 
                 if (exitStatus != 0) {
                         scriptoutput = er.getOutString();
-                        serviceStatus = logDown(Level.DEBUG, script + " failed with exit code " + exitStatus + ". Standard out: " + scriptoutput);
+                        String reason = script + " failed with exit code " + exitStatus + ". Standard out: " + scriptoutput;
+                        LOG.debug(reason);
+                        serviceStatus = PollStatus.unavailable(reason);
                 }
                 if (er.isMaxRunTimeExceeded()) {
                 	
-                	serviceStatus = logDown(Level.DEBUG, script + " failed. Timeout exceeded");
+                	String reason = script + " failed. Timeout exceeded";
+                    LOG.debug(reason);
+                    serviceStatus = PollStatus.unavailable(reason);
 
                 } else {
                     if (exitStatus == 0) {
                         scriptoutput = er.getOutString();
                         scripterror = er.getErrString();
                         if (!scriptoutput.equals(""))
-                            log.debug(script + " output  = " + scriptoutput);
+                            LOG.debug("{} output  = {}", script, scriptoutput);
                         else
-                            log.debug(script + " returned no output");
+                            LOG.debug("{} returned no output", script);
                         if (!scripterror.equals(""))
-                            log.debug(script + " error = " + scripterror);
+                            LOG.debug("{} error = {}", script, scripterror);
                         if (strBannerMatch == null || strBannerMatch.equals("*")) {
                         	
                             serviceStatus = PollStatus.available(responseTime);
@@ -203,15 +208,21 @@ final public class GpMonitor extends AbstractServiceMonitor {
 
             } catch (ArrayIndexOutOfBoundsException e) {
             	
-            	serviceStatus = logDown(Level.DEBUG, script + " ArrayIndexOutOfBoundsException", e);
+            	String reason = script + " ArrayIndexOutOfBoundsException";
+                LOG.debug(reason, e);
+                serviceStatus = PollStatus.unavailable(reason);
             	
             } catch (IOException e) {
             	
-            	serviceStatus = logDown(Level.DEBUG, "IOException occurred. Check for proper operation of " + script, e);
+            	String reason = "IOException occurred. Check for proper operation of " + script;
+                LOG.debug(reason, e);
+                serviceStatus = PollStatus.unavailable(reason);
             	
             } catch (Throwable e) {
             	
-            	serviceStatus = logDown(Level.DEBUG, script + "Exception occurred", e);
+            	String reason = script + "Exception occurred";
+                LOG.debug(reason, e);
+                serviceStatus = PollStatus.unavailable(reason);
             	
             }
         }
@@ -219,7 +230,7 @@ final public class GpMonitor extends AbstractServiceMonitor {
         //
         // return the status of the service
         //
-        log.debug("poll: GP - serviceStatus= " + serviceStatus + "  " + hostAddress);
+        LOG.debug("poll: GP - serviceStatus= {} {}", hostAddress, serviceStatus);
         return serviceStatus;
     }
     

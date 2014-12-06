@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2009-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -54,7 +54,8 @@ import org.opennms.core.schema.Migrator;
 import org.opennms.core.test.MockLogAppender;
 import org.opennms.core.test.OpenNMSJUnit4ClassRunner;
 import org.opennms.core.test.db.annotations.JUnitTemporaryDatabase;
-import org.opennms.core.utils.LogUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
 import org.springframework.core.io.Resource;
@@ -67,6 +68,7 @@ import org.springframework.test.context.ContextConfiguration;
 })
 @JUnitTemporaryDatabase
 public class MigratorTest {
+    private static final Logger LOG = LoggerFactory.getLogger(MigratorTest.class);
 
     @Autowired
     DataSource m_dataSource;
@@ -106,7 +108,7 @@ public class MigratorTest {
         migration.setChangeLog("changelog.xml");
         migration.setAccessor(new ExistingResourceAccessor(aResource));
 
-        LogUtils.infof(this, "Running migration on database: %s", migration.toString());
+        LOG.info("Running migration on database: {}", migration);
 
         final Migrator m = new Migrator();
         m.setDataSource(m_dataSource);
@@ -118,7 +120,7 @@ public class MigratorTest {
         m.prepareDatabase(migration);
         m.migrate(migration);
 
-        LogUtils.infof(this, "Migration complete: %s", migration.toString());
+        LOG.info("Migration complete: {}", migration);
 
         tables = getTables();
         assertTrue("must contain table 'schematest'", tables.contains("schematest"));
@@ -147,7 +149,7 @@ public class MigratorTest {
         // from the classpath
         for (final Resource resource : getTestResources()) {
             if (!resource.getURI().toString().contains("test-api.schema")) continue;
-            LogUtils.infof(this, "=== found resource: " + resource + " ===");
+            LOG.info("=== found resource: {} ===", resource);
             migration.setAccessor(new ExistingResourceAccessor(resource));
             m.migrate(migration);
         }

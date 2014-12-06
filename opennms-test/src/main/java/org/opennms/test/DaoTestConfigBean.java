@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2007-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2007-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -36,7 +36,6 @@ import java.util.Properties;
 import org.opennms.core.test.ConfigurationTestUtils;
 import org.opennms.core.utils.PropertiesUtils;
 import org.springframework.beans.factory.InitializingBean;
-import org.springframework.util.Assert;
 
 /**
  * Support class to help with configuration that needs to happen in
@@ -50,11 +49,10 @@ import org.springframework.util.Assert;
  */
 public class DaoTestConfigBean implements InitializingBean {
     private String m_relativeHomeDirectory = null;
-    private final String m_absoluteHomeDirectory = null; 
     private String m_rrdBinary = "/bin/true";
     private String m_relativeRrdBaseDirectory = "target/test/opennms-home/share/rrd";
-    private final String m_relativeImporterDirectory = "target/test/opennms-home/etc/imports";
-    private final String m_relativeForeignSourceDirectory = "target/test/opennms-home/etc/foreign-sources";
+    private static final String m_relativeImporterDirectory = "target/test/opennms-home/etc/imports";
+    private static final String m_relativeForeignSourceDirectory = "target/test/opennms-home/etc/foreign-sources";
 
     /**
      * <p>Constructor for DaoTestConfigBean.</p>
@@ -67,8 +65,6 @@ public class DaoTestConfigBean implements InitializingBean {
      */
     @Override
     public void afterPropertiesSet() {
-        Assert.state(m_relativeHomeDirectory == null || m_absoluteHomeDirectory == null, "Only one of the properties relativeHomeDirectory and absoluteHomeDirectory can be set.");
-
         if (System.getProperty("org.opennms.netmgt.icmp.pingerClass") == null) {
             System.setProperty("org.opennms.netmgt.icmp.pingerClass", "org.opennms.netmgt.icmp.jna.JnaPinger");
         }
@@ -86,24 +82,20 @@ public class DaoTestConfigBean implements InitializingBean {
         }
         // Do any necessary substitutions that are normally handled by maven
         Properties substitutions = new Properties();
+        substitutions.setProperty("install.database.name", "opennms");
         substitutions.setProperty("install.database.driver", "org.postgres.Driver");
         substitutions.setProperty("install.share.dir", "target/test/share");
-        substitutions.setProperty("install.webapplogs.dir", "target/test/logs/webapp");
+        substitutions.setProperty("install.logs.dir", "target/test/logs");
         for (Map.Entry<Object, Object> entry : opennmsProperties.entrySet()) {
             //System.err.println((String)entry.getKey() + " -> " + PropertiesUtils.substitute((String)entry.getValue(), substitutions));
             System.setProperty((String)entry.getKey(), PropertiesUtils.substitute((String)entry.getValue(), substitutions));
         }
 
-        if (m_absoluteHomeDirectory != null) {
-            ConfigurationTestUtils.setAbsoluteHomeDirectory(m_absoluteHomeDirectory);
-        } else if (m_relativeHomeDirectory != null) {
+        if (m_relativeHomeDirectory != null) {
             ConfigurationTestUtils.setRelativeHomeDirectory(m_relativeHomeDirectory);
         } else {
             ConfigurationTestUtils.setAbsoluteHomeDirectory(ConfigurationTestUtils.getDaemonEtcDirectory().getParentFile().getAbsolutePath());
         }
-
-        // Turn off dumb SNMP4J logging which triggers our "no logging higher than INFO" checks
-        System.setProperty("snmp4j.LogFactory", "org.snmp4j.log.NoLogger");
 
         ConfigurationTestUtils.setRrdBinary(m_rrdBinary);
         ConfigurationTestUtils.setRelativeRrdBaseDirectory(m_relativeRrdBaseDirectory);

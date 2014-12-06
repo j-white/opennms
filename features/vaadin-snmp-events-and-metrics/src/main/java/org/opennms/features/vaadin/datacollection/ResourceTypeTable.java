@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2012-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -25,16 +25,15 @@
  *     http://www.opennms.org/
  *     http://www.opennms.com/
  *******************************************************************************/
+
 package org.opennms.features.vaadin.datacollection;
 
+import java.util.List;
+
 import org.opennms.features.vaadin.api.OnmsBeanContainer;
-import org.opennms.netmgt.config.datacollection.DatacollectionGroup;
 import org.opennms.netmgt.config.datacollection.ResourceType;
 
-import com.vaadin.data.Property;
-import com.vaadin.data.util.BeanItem;
 import com.vaadin.ui.Table;
-import com.vaadin.ui.themes.Runo;
 
 /**
  * The Class Resource Type Table.
@@ -42,56 +41,58 @@ import com.vaadin.ui.themes.Runo;
  * @author <a href="mailto:agalue@opennms.org">Alejandro Galue</a> 
  */
 @SuppressWarnings("serial")
-public abstract class ResourceTypeTable extends Table {
+public class ResourceTypeTable extends Table {
 
-    /** The Constant COLUMN_NAMES. */
-    public static final String[] COLUMN_NAMES = new String[] { "label", "name" };
-
-    /** The Constant COLUMN_LABELS. */
-    public static final String[] COLUMN_LABELS = new String[] { "Resource Type Label", "Resource Type Name" };
+    /** The Resource Type Container. */
+    private OnmsBeanContainer<ResourceType> container = new OnmsBeanContainer<ResourceType>(ResourceType.class);
 
     /**
      * Instantiates a new resource type table.
      *
-     * @param group the OpenNMS Data Collection Group
+     * @param resourceTypes the resource types
      */
-    public ResourceTypeTable(final DatacollectionGroup group) {
-        OnmsBeanContainer<ResourceType> container = new OnmsBeanContainer<ResourceType>(ResourceType.class);
-        container.addAll(group.getResourceTypeCollection());
+    public ResourceTypeTable(final List<ResourceType> resourceTypes) {
+        container.addAll(resourceTypes);
         setContainerDataSource(container);
-        setStyleName(Runo.TABLE_SMALL);
+        addStyleName("light");
         setImmediate(true);
         setSelectable(true);
-        setVisibleColumns(COLUMN_NAMES);
-        setColumnHeaders(COLUMN_LABELS);
+        setVisibleColumns(new Object[] { "label", "name" });
+        setColumnHeaders(new String[] { "Resource Type Label", "Resource Type Name" });
         setWidth("100%");
         setHeight("250px");
-        addListener(new Property.ValueChangeListener() {
-            @SuppressWarnings("unchecked")
-            public void valueChange(Property.ValueChangeEvent event) {
-                if (getValue() != null) {
-                    BeanItem<ResourceType> item = (BeanItem<ResourceType>) getContainerDataSource().getItem(getValue());
-                    updateExternalSource(item);
-                }
-            }
-        });
     }
 
     /**
-     * Update external source.
+     * Gets the resource type.
      *
-     * @param item the item
+     * @param resourceTypeId the resourceType ID (the Item ID associated with the container)
+     * @return the resource type
      */
-    public abstract void updateExternalSource(BeanItem<ResourceType> item);
+    public ResourceType getResourceType(Object resourceTypeId) {
+        return container.getItem(resourceTypeId).getBean();
+    }
 
     /**
-     * Adds a resource type.
+     * Adds the resource type.
      *
-     * @param resourceType the resource type
+     * @param resourceType the new resource type
+     * @return the resourceTypeId
      */
-    @SuppressWarnings("unchecked")
-    public void addResourceType(ResourceType resourceType) {
-        ((OnmsBeanContainer<ResourceType>) getContainerDataSource()).addOnmsBean(resourceType);
+    public Object addResourceType(ResourceType resourceType) {
+        Object resourceTypeId = container.addOnmsBean(resourceType);
+        select(resourceTypeId);
+        return resourceTypeId;
+
+    }
+
+    /**
+     * Gets the resource type.
+     *
+     * @return the resource type
+     */
+    public List<ResourceType> getResourceTypes() {
+        return container.getOnmsBeans();
     }
 
 }

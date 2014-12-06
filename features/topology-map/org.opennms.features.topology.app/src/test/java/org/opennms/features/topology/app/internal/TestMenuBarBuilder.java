@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2012-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -34,9 +34,9 @@ import static org.junit.Assert.assertTrue;
 import java.util.Arrays;
 import java.util.Dictionary;
 import java.util.HashMap;
+import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 
 import org.junit.Ignore;
 import org.junit.Test;
@@ -146,7 +146,7 @@ public class TestMenuBarBuilder {
         
         cmdManager.onBind(getTestOperation(), getProps("File|New", "NewOperation", ""));
         
-        MenuBar menuBar = cmdManager.getMenuBar(null, null, null);
+        MenuBar menuBar = cmdManager.getMenuBar(null, null);
         
         List<MenuItem> menuItems = menuBar.getItems();
         assertEquals(1, menuItems.size());
@@ -175,7 +175,7 @@ public class TestMenuBarBuilder {
         cmdManager.onBind(getTestOperation(), getProps("Device", "NewOperation?group=additions", ""));
         
         
-        MenuBar menuBar = cmdManager.getMenuBar(null, null, null);
+        MenuBar menuBar = cmdManager.getMenuBar(null, null);
         
         List<MenuItem> menuItems = menuBar.getItems();
         assertEquals(1, menuItems.size());
@@ -202,7 +202,7 @@ public class TestMenuBarBuilder {
         cmdManager.onBind(getTestOperation(), getProps("Edit", "Spring Layout?group=layout", ""));
         
         
-        MenuBar menuBar = cmdManager.getMenuBar(null, null, null);
+        MenuBar menuBar = cmdManager.getMenuBar(null, null);
         
         List<MenuItem> menuItems = menuBar.getItems();
         assertEquals(1, menuItems.size());
@@ -231,7 +231,7 @@ public class TestMenuBarBuilder {
         cmdManager.onBind(getTestOperation(), getProps("Edit", "Spring Layout?group=layout", ""));
         
         
-        MenuBar menuBar = cmdManager.getMenuBar(null, null, null);
+        MenuBar menuBar = cmdManager.getMenuBar(null, null);
         
         List<MenuItem> menuItems = menuBar.getItems();
         assertEquals(1, menuItems.size());
@@ -259,7 +259,7 @@ public class TestMenuBarBuilder {
         
         cmdManager.onBind(getTestOperation(), getProps("File|New", "NewOperation", ""));
         
-        MenuBar menuBar = cmdManager.getMenuBar(null, null, null);
+        MenuBar menuBar = cmdManager.getMenuBar(null, null);
         
         List<MenuItem> menuItems = menuBar.getItems();
         assertEquals(1, menuItems.size());
@@ -281,7 +281,7 @@ public class TestMenuBarBuilder {
         
         cmdManager.onBind(getCheckedTestOperation(), getProps("File", "Operation1", ""));
         
-        MenuBar menuBar = cmdManager.getMenuBar(null, null, null);
+        MenuBar menuBar = cmdManager.getMenuBar(null, null);
         
         List<MenuItem> menuItems = menuBar.getItems();
         assertEquals(1, menuItems.size());
@@ -298,52 +298,45 @@ public class TestMenuBarBuilder {
 
             @Override
             public Undoer execute(List<VertexRef> targets, OperationContext operationContext) {
-                // TODO Auto-generated method stub
                 return null;
             }
 
             @Override
             public boolean display(List<VertexRef> targets, OperationContext operationContext) {
-                // TODO Auto-generated method stub
                 return false;
             }
 
             @Override
             public boolean enabled(List<VertexRef> targets, OperationContext operationContext) {
-                // TODO Auto-generated method stub
                 return false;
             }
 
             @Override
             public String getId() {
-                // TODO Auto-generated method stub
                 return null;
             }
 
 			@Override
 			public boolean isChecked(List<VertexRef> targets,
 					OperationContext operationContext) {
-				// TODO Auto-generated method stub
 				return false;
 			}
 
 			@Override
 			public void applyHistory(GraphContainer context,
 					Map<String, String> settings) {
-				// TODO Auto-generated method stub
-				
+
 			}
 
 			@Override
 			public Map<String, String> createHistory(GraphContainer context) {
-				// TODO Auto-generated method stub
 				return null;
 			}};
 	}
 
 	@Test
     public void commandManagerParseConfigTest() {
-        Dictionary<Object,Object> props = new Properties();
+        Dictionary<String,String> props = new Hashtable<String,String>();
         props.put("toplevelMenuOrder", "File,Edit,View,Additions,Help");
         props.put("submenu.File.groups", "start,new,close,save,print,open,import,additions,end");
         props.put("submenu.Edit.groups", "start,undo,cut,find,add,end,additions");
@@ -386,25 +379,21 @@ public class TestMenuBarBuilder {
 
             @Override
             public Undoer execute(List<VertexRef> targets, OperationContext operationContext) {
-                // TODO Auto-generated method stub
                 return null;
             }
 
             @Override
             public boolean display(List<VertexRef> targets, OperationContext operationContext) {
-                // TODO Auto-generated method stub
                 return false;
             }
 
             @Override
             public boolean enabled(List<VertexRef> targets, OperationContext operationContext) {
-                // TODO Auto-generated method stub
                 return false;
             }
 
             @Override
             public String getId() {
-                // TODO Auto-generated method stub
                 return null;
             }};
     }
@@ -421,6 +410,7 @@ public class TestMenuBarBuilder {
     }
     
     private Command menuCommand = new Command() {
+        @Override
         public void menuSelected(MenuItem selectedItem) {
             
         }

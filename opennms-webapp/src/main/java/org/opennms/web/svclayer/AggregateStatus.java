@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2006-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -39,6 +39,8 @@ import org.opennms.netmgt.model.AbstractEntityVisitor;
 import org.opennms.netmgt.model.OnmsMonitoredService;
 import org.opennms.netmgt.model.OnmsNode;
 import org.opennms.netmgt.model.SurveillanceStatus;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Use this class to aggregate status to be presented in a view layer technology.
@@ -50,6 +52,7 @@ import org.opennms.netmgt.model.SurveillanceStatus;
  * @since 1.8.1
  */
 public class AggregateStatus implements SurveillanceStatus {
+    private static final Logger LOG = LoggerFactory.getLogger(AggregateStatus.class);
 
     private String m_label;
 
@@ -84,6 +87,7 @@ public class AggregateStatus implements SurveillanceStatus {
      *
      * @return a {@link java.lang.String} object.
      */
+    @Override
     public String getStatus() {
         return m_status;
     }
@@ -97,6 +101,7 @@ public class AggregateStatus implements SurveillanceStatus {
      *
      * @return a {@link java.lang.Integer} object.
      */
+    @Override
     public Integer getDownEntityCount() {
         return m_downNodes.size();
     }
@@ -139,6 +144,7 @@ public class AggregateStatus implements SurveillanceStatus {
      *
      * @return a {@link java.lang.Integer} object.
      */
+    @Override
     public Integer getTotalEntityCount() {
         return m_totalEntityCount;
     }
@@ -159,7 +165,7 @@ public class AggregateStatus implements SurveillanceStatus {
         return sb.toString();
     }
 
-    final class AggregateStatusVisitor extends AbstractEntityVisitor {
+    final static class AggregateStatusVisitor extends AbstractEntityVisitor {
 
         Set<OnmsNode> m_downNodes = new LinkedHashSet<OnmsNode>();
 
@@ -169,13 +175,13 @@ public class AggregateStatus implements SurveillanceStatus {
 
         @Override
         public void visitNode(OnmsNode node) {
-            System.err.println("visitNode(" + node + ")");
+            LOG.debug("visitNode({})", node);
             m_isCurrentNodeDown = true;
         }
 
         @Override
         public void visitNodeComplete(OnmsNode node) {
-            System.err.println("visitNodeComplete(" + node + ") -- m_isCurrentNodeDown = " + m_isCurrentNodeDown);
+            LOG.debug("visitNodeComplete({}) -- m_isCurrentNodeDown = {}", node, m_isCurrentNodeDown);
             if (m_isCurrentNodeDown) {
                 m_downNodes.add(node);
                 m_status = AggregateStatus.NODES_ARE_DOWN;
@@ -185,9 +191,8 @@ public class AggregateStatus implements SurveillanceStatus {
 
         @Override
         public void visitMonitoredService(OnmsMonitoredService svc) {
-            System.err.println("visitMonitoredService(" + svc + ") - currentOutages.isEmpty = " + svc.getCurrentOutages().isEmpty());
-            if ("A".equals(svc.getStatus())
-                    && !svc.getCurrentOutages().isEmpty()) {
+            LOG.debug("visitMonitoredService({}) - currentOutages.isEmpty = {}", svc, svc.getCurrentOutages().isEmpty());
+            if ("A".equals(svc.getStatus()) && !svc.getCurrentOutages().isEmpty()) {
                 if (AggregateStatus.ALL_NODES_UP.equals(m_status)) {
                     m_status = AggregateStatus.ONE_SERVICE_DOWN;
                 }

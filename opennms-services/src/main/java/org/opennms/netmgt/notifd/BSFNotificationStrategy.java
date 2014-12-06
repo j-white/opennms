@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2011-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2011-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -41,13 +41,14 @@ import java.util.Map;
 import org.apache.bsf.BSFException;
 import org.apache.bsf.BSFManager;
 import org.apache.bsf.util.IOUtils;
-import org.opennms.core.utils.Argument;
-import org.opennms.core.utils.LogUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.opennms.netmgt.config.NotificationManager;
-import org.opennms.netmgt.dao.NodeDao;
+import org.opennms.netmgt.dao.api.NodeDao;
 import org.opennms.netmgt.model.OnmsAssetRecord;
 import org.opennms.netmgt.model.OnmsCategory;
 import org.opennms.netmgt.model.OnmsNode;
+import org.opennms.netmgt.model.notifd.Argument;
 import org.opennms.netmgt.model.notifd.NotificationStrategy;
 
 /**
@@ -56,6 +57,7 @@ import org.opennms.netmgt.model.notifd.NotificationStrategy;
  *
  */
 public class BSFNotificationStrategy implements NotificationStrategy {
+    private static final Logger LOG = LoggerFactory.getLogger(BSFNotificationStrategy.class);
 
     private List<Argument> m_arguments;
     private Map<String,String> m_notifParams = new HashMap<String,String>();
@@ -69,9 +71,9 @@ public class BSFNotificationStrategy implements NotificationStrategy {
         String fileName = getFileName();
         String lang = getLangClass();
         String engine = getBsfEngine();
-        String extensions[] = getFileExtensions();
+        String[] extensions = getFileExtensions();
 
-        LogUtils.infof(this, "Loading notification script from file '%s'", fileName);
+        LOG.info("Loading notification script from file '{}'", fileName);
         File scriptFile = new File(fileName);
         BSFManager bsfManager = new BSFManager();
         int returnCode = -1;
@@ -82,7 +84,7 @@ public class BSFNotificationStrategy implements NotificationStrategy {
 
             // Declare some beans that can be used inside the script                    
             HashMap<String,String> results = new HashMap<String,String>();
-            bsfManager.declareBean("results", results, HashMap.class);
+            bsfManager.declareBean("results", results, Map.class);
             declareBeans(bsfManager);
 
             if(engine != null && lang != null && extensions != null && extensions.length > 0 ){
@@ -100,28 +102,28 @@ public class BSFNotificationStrategy implements NotificationStrategy {
 
                 // Check whether the script finished successfully
                 if ("OK".equals(results.get("status"))) {
-                    LogUtils.infof(this, "Execution succeeded and successful status passed back for script '%s'", scriptFile);
+                    LOG.info("Execution succeeded and successful status passed back for script '{}'", scriptFile);
                     returnCode = 0;
                 } else {
-                    LogUtils.warnf(this, "Execution succeeded for script '%s', but script did not indicate successful notification by putting an entry into the 'results' bean with key 'status' and value 'OK'", scriptFile);
+                    LOG.warn("Execution succeeded for script '{}', but script did not indicate successful notification by putting an entry into the 'results' bean with key 'status' and value 'OK'", scriptFile);
                     returnCode = -1;
                 }
             } else {
-                LogUtils.warnf(this, "Cannot locate or read BSF script file '%s'. Returning failure indication.", fileName);
+                LOG.warn("Cannot locate or read BSF script file '{}'. Returning failure indication.", fileName);
                 returnCode = -1;
             }
         } catch (BSFException e) {
-            LogUtils.warnf(this, e, "Execution of script '%s' failed with BSFException: %s", scriptFile, e.getMessage());
+            LOG.warn("Execution of script '{}' failed with BSFException: {}", scriptFile, e.getMessage(), e);
             returnCode = -1;
         } catch (FileNotFoundException e){
-            LogUtils.warnf(this, "Could not find BSF script file '%s'.", fileName);
+            LOG.warn("Could not find BSF script file '{}'.", fileName);
             returnCode = -1;
         } catch (IOException e) {
-            LogUtils.warnf(this, e, "Execution of script '%s' failed with IOException: %s", scriptFile, e.getMessage());
+            LOG.warn("Execution of script '{}' failed with IOException: {}", scriptFile, e.getMessage(), e);
             returnCode = -1;
         } catch (Throwable e) {
             // Catch any RuntimeException throws
-            LogUtils.warnf(this, e, "Execution of script '%s' failed with unexpected throwable: %s", scriptFile, e.getMessage());
+            LOG.warn("Execution of script '{}' failed with unexpected throwable: {}", scriptFile, e.getMessage(), e);
             returnCode = -1;
         } finally { 
             bsfManager.terminate();
@@ -246,11 +248,11 @@ public class BSFNotificationStrategy implements NotificationStrategy {
     }
 
     public void log(String level, String format, Object... args) {
-        if ("TRACE".equals(level)) LogUtils.tracef(this, format, args);
-        if ("DEBUG".equals(level)) LogUtils.debugf(this, format, args);
-        if ("INFO".equals(level)) LogUtils.infof(this, format, args);
-        if ("WARN".equals(level)) LogUtils.warnf(this, format, args);
-        if ("ERROR".equals(level)) LogUtils.errorf(this, format, args);
-        if ("FATAL".equals(level)) LogUtils.errorf(this, format, args);
+        if ("TRACE".equals(level)) LOG.trace(format, args);
+        if ("DEBUG".equals(level)) LOG.debug(format, args);
+        if ("INFO".equals(level)) LOG.info(format, args);
+        if ("WARN".equals(level)) LOG.warn(format, args);
+        if ("ERROR".equals(level)) LOG.error(format, args);
+        if ("FATAL".equals(level)) LOG.error(format, args);
     }
 }

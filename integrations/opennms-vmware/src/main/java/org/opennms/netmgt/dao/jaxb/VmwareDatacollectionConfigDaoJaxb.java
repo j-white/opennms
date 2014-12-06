@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2013-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -32,7 +32,7 @@ import org.opennms.core.xml.AbstractJaxbConfigDao;
 import org.opennms.netmgt.config.vmware.vijava.VmwareCollection;
 import org.opennms.netmgt.config.vmware.vijava.VmwareDatacollectionConfig;
 import org.opennms.netmgt.dao.VmwareDatacollectionConfigDao;
-import org.opennms.netmgt.model.RrdRepository;
+import org.opennms.netmgt.rrd.RrdRepository;
 
 import java.io.File;
 import java.util.List;
@@ -58,6 +58,7 @@ public class VmwareDatacollectionConfigDaoJaxb extends AbstractJaxbConfigDao<Vmw
      *
      * @return the current config object
      */
+    @Override
     public VmwareDatacollectionConfig getConfig() {
         return getContainer().getObject();
     }
@@ -69,6 +70,7 @@ public class VmwareDatacollectionConfigDaoJaxb extends AbstractJaxbConfigDao<Vmw
      * @param jaxbConfig a config object.
      * @return a custom object
      */
+    @Override
     public VmwareDatacollectionConfig translateConfig(VmwareDatacollectionConfig jaxbConfig) {
         return jaxbConfig;
     }
@@ -79,6 +81,7 @@ public class VmwareDatacollectionConfigDaoJaxb extends AbstractJaxbConfigDao<Vmw
      * @param collectionName the collection's name
      * @return the collection object
      */
+    @Override
     public VmwareCollection getVmwareCollection(String collectionName) {
         VmwareCollection[] collections = getConfig().getVmwareCollection();
         VmwareCollection collection = null;
@@ -101,6 +104,7 @@ public class VmwareDatacollectionConfigDaoJaxb extends AbstractJaxbConfigDao<Vmw
      * @param collectionName the collection's name
      * @return the repository
      */
+    @Override
     public RrdRepository getRrdRepository(String collectionName) {
         RrdRepository repo = new RrdRepository();
         repo.setRrdBaseDir(new File(getRrdPath()));
@@ -146,6 +150,7 @@ public class VmwareDatacollectionConfigDaoJaxb extends AbstractJaxbConfigDao<Vmw
      *
      * @return the Rrd's path
      */
+    @Override
     public String getRrdPath() {
         String rrdPath = getConfig().getRrdRepository();
         if (rrdPath == null) {

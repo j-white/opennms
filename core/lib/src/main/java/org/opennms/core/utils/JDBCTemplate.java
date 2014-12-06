@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2004-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -34,15 +34,13 @@ import java.sql.SQLException;
 
 import javax.sql.DataSource;
 
-import org.springframework.dao.DataRetrievalFailureException;
-
 /**
  * <p>Abstract JDBCTemplate class.</p>
  *
  * @author brozow
  * @version $Id: $
  */
-abstract public class JDBCTemplate {
+public abstract class JDBCTemplate {
 
     private DataSource m_db;
     private String m_sql;
@@ -68,7 +66,7 @@ abstract public class JDBCTemplate {
              doExecute(values);
          } catch (final SQLException e) {
              final String vals = argsToString(values);
-             throw new DataRetrievalFailureException("Problem executing statement: "+m_sql+" with values "+vals, e);
+             throw new IllegalArgumentException("Problem executing statement: "+m_sql+" with values "+vals, e);
          }
      }
 
@@ -83,7 +81,7 @@ abstract public class JDBCTemplate {
          return sb.toString();
     }
 
-    private void doExecute(final Object values[]) throws SQLException {
+    private void doExecute(final Object[] values) throws SQLException {
         final DBUtils d = new DBUtils(getClass());
         try {
             final Connection conn = m_db.getConnection();
@@ -105,7 +103,7 @@ abstract public class JDBCTemplate {
      * @param values an array of {@link java.lang.Object} objects.
      * @return a {@link java.lang.String} object.
      */
-    public String reproduceStatement(final Object values[]) {
+    public String reproduceStatement(final Object[] values) {
     		return m_sql+": with vals "+argsToString(values);
     }
     

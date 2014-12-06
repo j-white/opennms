@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2007-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2002-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -39,14 +39,15 @@ import java.util.Map;
 
 import org.opennms.core.utils.CollectionMath;
 import org.opennms.core.utils.ParameterMap;
-import org.opennms.core.utils.ThreadCategory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.opennms.netmgt.icmp.PingConstants;
 import org.opennms.netmgt.icmp.PingerFactory;
-import org.opennms.netmgt.model.PollStatus;
 import org.opennms.netmgt.poller.Distributable;
 import org.opennms.netmgt.poller.MonitoredService;
 import org.opennms.netmgt.poller.NetworkInterface;
 import org.opennms.netmgt.poller.NetworkInterfaceNotSupportedException;
+import org.opennms.netmgt.poller.PollStatus;
 
 /**
  * <P>
@@ -62,6 +63,7 @@ import org.opennms.netmgt.poller.NetworkInterfaceNotSupportedException;
  */
 @Distributable
 final public class StrafePingMonitor extends AbstractServiceMonitor {
+    private static final Logger LOG = LoggerFactory.getLogger(StrafePingMonitor.class);
     private static final int DEFAULT_MULTI_PING_COUNT = 20;
     private static final long DEFAULT_PING_INTERVAL = 50;
     private static final int DEFAULT_FAILURE_PING_COUNT = 20;
@@ -88,6 +90,7 @@ final public class StrafePingMonitor extends AbstractServiceMonitor {
      * discovery. All exchanges are SOAP/XML compliant.
      * </P>
      */
+    @Override
     public PollStatus poll(MonitoredService svc, Map<String, Object> parameters) {
         NetworkInterface<InetAddress> iface = svc.getNetInterface();
 
@@ -96,7 +99,6 @@ final public class StrafePingMonitor extends AbstractServiceMonitor {
         if (iface.getType() != NetworkInterface.TYPE_INET)
             throw new NetworkInterfaceNotSupportedException("Unsupported interface type, only TYPE_INET currently supported");
 
-        ThreadCategory log = ThreadCategory.getInstance(this.getClass());
         PollStatus serviceStatus = PollStatus.unavailable();
         InetAddress host = (InetAddress) iface.getAddress();
         List<Number> responseTimes = null;
@@ -113,9 +115,7 @@ final public class StrafePingMonitor extends AbstractServiceMonitor {
             responseTimes = new ArrayList<Number>(PingerFactory.getInstance().parallelPing(host, count, timeout, pingInterval));
 
             if (CollectionMath.countNull(responseTimes) >= failurePingCount) {
-            	if (log().isDebugEnabled()) {
-            		log().debug("Service " +svc.getSvcName()+ " on interface " +svc.getIpAddr()+ " is down, but continuing to gather latency data");
-            	}
+		LOG.debug("Service {} on interface {} is down, but continuing to gather latency data", svc.getSvcName(), svc.getIpAddr());
                 serviceStatus = PollStatus.unavailable("the failure ping count (" + failurePingCount + ") was reached");
             } else {
             	serviceStatus = PollStatus.available();
@@ -123,6 +123,7 @@ final public class StrafePingMonitor extends AbstractServiceMonitor {
             
             Collections.sort(responseTimes, new Comparator<Number>() {
 
+                @Override
                 public int compare(Number arg0, Number arg1) {
                     if (arg0 == null) {
                         return -1;
@@ -147,7 +148,7 @@ final public class StrafePingMonitor extends AbstractServiceMonitor {
 
             serviceStatus.setProperties(returnval);
         } catch (Throwable e) {
-            log.debug("failed to ping " + host, e);
+            LOG.debug("failed to ping {}", host, e);
         }
 
         return serviceStatus;

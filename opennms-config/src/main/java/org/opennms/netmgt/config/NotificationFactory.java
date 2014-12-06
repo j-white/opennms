@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2002-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -56,11 +56,6 @@ public class NotificationFactory extends NotificationManager {
      * Singleton instance
      */
     private static NotificationFactory instance;
-
-    /**
-     * Configuration file handle
-     */
-    protected File m_notifConfFile;
 
     /**
      * Boolean indicating if the init() method has been called
@@ -109,7 +104,6 @@ public class NotificationFactory extends NotificationManager {
      */
     public static synchronized void init() throws IOException, FileNotFoundException, MarshalException, ValidationException, ClassNotFoundException, SQLException, PropertyVetoException  {
         if (!initialized) {
-            DataSourceFactory.init();
             instance = new NotificationFactory();
             instance.reload();
             initialized = true;
@@ -139,6 +133,7 @@ public class NotificationFactory extends NotificationManager {
     }
 
     /** {@inheritDoc} */
+    @Override
     protected void saveXML(String xmlString) throws IOException {
         if (xmlString != null) {
             Writer fileWriter = new OutputStreamWriter(new FileOutputStream(m_noticeConfFile), "UTF-8");
@@ -155,6 +150,7 @@ public class NotificationFactory extends NotificationManager {
      * @throws org.exolab.castor.xml.MarshalException if any.
      * @throws org.exolab.castor.xml.ValidationException if any.
      */
+    @Override
     public void update() throws IOException, MarshalException, ValidationException {
         if (m_lastModified != m_noticeConfFile.lastModified()) {
             reload();

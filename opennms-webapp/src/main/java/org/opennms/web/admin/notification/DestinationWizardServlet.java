@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2002-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -86,6 +86,7 @@ public class DestinationWizardServlet extends HttpServlet {
 //    private String SOURCE_PAGE_ESCALATE_ADD = "addEscalation.jsp";
 
     /** {@inheritDoc} */
+    @Override
     public void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         try {
             DestinationPathFactory.init();
@@ -194,10 +195,10 @@ public class DestinationWizardServlet extends HttpServlet {
             // compare the list of targets chosen to the existing targets,
             // replacing
             // and creating new targets as necessary
-            String userTargets[] = request.getParameterValues("users");
-            String groupTargets[] = request.getParameterValues("groups");
-            String roleTargets[] = request.getParameterValues("roles");
-            String emailTargets[] = request.getParameterValues("emails");
+            String[] userTargets = request.getParameterValues("users");
+            String[] groupTargets = request.getParameterValues("groups");
+            String[] roleTargets = request.getParameterValues("roles");
+            String[] emailTargets = request.getParameterValues("emails");
 
             Path newPath = (Path) user.getAttribute(SESSION_ATTRIBUTE_NEW_PATH);
             int index = WebSecurityUtils.safeParseInt(request.getParameter("targetIndex"));
@@ -311,7 +312,7 @@ public class DestinationWizardServlet extends HttpServlet {
         } else if (sourcePage.equals(SOURCE_PAGE_INTERVALS)) {
             Path newPath = (Path) user.getAttribute(SESSION_ATTRIBUTE_NEW_PATH);
             int index = WebSecurityUtils.safeParseInt(request.getParameter("targetIndex"));
-            Target targets[] = null;
+            Target[] targets = null;
 
             try {
                 targets = DestinationPathFactory.getInstance().getTargetList(index, newPath);
@@ -332,7 +333,7 @@ public class DestinationWizardServlet extends HttpServlet {
         } else if (sourcePage.equals(SOURCE_PAGE_COMMANDS)) {
             Path newPath = (Path) user.getAttribute(SESSION_ATTRIBUTE_NEW_PATH);
             int index = WebSecurityUtils.safeParseInt(request.getParameter("targetIndex"));
-            Target targets[] = null;
+            Target[] targets = null;
 
             try {
                 targets = DestinationPathFactory.getInstance().getTargetList(index, newPath);
@@ -345,12 +346,12 @@ public class DestinationWizardServlet extends HttpServlet {
                 // don't overwrite the email target command
                 if (targets[i].getName().indexOf("@") == -1) {
                     targets[i].removeAllCommand();
-                    String commands[] = request.getParameterValues(name + "Commands");
+                    String[] commands = request.getParameterValues(name + "Commands");
                     for (int j = 0; j < commands.length; j++) {
                         targets[i].addCommand(commands[j]);
                     }
                 }
-                String autoNotify[] =  request.getParameterValues(name + "AutoNotify");
+                String[] autoNotify =  request.getParameterValues(name + "AutoNotify");
                 if(autoNotify[0] == null) {
                     autoNotify[0] = "auto";
                 }

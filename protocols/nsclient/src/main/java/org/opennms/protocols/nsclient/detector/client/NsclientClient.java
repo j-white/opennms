@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2011-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2011-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -32,12 +32,13 @@ import java.io.IOException;
 import java.net.InetAddress;
 
 import org.opennms.core.utils.InetAddressUtils;
-import org.opennms.core.utils.ThreadCategory;
 import org.opennms.netmgt.provision.support.Client;
 import org.opennms.protocols.nsclient.NsclientException;
 import org.opennms.protocols.nsclient.NsclientManager;
 import org.opennms.protocols.nsclient.NsclientPacket;
 import org.opennms.protocols.nsclient.detector.request.NsclientRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * <p>NsclientClient class.</p>
@@ -46,6 +47,9 @@ import org.opennms.protocols.nsclient.detector.request.NsclientRequest;
  * @version $Id: $
  */
 public class NsclientClient implements Client<NsclientRequest, NsclientPacket> {
+	
+	private static final Logger LOG = LoggerFactory.getLogger(NsclientClient.class);
+
 
     private String password;
 
@@ -75,7 +79,7 @@ public class NsclientClient implements Client<NsclientRequest, NsclientPacket> {
         for (int attempts = 0; attempts <= request.getRetries() && !isAServer; attempts++) {
             try {
                 response = client.processCheckCommand(request.getFormattedCommand(), request.getCheckParams());
-                log().debug("sendRequest: " + request.getFormattedCommand() + ": " + response.getResponse());
+                LOG.debug("sendRequest: {}: {}", request.getFormattedCommand(), response.getResponse());
                 isAServer = true;
             } catch (NsclientException e) {
                 StringBuffer message = new StringBuffer();
@@ -83,7 +87,7 @@ public class NsclientClient implements Client<NsclientRequest, NsclientPacket> {
                 message.append(e.getMessage());
                 message.append(" : ");
                 message.append((e.getCause() == null ? "": e.getCause().getMessage()));
-                log().info(message.toString());
+                LOG.info(message.toString());
                 isAServer = false;
             }
         }
@@ -96,10 +100,6 @@ public class NsclientClient implements Client<NsclientRequest, NsclientPacket> {
 
     public void setPassword(String password) {
         this.password = password;
-    }
-
-    private ThreadCategory log() {
-        return ThreadCategory.getInstance(getClass());
     }
 
 }

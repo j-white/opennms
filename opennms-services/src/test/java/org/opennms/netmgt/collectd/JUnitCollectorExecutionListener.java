@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2009-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2009-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -34,6 +34,7 @@ import java.lang.reflect.Method;
 
 import org.apache.commons.io.IOUtils;
 import org.opennms.core.test.ConfigurationTestUtils;
+import org.opennms.netmgt.collection.api.ServiceCollector;
 import org.opennms.netmgt.config.DataCollectionConfigFactory;
 import org.opennms.netmgt.config.DatabaseSchemaConfigFactory;
 import org.opennms.netmgt.config.DefaultDataCollectionConfigDao;
@@ -62,19 +63,13 @@ public class JUnitCollectorExecutionListener extends AbstractTestExecutionListen
 
     @Override
     public void beforeTestMethod(TestContext testContext) throws Exception {
+        m_fileAnticipator = new FileAnticipator();
+
         JUnitCollector config = findCollectorAnnotation(testContext);
         if (config == null) {
             return;
         }
 
-        // FIXME: Is there a better way to inject the instance into the test class?
-        if (testContext.getTestInstance() instanceof TestContextAware) {
-            System.err.println("injecting TestContext into TestContextAware test: "
-                            + testContext.getTestInstance().getClass().getSimpleName() + "."
-                            + testContext.getTestMethod().getName());
-            ((TestContextAware) testContext.getTestInstance()).setTestContext(testContext);
-        }
-        
         RrdUtils.setStrategy(new JRobinRrdStrategy());
 
         // make a fake database schema with hibernate
@@ -83,7 +78,6 @@ public class JUnitCollectorExecutionListener extends AbstractTestExecutionListen
         is.close();
 
         // set up temporary directories for RRD files
-        m_fileAnticipator = new FileAnticipator();
         m_snmpRrdDirectory = m_fileAnticipator.tempDir("snmp");
         m_snmpRrdDirectory.mkdirs();
         testContext.setAttribute("fileAnticipator", m_fileAnticipator);
@@ -91,7 +85,7 @@ public class JUnitCollectorExecutionListener extends AbstractTestExecutionListen
 
         // set up the collection configuration factory
         if ("http".equalsIgnoreCase(config.datacollectionType()) || "https".equalsIgnoreCase(config.datacollectionType())) {
-        	is = ConfigurationTestUtils.getInputStreamForResourceWithReplacements(testContext.getTestInstance(), config.datacollectionConfig(), new String[] { "%rrdRepository%", m_snmpRrdDirectory.getAbsolutePath() });
+            is = ConfigurationTestUtils.getInputStreamForResourceWithReplacements(testContext.getTestInstance(), config.datacollectionConfig(), new String[] { "%rrdRepository%", m_snmpRrdDirectory.getAbsolutePath() });
             HttpCollectionConfigFactory factory = new HttpCollectionConfigFactory(is);
             HttpCollectionConfigFactory.setInstance(factory);
             HttpCollectionConfigFactory.init();
@@ -116,16 +110,17 @@ public class JUnitCollectorExecutionListener extends AbstractTestExecutionListen
 
         boolean shouldIgnoreNonExistent = testContext.getTestException() != null;
 
-        if (config.anticipateFiles().length > 0 ||
-                config.anticipateRrds().length > 0) {
+        /*
+        if (config.anticipateFiles().length > 0 || config.anticipateRrds().length > 0) {
             // make sure any RRDs have time to get written
-            Thread.sleep(1000);
+            Thread.sleep(config.timeout());
         }
+        */
 
         if (config.anticipateRrds().length > 0) {
             for (String rrdFile : config.anticipateRrds()) {
                 m_fileAnticipator.expecting(m_snmpRrdDirectory, rrdFile + RrdUtils.getExtension());
-                
+
                 //the nrtg feature requires .meta files in parallel to the rrd/jrb files.
                 //this .meta files are expected
                 m_fileAnticipator.expecting(m_snmpRrdDirectory, rrdFile + ".meta");
@@ -140,31 +135,43 @@ public class JUnitCollectorExecutionListener extends AbstractTestExecutionListen
 
         Exception e = null;
         if (m_fileAnticipator.isInitialized()) {
-        	try {
-        		m_fileAnticipator.deleteExpected(shouldIgnoreNonExistent);
-        	} catch (Throwable t) {
-        		e = new RuntimeException(t);
-        	}
-        }
+            final long finished = System.currentTimeMillis() + config.timeout();
+            while (System.currentTimeMillis() <= finished) {
+                if (m_fileAnticipator.foundExpected()) {
+                    break;
+                }
+                try {
+                    Thread.sleep(200);
+                } catch (final InterruptedException ie) {
+                    break;
+                }
+            }
 
-        deleteResursively(m_snmpRrdDirectory);
-        m_fileAnticipator.tearDown();
-        
-        if (e != null) {
-        	throw e;
-        }
-    }
-    
-    private static void deleteResursively(File directory) {
-    	if (!directory.exists()) return;
-    	
-    	if (directory.isDirectory()) {
-    		for (File f : directory.listFiles()) {
-                deleteResursively(f);
+            try {
+                m_fileAnticipator.deleteExpected(shouldIgnoreNonExistent);
+            } catch (Throwable t) {
+                e = new RuntimeException(t);
             }
         }
-    	
-    	directory.delete();
+
+        deleteRecursively(m_snmpRrdDirectory);
+        m_fileAnticipator.tearDown();
+
+        if (e != null) {
+            throw e;
+        }
+    }
+
+    private static void deleteRecursively(File directory) {
+        if (!directory.exists()) return;
+
+        if (directory.isDirectory()) {
+            for (File f : directory.listFiles()) {
+                deleteRecursively(f);
+            }
+        }
+
+        directory.delete();
     }
 
     private static JUnitCollector findCollectorAnnotation(TestContext testContext) {

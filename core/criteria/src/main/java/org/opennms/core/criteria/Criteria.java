@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2012-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -42,12 +42,30 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.ListIterator;
 import java.util.Set;
 import java.util.regex.Pattern;
 
 import org.opennms.core.criteria.restrictions.Restriction;
 
 public class Criteria implements Cloneable {
+
+	/**
+	 * This enum provides all of the locking modes that are available in the
+	 * ORM implementation.
+	 */
+	public enum LockType {
+		NONE,
+		READ,
+		UPGRADE_NOWAIT,
+		WRITE,
+		OPTIMISTIC,
+		OPTIMISTIC_FORCE_INCREMENT,
+		PESSIMISTIC_READ,
+		PESSIMISTIC_WRITE,
+		PESSIMISTIC_FORCE_INCREMENT
+	}
+
     public static interface CriteriaVisitor {
         public void visitClass(final Class<?> clazz);
 
@@ -62,6 +80,8 @@ public class Criteria implements Cloneable {
         public void visitFetch(final Fetch fetch);
 
         public void visitFetchesFinished();
+
+        public void visitLockType(final LockType lock);
 
         public void visitRestriction(final Restriction restriction);
 
@@ -120,89 +140,108 @@ public class Criteria implements Cloneable {
 
     private Integer m_offset = null;
 
+    private LockType m_lockType = null;
+
     public Criteria(final Class<?> clazz) {
         m_class = clazz;
     }
 
-    public Class<?> getCriteriaClass() {
+    public final Class<?> getCriteriaClass() {
         return m_class;
     }
 
-    public Collection<Order> getOrders() {
+    public final Collection<Order> getOrders() {
         return Collections.unmodifiableList(m_orders);
     }
 
-    public void setOrders(final Collection<? extends Order> orderCollection) {
-        if (m_orders == orderCollection) return;
+    public final Criteria setOrders(final Collection<? extends Order> orderCollection) {
+        if (m_orders == orderCollection) return this;
         m_orders.clear();
         if (orderCollection != null) {
             m_orders.addAll(orderCollection);
         }
+        return this;
     }
 
-    public Collection<Fetch> getFetchTypes() {
+    public final Collection<Fetch> getFetchTypes() {
         return Collections.unmodifiableList(new ArrayList<Fetch>(m_fetchTypes));
     }
 
-    public void setFetchTypes(final Collection<? extends Fetch> fetchTypes) {
-        if (m_fetchTypes == fetchTypes) return;
+    public final Criteria setFetchTypes(final Collection<? extends Fetch> fetchTypes) {
+        if (m_fetchTypes == fetchTypes) return this;
         m_fetchTypes.clear();
         m_fetchTypes.addAll(fetchTypes);
+        return this;
     }
 
-    public Collection<Alias> getAliases() {
+    public final Collection<Alias> getAliases() {
         return Collections.unmodifiableList(m_aliases);
     }
 
-    public void setAliases(final Collection<? extends Alias> aliases) {
-        if (m_aliases == aliases) return;
+    public final Criteria setAliases(final Collection<? extends Alias> aliases) {
+        if (m_aliases == aliases) return this;
         m_aliases.clear();
         m_aliases.addAll(aliases);
+        return this;
     }
 
-    public Collection<Restriction> getRestrictions() {
+    public final Collection<Restriction> getRestrictions() {
         return Collections.unmodifiableList(new ArrayList<Restriction>(m_restrictions));
     }
 
-    public void setRestrictions(Collection<? extends Restriction> restrictions) {
-        if (m_restrictions == restrictions) return;
+    public final Criteria setRestrictions(Collection<? extends Restriction> restrictions) {
+        if (m_restrictions == restrictions) return this;
         m_restrictions.clear();
         m_restrictions.addAll(restrictions);
+        return this;
     }
 
-    public void addRestriction(final Restriction restriction) {
+    public final Criteria addRestriction(final Restriction restriction) {
         m_restrictions.add(restriction);
+        return this;
     }
 
-    public boolean isDistinct() {
+    public final boolean isDistinct() {
         return m_distinct;
     }
 
-    public void setDistinct(final boolean distinct) {
+    public final Criteria setDistinct(final boolean distinct) {
         m_distinct = distinct;
+        return this;
     }
 
-    public Integer getLimit() {
+    public final Integer getLimit() {
         return m_limit;
     }
 
-    public void setLimit(final Integer limit) {
+    public final Criteria setLimit(final Integer limit) {
         m_limit = limit;
+        return this;
     }
 
-    public Integer getOffset() {
+    public final LockType getLockType() {
+        return m_lockType ;
+    }
+
+    public final Criteria setLockType(final LockType lock) {
+    	m_lockType = lock;
+        return this;
+    }
+
+    public final Integer getOffset() {
         return m_offset;
     }
 
-    public void setOffset(final Integer offset) {
+    public final Criteria setOffset(final Integer offset) {
         m_offset = offset;
+        return this;
     }
 
-    public Class<?> getType(final String path) throws IntrospectionException {
+    public final Class<?> getType(final String path) throws IntrospectionException {
         return getType(this.getCriteriaClass(), path);
     }
 
-    private Class<?> getType(final Class<?> clazz, final String path) throws IntrospectionException {
+    private final Class<?> getType(final Class<?> clazz, final String path) throws IntrospectionException {
         final String[] split = SPLIT_ON.split(path);
         final List<String> pathSections = Arrays.asList(split);
         return getType(clazz, pathSections, new ArrayList<Alias>(getAliases()));
@@ -226,7 +265,7 @@ public class Criteria implements Cloneable {
      * @return The class type that matches.
      * @throws IntrospectionException
      */
-    private Class<?> getType(final Class<?> clazz, final List<String> pathSections, final List<Alias> aliases) throws IntrospectionException {
+    private final Class<?> getType(final Class<?> clazz, final List<String> pathSections, final List<Alias> aliases) throws IntrospectionException {
         if (pathSections.isEmpty()) {
             return clazz;
         }
@@ -275,7 +314,7 @@ public class Criteria implements Cloneable {
         return null;
     }
 
-    private Type[] getGenericReturnType(final PropertyDescriptor pd) {
+    private final Type[] getGenericReturnType(final PropertyDescriptor pd) {
         final Method m = pd.getReadMethod();
         if (m != null) {
             final Type returnType = m.getGenericReturnType();
@@ -288,13 +327,28 @@ public class Criteria implements Cloneable {
     }
 
     @Override
-    public String toString() {
-        return "Criteria [class=" + m_class + ", orders=" + m_orders + ", aliases=" + m_aliases + ", fetchTypes=" + m_fetchTypes + ", restrictions=" + m_restrictions + ", distinct=" + m_distinct
-                + ", limit=" + m_limit + ", offset=" + m_offset + "]";
+    public final String toString() {
+        final StringBuilder sb = new StringBuilder();
+        final List<String> entries = new ArrayList<String>();
+        sb.append("Criteria [");
+        if (m_class != null) entries.add("class=" + m_class.toString());
+        if (m_orders != null && m_orders.size() > 0) entries.add("orders=" + m_orders.toString());
+        if (m_aliases != null && m_aliases.size() > 0) entries.add("aliases=" + m_aliases.toString());
+        if (m_fetchTypes != null && m_fetchTypes.size() > 0) entries.add("fetchTypes=" + m_fetchTypes.toString());
+        if (m_restrictions != null && m_restrictions.size() > 0) entries.add("restrictions=" + m_restrictions.toString());
+        entries.add("distinct=" + String.valueOf(m_distinct));
+        if (m_limit != null) entries.add("limit=" + String.valueOf(m_limit));
+        if (m_offset != null) entries.add("offset=" + String.valueOf(m_offset));
+        for (final ListIterator<String> it = entries.listIterator(); it.hasNext(); ) {
+            sb.append(it.next());
+            if (it.hasNext()) sb.append(",");
+        }
+        sb.append("]");
+        return sb.toString();
     }
 
     @Override
-    public Criteria clone() {
+    public final Criteria clone() {
         Criteria retval = new Criteria(getCriteriaClass());
         retval.setAliases(getAliases());
         retval.setDistinct(isDistinct());

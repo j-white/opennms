@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2007-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2007-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -35,11 +35,11 @@ import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.annotation.Pointcut;
-import org.opennms.core.utils.LogUtils;
-import org.opennms.core.utils.ThreadCategory;
-import org.opennms.netmgt.EventConstants;
-import org.opennms.netmgt.utils.XmlrpcUtil;
+import org.opennms.netmgt.events.api.EventConstants;
 import org.opennms.netmgt.xml.event.Event;
+import org.opennms.netmgt.xmlrpcd.XmlrpcUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * XmlRpcEventHandlerNotifier
@@ -50,6 +50,9 @@ import org.opennms.netmgt.xml.event.Event;
 
 @Aspect
 public class XmlRpcEventHandlerNotifier {
+    
+    
+    private static final Logger LOG = LoggerFactory.getLogger(XmlRpcEventHandlerNotifier.class);
 
     /**
      * <p>capsdMethod</p>
@@ -60,7 +63,7 @@ public class XmlRpcEventHandlerNotifier {
     /**
      * <p>eventHandler</p>
      */
-    @Pointcut("@annotation(org.opennms.netmgt.model.events.annotations.EventHandler)")
+    @Pointcut("@annotation(org.opennms.netmgt.events.api.annotations.EventHandler)")
     public void eventHandler() {}
     
     /**
@@ -78,7 +81,7 @@ public class XmlRpcEventHandlerNotifier {
      */
     @Around("capsdEventHandler() && args(event)")
     public void onEvent(ProceedingJoinPoint pjp, Event event) throws Throwable {
-    	LogUtils.debugf(this, "onEvent(%s)", event);
+        LOG.debug("onEvent({})", event);
 
         notifyEventReceived(event);
         
@@ -100,7 +103,7 @@ public class XmlRpcEventHandlerNotifier {
      * <p>Constructor for XmlRpcEventHandlerNotifier.</p>
      */
     public XmlRpcEventHandlerNotifier() {
-    	LogUtils.debugf(this, "initialized XML-RPC event handler notifier");
+        LOG.debug("initialized XML-RPC event handler notifier");
     	
         m_notifySet = new HashSet<String>();
         
@@ -134,16 +137,12 @@ public class XmlRpcEventHandlerNotifier {
     
     
     private void handleFailedOperationException(Event event, FailedOperationException ex) {
-        log().error("BroadcastEventProcessor: operation failed for event: " + event.getUei() + ", exception: " + ex.getMessage());
+        LOG.error("BroadcastEventProcessor: operation failed for event: {}, exception: {}", event.getUei(), ex.getMessage());
         notifyEventError(event, "processing failed: ", ex);
     }
 
-    private ThreadCategory log() {
-        return ThreadCategory.getInstance(getClass());
-    }
-
     private void handleInsufficientInformationException(Event event, InsufficientInformationException ex) {
-        log().info("BroadcastEventProcessor: insufficient information in event, discarding it: " + ex.getMessage());
+        LOG.info("BroadcastEventProcessor: insufficient information in event, discarding it: {}", ex.getMessage());
         notifyEventError(event, "Invalid parameters: ", ex);
     }
 

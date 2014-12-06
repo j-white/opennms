@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2006-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -32,9 +32,10 @@ import static org.opennms.core.utils.InetAddressUtils.normalizeMacAddress;
 
 import java.net.InetAddress;
 
-import org.opennms.core.utils.LogUtils;
-import org.opennms.netmgt.capsd.snmp.NamedSnmpVar;
-import org.opennms.netmgt.capsd.snmp.SnmpStore;
+import org.opennms.netmgt.snmp.NamedSnmpVar;
+import org.opennms.netmgt.snmp.SnmpStore;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *<P>The IpNetToMediaTableEntry class is designed to hold all the MIB-II
@@ -52,8 +53,9 @@ import org.opennms.netmgt.capsd.snmp.SnmpStore;
  * @see <A HREF="http://www.ietf.org/rfc/rfc1213.txt">RFC1213</A>
  * @version $Id: $
  */
-public final class IpNetToMediaTableEntry extends SnmpStore
-{
+public final class IpNetToMediaTableEntry extends SnmpStore {
+
+    private static final Logger LOG = LoggerFactory.getLogger(IpNetToMediaTableEntry.class);
 	// Lookup strings for specific table entries
 	//
 	/** Constant <code>INTM_INDEX="ipNetToMediaIfIndex"</code> */
@@ -153,22 +155,22 @@ public final class IpNetToMediaTableEntry extends SnmpStore
 	public String getIpNetToMediaPhysAddress(){
 	    try {
 	        // Try to fetch the physical address value as a hex string.
-            String hexString = getHexString(IpNetToMediaTableEntry.INTM_PHYSADDR);
-            if (hexString != null && hexString.length() == 12) {
-                // If the hex string is 12 characters long, than the agent is kinda weird and
-                // is returning the value as a raw binary value that is 6 bytes in length.
-                // But that's OK, as long as we can convert it into a string, that's fine. 
-                return hexString;
-            } else {
-                // This is the normal case that most agents conform to: the value is an ASCII 
-                // string representing the colon-separated MAC address. We just need to reformat 
-                // it to remove the colons and convert it into a 12-character string.
-                return normalizeMacAddress(getDisplayString(IpNetToMediaTableEntry.INTM_PHYSADDR));
-            }
+                String hexString = getHexString(IpNetToMediaTableEntry.INTM_PHYSADDR);
+                if (hexString != null && hexString.length() == 12) {
+                    // If the hex string is 12 characters long, than the agent is kinda weird and
+                    // is returning the value as a raw binary value that is 6 bytes in length.
+                    // But that's OK, as long as we can convert it into a string, that's fine. 
+                    return hexString;
+                } else {
+                    // This is the normal case that most agents conform to: the value is an ASCII 
+                    // string representing the colon-separated MAC address. We just need to reformat 
+                    // it to remove the colons and convert it into a 12-character string.
+                    return normalizeMacAddress(getDisplayString(IpNetToMediaTableEntry.INTM_PHYSADDR));
+                }
 	    } catch (IllegalArgumentException e) {
-	        LogUtils.warnf(this, e, e.getMessage());
-	        return getDisplayString(IpNetToMediaTableEntry.INTM_PHYSADDR);
+	        LOG.warn("IllegalArgumentException", e);
 	    }
+            return getDisplayString(IpNetToMediaTableEntry.INTM_PHYSADDR);
 	}
 	
 	/**

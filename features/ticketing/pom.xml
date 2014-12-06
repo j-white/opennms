@@ -3,13 +3,13 @@
   <parent>
     <groupId>org.opennms</groupId>
     <artifactId>org.opennms.features</artifactId>
-    <version>1.12.9-SNAPSHOT</version>
+    <version>15.0.0-SNAPSHOT</version>
   </parent>
   <modelVersion>4.0.0</modelVersion>
   <groupId>org.opennms.features</groupId>
   <artifactId>org.opennms.features.ticketing</artifactId>
   <packaging>pom</packaging>
-  <name>OpenNMS Ticketing</name>
+  <name>OpenNMS Features Ticketing</name>
   <modules>
     <module>api</module>
     <module>drools-integration</module>

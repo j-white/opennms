@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2009-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2009-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -47,6 +47,8 @@ import javax.mail.search.SearchTerm;
 import org.apache.commons.lang.StringUtils;
 import org.opennms.netmgt.config.javamail.JavamailProperty;
 import org.opennms.netmgt.config.javamail.ReadmailConfig;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 /*
@@ -69,6 +71,9 @@ import org.opennms.netmgt.config.javamail.ReadmailConfig;
  * @version $Id: $
  */
 public class JavaReadMailer extends JavaMailer2 {
+	
+	private static final Logger LOG = LoggerFactory.getLogger(JavaReadMailer.class);
+
     
     private List<Message> m_messages;
     final private ReadmailConfig m_config;
@@ -85,7 +90,7 @@ public class JavaReadMailer extends JavaMailer2 {
      */
     @Override
     protected void finalize() throws Throwable {
-        log().debug("finalize: cleaning up mail folder an store connections...");
+        LOG.debug("finalize: cleaning up mail folder an store connections...");
         if (m_messages != null && !m_messages.isEmpty() && m_messages.get(0).getFolder() != null && m_messages.get(0).getFolder().isOpen()) {
             m_messages.get(0).getFolder().close(m_deleteOnClose);
         }
@@ -93,9 +98,8 @@ public class JavaReadMailer extends JavaMailer2 {
         if (m_store.isConnected()) {
             m_store.close();
         }
-        
+        LOG.debug("finalize: Mail folder and store connections closed.");
         super.finalize();
-        log().debug("finalize: Mail folder and store connections closed.");
     }
     
     //TODO figure out why need this throws here
@@ -238,7 +242,7 @@ public class JavaReadMailer extends JavaMailer2 {
         Object content = null;
         String text = null;
         
-        log().debug("getText: getting text of message from MimeType: text/*");
+        LOG.debug("getText: getting text of message from MimeType: text/*");
 
         try {
             text = (String)msg.getContent();
@@ -248,17 +252,17 @@ public class JavaReadMailer extends JavaMailer2 {
 
             if (content instanceof MimeMultipart) {
 
-                log().debug("getText: content is MimeMultipart, checking for text from each part...");
+                LOG.debug("getText: content is MimeMultipart, checking for text from each part...");
 
                 for (int cnt = 0; cnt < ((MimeMultipart)content).getCount(); cnt++) {
                     BodyPart bp = ((MimeMultipart)content).getBodyPart(cnt);
                     if (bp.isMimeType("text/*")) {
                         text = (String)bp.getContent();
-                        log().debug("getText: found text MIME type: "+text);
+                        LOG.debug("getText: found text MIME type: {}", text);
                         break;
                     }
                 }
-                log().debug("getText: did not find text within MimeMultipart message.");
+                LOG.debug("getText: did not find text within MimeMultipart message.");
             }
         }
         return string2Lines(text);

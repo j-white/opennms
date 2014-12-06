@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2006-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -32,30 +32,39 @@ import static org.opennms.core.utils.InetAddressUtils.str;
 
 import java.lang.reflect.Constructor;
 import java.net.InetAddress;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
-import org.opennms.core.utils.LogUtils;
-import org.opennms.netmgt.capsd.snmp.SnmpStore;
-import org.opennms.netmgt.capsd.snmp.SnmpTable;
 import org.opennms.netmgt.linkd.scheduler.ReadyRunnable;
 import org.opennms.netmgt.linkd.scheduler.Scheduler;
 import org.opennms.netmgt.linkd.snmp.CdpCacheTable;
-import org.opennms.netmgt.linkd.snmp.CiscoVlanTable;
-import org.opennms.netmgt.linkd.snmp.IntelVlanTable;
+import org.opennms.netmgt.linkd.snmp.CdpGlobalGroup;
+import org.opennms.netmgt.linkd.snmp.CdpInterfaceTable;
 import org.opennms.netmgt.linkd.snmp.IpNetToMediaTable;
+import org.opennms.netmgt.linkd.snmp.IsIsSystemObjectGroup;
+import org.opennms.netmgt.linkd.snmp.IsisCircTable;
+import org.opennms.netmgt.linkd.snmp.IsisISAdjTable;
 import org.opennms.netmgt.linkd.snmp.LldpLocTable;
 import org.opennms.netmgt.linkd.snmp.LldpLocalGroup;
 import org.opennms.netmgt.linkd.snmp.LldpRemTable;
+import org.opennms.netmgt.linkd.snmp.MtxrWlRtabTable;
 import org.opennms.netmgt.linkd.snmp.OspfGeneralGroup;
 import org.opennms.netmgt.linkd.snmp.OspfNbrTable;
-import org.opennms.netmgt.linkd.snmp.VlanCollectorEntry;
+import org.opennms.netmgt.linkd.snmp.SnmpTable;
+import org.opennms.netmgt.linkd.snmp.VlanTable;
+import org.opennms.netmgt.linkd.snmp.VlanTableBasic;
 import org.opennms.netmgt.model.OnmsVlan;
 import org.opennms.netmgt.model.events.EventBuilder;
 import org.opennms.netmgt.snmp.CollectionTracker;
 import org.opennms.netmgt.snmp.SnmpAgentConfig;
+import org.opennms.netmgt.snmp.SnmpStore;
 import org.opennms.netmgt.snmp.SnmpUtils;
 import org.opennms.netmgt.snmp.SnmpWalker;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * This class is designed to collect the necessary SNMP information from the
@@ -65,35 +74,22 @@ import org.opennms.netmgt.snmp.SnmpWalker;
  * allows the collection to occur in a thread if necessary.
  */
 public final class SnmpCollection implements ReadyRunnable {
-
-    /**
-     * The VLAN string to define VLAN name when collection is made for all
-     * VLAN
-     */
-    public final static String TRUNK_VLAN_NAME = "AllVlans";
-
-    /**
-     * The VLAN string to define VLAN index when collection is made for all
-     * VLAN
-     */
-    public final static int TRUNK_VLAN_INDEX = 0;
-
-    /**
-     * The VLAN string to define default VLAN name
-     */
-    public final static String DEFAULT_VLAN_NAME = "default";
-
-    /**
-     * The VLAN string to define default VLAN index
-     */
-    public final static int DEFAULT_VLAN_INDEX = 1;
+    private static final Logger LOG = LoggerFactory.getLogger(SnmpCollection.class);
 
     /**
      * The SnmpPeer object used to communicate via SNMP with the remote host.
      */
-    private final SnmpAgentConfig m_agentConfig;
+    private SnmpAgentConfig m_agentConfig;
 
-    /**
+    public SnmpAgentConfig getAgentConfig() {
+		return m_agentConfig;
+	}
+
+	public void setAgentConfig(SnmpAgentConfig agentConfig) {
+		m_agentConfig = agentConfig;
+	}
+
+	/**
      * The node ID of the system used to collect the SNMP information
      */
     private final int m_nodeid;
@@ -129,23 +125,19 @@ public final class SnmpCollection implements ReadyRunnable {
     private boolean m_collectStp = false;
 
     /**
-     * A boolean used to decide if save StpNode Table
-     */
-    private boolean m_saveStpNodeTable = false;
-
-    /**
-     * A boolean used to decide if save IpRouteTable
-     */
-    private boolean m_saveIpRouteTable = false;
-    /**
-     * A boolean used to decide if you save StpInterfaceTable
-     */
-    private boolean m_saveStpInterfaceTable = false;
-
-    /**
      * A boolean used to decide if you can collect Bridge Forwarding Table
      */
     private boolean m_collectBridge = false;
+
+    /**
+     * A boolean used to decide if you can collect Ip Net To Media Table
+     */
+    private boolean m_collectIpNetToMedia = false;
+
+    /**
+     * A boolean used to decide if you can collect Wireless R Table
+     */
+    private boolean m_collectWifi = false;
 
     /**
      * A boolean used to decide if you can collect CDP Table
@@ -162,12 +154,23 @@ public final class SnmpCollection implements ReadyRunnable {
      */
     private boolean m_collectOspf = false;
 
+    /**
+     * A boolean used to decide if you can collect IS-IS Table
+     */
+    private boolean m_collectIsIs = false;
+
+    public MtxrWlRtabTable m_mtxrWlRtabTable;
+    
     public LldpLocalGroup m_lldpLocalGroup;
     public LldpLocTable m_lldpLocTable;
     public LldpRemTable m_lldpRemTable;
     
     public OspfGeneralGroup m_ospfGeneralGroup;
-    public OspfNbrTable m_osNbrTable;
+    public OspfNbrTable m_ospfNbrTable;
+    
+    public IsIsSystemObjectGroup m_isisSystemObjectGroup;
+    public IsisISAdjTable m_isisISAdjTable;
+    public IsisCircTable m_isisCircTable;
     /**
      * The ipnettomedia table information
      */
@@ -181,7 +184,9 @@ public final class SnmpCollection implements ReadyRunnable {
     /**
      * The CdpCache table information
      */
-    public CdpCacheTable m_CdpCache;
+    public CdpGlobalGroup m_cdpGlobalGroup;
+    public CdpCacheTable m_cdpCache;
+    public CdpInterfaceTable m_cdpInterface;
 
     /**
      * The VLAN Table information
@@ -233,20 +238,52 @@ public final class SnmpCollection implements ReadyRunnable {
         m_address = m_agentConfig.getEffectiveAddress();
     }
 
+    boolean hasMtxrWlRtabTable() {
+        return (m_mtxrWlRtabTable != null && !m_mtxrWlRtabTable.failed() && !m_mtxrWlRtabTable.isEmpty());
+    }
+
+    MtxrWlRtabTable getMtxrWlRtabTable() {
+        return m_mtxrWlRtabTable;
+    }
+
+    boolean hasIsIsSysObjectGroup() {
+        return (m_isisSystemObjectGroup != null && !m_isisSystemObjectGroup.failed() && m_isisSystemObjectGroup.getIsisSysId() != null);
+    }
+    
+    IsIsSystemObjectGroup getIsIsSystemObjectGroup() {
+        return m_isisSystemObjectGroup;
+    }
+
     boolean hasOspfGeneralGroup() {
         return (m_ospfGeneralGroup != null && !m_ospfGeneralGroup.failed() && m_ospfGeneralGroup.getOspfRouterId() != null);        
+    }
+
+    boolean hasIsisCircTable() {
+        return (m_isisCircTable != null && !m_isisCircTable.failed() && !m_isisCircTable.isEmpty());
+    }
+    
+    IsisCircTable getIsisCircTable() {
+        return m_isisCircTable;
+    }
+    
+    boolean hasIsisISAdjTable() {
+        return (m_isisISAdjTable != null && !m_isisISAdjTable.failed() && !m_isisISAdjTable.isEmpty());
+    }
+    
+    IsisISAdjTable getIsisISAdjTable() {
+        return m_isisISAdjTable;
     }
     
     OspfGeneralGroup getOspfGeneralGroup() {
         return m_ospfGeneralGroup; 
     }
     
-    boolean hasOspfNbrTable() {
-        return (m_osNbrTable != null && !m_osNbrTable.failed() && !m_osNbrTable.isEmpty());
+    public boolean hasOspfNbrTable() {
+        return (m_ospfNbrTable != null && !m_ospfNbrTable.failed() && !m_ospfNbrTable.isEmpty());
     }
 
     OspfNbrTable getOspfNbrTable() {
-        return m_osNbrTable;    
+        return m_ospfNbrTable;    
     }
     
     boolean hasLldpLocalGroup() {
@@ -302,17 +339,37 @@ public final class SnmpCollection implements ReadyRunnable {
     }
 
     /**
+     * Returns true if the CDP Global Group table was collected.
+     */
+    boolean hasCdpGlobalGroup() {
+        return (m_cdpGlobalGroup != null && !m_cdpGlobalGroup.failed() && m_cdpGlobalGroup.getCdpDeviceId() != null);
+    }
+
+    CdpGlobalGroup getCdpGlobalGroup() {
+    	return m_cdpGlobalGroup;
+    }
+    
+    /**
      * Returns true if the CDP Cache table was collected.
      */
     boolean hasCdpCacheTable() {
-        return (m_CdpCache != null && !m_CdpCache.failed() && !m_CdpCache.isEmpty());
+        return (m_cdpCache != null && !m_cdpCache.failed() && !m_cdpCache.isEmpty());
     }
-
+    
     /**
      * Returns the collected IP route table.
      */
     CdpCacheTable getCdpCacheTable() {
-        return m_CdpCache;
+        return m_cdpCache;
+    }
+
+    boolean hasCdpInterfaceTable() {
+        return (m_cdpInterface != null && !m_cdpInterface.failed() && !m_cdpInterface.isEmpty());
+        
+    }
+
+    CdpInterfaceTable getCdpInterfaceTable() {
+        return m_cdpInterface;
     }
 
     /**
@@ -329,43 +386,6 @@ public final class SnmpCollection implements ReadyRunnable {
         return m_vlanTable;
     }
 
-    /**
-     * Returns the VLAN name from vlanindex.
-     * 
-     * @param m_vlan
-     *            a int.
-     * @return a {@link java.lang.String} object.
-     */
-    public String getVlanName(int m_vlan) {
-        if (this.hasVlanTable()) {
-            for (final SnmpStore ent : this.getVlanTable()) {
-                int vlanIndex = ent.getInt32(VlanCollectorEntry.VLAN_INDEX);
-                if (vlanIndex == m_vlan) {
-                    return ent.getDisplayString(VlanCollectorEntry.VLAN_NAME);
-                }
-            }
-        }
-        return null;
-    }
-
-    /**
-     * Returns the VLAN vlanindex from name.
-     * 
-     * @param m_vlanname
-     *            a {@link java.lang.String} object.
-     * @return a int.
-     */
-    public int getVlanIndex(String m_vlanname) {
-        if (this.hasVlanTable()) {
-            for (final SnmpStore ent : this.getVlanTable()) {
-                String vlanName = ent.getDisplayString(VlanCollectorEntry.VLAN_NAME);
-                if (vlanName.equals(m_vlanname)) {
-                    return ent.getInt32(VlanCollectorEntry.VLAN_INDEX);
-                }
-            }
-        }
-        return -1;
-    }
 
     Map<OnmsVlan, SnmpVlanCollection> getSnmpVlanCollections() {
         return m_snmpVlanCollection;
@@ -382,29 +402,72 @@ public final class SnmpCollection implements ReadyRunnable {
      * thread context synchronization must be added.
      * </p>
      */
+    private void sendSuspendedEvent() {
+        sendEvent(new EventBuilder("uei.opennms.org/internal/linkd/nodeLinkDiscoverySuspended",
+                                   "Linkd"));
+    }
+
+    private void sendStartedEvent() {
+        sendEvent(new EventBuilder("uei.opennms.org/internal/linkd/nodeLinkDiscoveryStarted",
+                                                "Linkd"));
+    }
+
+    private void sendCompletedEvent() {
+        sendEvent(new EventBuilder("uei.opennms.org/internal/linkd/nodeLinkDiscoveryCompleted",
+                                           "Linkd"));
+    }
+
+    private void sendEvent(EventBuilder builder) {
+        builder.setNodeid(m_nodeid);
+        builder.setInterface(m_address);
+        builder.addParam("runnable", "snmpCollection/"+getPackageName());
+        m_linkd.getEventForwarder().sendNow(builder.getEvent());
+    }
+    
+    @Override
     public void run() {
+        runned = true;
         if (suspendCollection) {
-            LogUtils.debugf(this, "run: address: %s Suspended!",
-                            str(m_address));
+            sendSuspendedEvent();
+            LOG.debug("run: address: {} Suspended!", str(m_address));
         } else {
+            sendStartedEvent();
             runCollection();
+            sendCompletedEvent();
         }
+    }
+    
+    private static class TrackerBuilder {
+    	private final CollectionTracker[] OF_TRACKERS = new CollectionTracker[0];
+    	private String m_msg = null;
+    	private List<CollectionTracker> m_trackerList = new ArrayList<CollectionTracker>();
+    	
+    	public void add(String label, CollectionTracker... trackers) {
+    		if (m_msg == null) {
+    			m_msg = label;
+    		} else {
+    			m_msg += "/" + label;
+    		}
+    		
+    		m_trackerList.addAll(Arrays.asList(trackers));
+    	}
+    	
+    	public String getMessage() { return m_msg; }
+    	public CollectionTracker[] getTrackers() { return m_trackerList.toArray(OF_TRACKERS); }
+    	public boolean isEmpty() { return m_trackerList.isEmpty(); }
     }
 
     private void runCollection() {
-
-        EventBuilder builder = new EventBuilder(
-                                                "uei.opennms.org/internal/linkd/nodeLinkDiscoveryStarted",
-                                                "Linkd");
-        builder.setNodeid(m_nodeid);
-        builder.setInterface(m_address);
-        m_linkd.getEventForwarder().sendNow(builder.getEvent());
 
         final String hostAddress = str(m_address);
 
         m_ipNetToMedia = new IpNetToMediaTable(m_address);
 
-        m_CdpCache = new CdpCacheTable(m_address);
+        m_cdpGlobalGroup = new CdpGlobalGroup(m_address);
+
+        m_cdpCache = new CdpCacheTable(m_address);
+
+        m_cdpInterface = new CdpInterfaceTable(m_address);
 
         m_lldpLocalGroup = new LldpLocalGroup(m_address);
 
@@ -414,312 +477,195 @@ public final class SnmpCollection implements ReadyRunnable {
         
         m_ospfGeneralGroup = new OspfGeneralGroup(m_address);
         
-        m_osNbrTable = new OspfNbrTable(m_address);
+        m_ospfNbrTable = new OspfNbrTable(m_address);
+        
+        m_isisSystemObjectGroup = new IsIsSystemObjectGroup(m_address);
+        
+        m_isisCircTable = new IsisCircTable(m_address);
+        
+        m_isisISAdjTable = new IsisISAdjTable(m_address);
+        
+        m_mtxrWlRtabTable = new MtxrWlRtabTable(m_address);
 
-        LogUtils.debugf(this, "run: collecting : %s", m_agentConfig);
-        LogUtils.debugf(this, "run: collectVlan/collectIpRoute/collectStp/m_collectBridge/m_collectCdp/m_collectLldp/m_collectOspf: %b/%b/%b/%b/%b/%b/%b",
-                        m_collectVlan, m_collectIpRoute,
-                        m_collectStp, m_collectBridge,
-                        m_collectCdp,m_collectLldp,m_collectOspf);
+        if (m_collectIpRoute) {
+        	m_ipRoute = createClass(m_ipRouteClass, m_address);
+        }
 
-        LogUtils.debugf(this, "run: m_saveStpNodeTable/m_saveIpRouteTable/m_saveStpInterfaceTable: %b/%b/%b",
-                        m_saveStpNodeTable, m_saveIpRouteTable,
-                        m_saveStpInterfaceTable);
+	if (m_collectVlan) {
+		m_vlanTable = createClass(m_vlanClass, m_address);
+	}
+		
+	LOG.debug("run: address {} package {}: collecting on agent: {}", str(m_address), getPackageName(), m_agentConfig);
 
+        LOG.info("run: address {} package {}: collectIpNetToMedia: {}",str(m_address), getPackageName(),m_collectIpNetToMedia);
+        LOG.info("run: address {} package {}: collectOspf: {}",str(m_address), getPackageName(),m_collectOspf);
+        LOG.info("run: address {} package {}: collectIsIs: {}",str(m_address), getPackageName(),m_collectIsIs);
+        LOG.info("run: address {} package {}: collectLldp: {}",str(m_address), getPackageName(),m_collectLldp);
+        LOG.info("run: address {} package {}: collectIpRoute: {}",str(m_address), getPackageName(),m_collectIpRoute);
+        LOG.info("run: address {} package {}: collectCdp: {}",str(m_address), getPackageName(),m_collectCdp);
+	LOG.info("run: address {} package {}: collectVlan: {}",str(m_address), getPackageName(),m_collectVlan);
+        LOG.info("run: address {} package {}: collectWifi: {}",str(m_address), getPackageName(),m_collectWifi);
 
         SnmpWalker walker = null;
 
-        boolean collectIpRouteTable = m_collectIpRoute;
-        if (collectIpRouteTable) {
-            Class<SnmpTable<SnmpStore>> ipRouteGetter = null;
-            try {
-                ipRouteGetter = (Class<SnmpTable<SnmpStore>>) Class.forName(m_ipRouteClass);
-            } catch (ClassNotFoundException e) {
-                LogUtils.errorf(this, e, "run: " + m_ipRouteClass
-                        + " class not found ");
-                collectIpRouteTable = false;
-            }
-
-            Class<?>[] classes = { InetAddress.class };
-            Constructor<SnmpTable<SnmpStore>> constr = null;
-            try {
-                constr = ipRouteGetter.getConstructor(classes);
-            } catch (Throwable e) {
-                LogUtils.errorf(this, e, "run: " + m_ipRouteClass
-                        + " unable to get constructor.");
-                collectIpRouteTable = false;
-            }
-            Object[] argum = { m_address };
-            try {
-                m_ipRoute = (SnmpTable<SnmpStore>) constr.newInstance(argum);
-            } catch (Throwable e) {
-                LogUtils.errorf(this, e, "run: " + m_ipRouteClass
-                        + " unable to invoke class.");
-                collectIpRouteTable = false;
-            }
-        }
-
-        boolean collectVlanTable = m_collectVlan;
-        if (collectVlanTable) {
-            Class<SnmpTable<SnmpStore>> vlanGetter = null;
-            try {
-                vlanGetter = (Class<SnmpTable<SnmpStore>>) Class.forName(m_vlanClass);
-            } catch (ClassNotFoundException e) {
-                LogUtils.warnf(this, e, "run: %s class not found",
-                               m_vlanClass);
-                collectVlanTable = false;
-            }
-            Class<?>[] classes = { InetAddress.class };
-            Constructor<SnmpTable<SnmpStore>> constr = null;
-            try {
-                constr = vlanGetter.getConstructor(classes);
-            } catch (NoSuchMethodException e) {
-                LogUtils.warnf(this, e, "run: %s class has no such method",
-                               m_vlanClass);
-                collectVlanTable = false;
-            } catch (SecurityException s) {
-                LogUtils.warnf(this, s, "run: %s class security violation",
-                               m_vlanClass);
-                collectVlanTable = false;
-            }
-            Object[] argum = { m_address };
-            try {
-                m_vlanTable = (SnmpTable<SnmpStore>) constr.newInstance(argum);
-            } catch (Throwable e) {
-                LogUtils.warnf(this, e,
-                               "run: unable to instantiate class %s",
-                               m_vlanClass);
-                collectVlanTable = false;
-            }
-        }
-
-        CollectionTracker[] tracker;
-        int i=0;
-
-        if (m_collectBridge) {
-            i++;
+        TrackerBuilder bldr = new TrackerBuilder();
+        if (m_collectIpNetToMedia) {
+        	bldr.add("ipNetToMediaTable", m_ipNetToMedia);
         }
         if (m_collectOspf) {
-            i=i+2;
+        	bldr.add("ospfGeneralGroup/ospfNbrTable", m_ospfGeneralGroup, m_ospfNbrTable);
+        }
+        if (m_collectIsIs) {
+            bldr.add("isisSystemObjectGroup/isisCircTable/isisISAdjTable", m_isisSystemObjectGroup, m_isisCircTable,m_isisISAdjTable);
         }
         if (m_collectLldp) {
-            i=i+3;
+        	bldr.add("lldpLocalGroup/lldpLocTable/lldpRemTable", m_lldpLocalGroup, m_lldpLocTable, m_lldpRemTable);
         }
-        if (collectIpRouteTable) {
-            i++;
-        }
-        if (m_collectCdp) {
-            i++;
-        }
-        if (collectVlanTable) {
-            i++;
-        }
-
-        tracker = new CollectionTracker[i];
-        
-        i=0;
-        String name = "";
-        if (m_collectBridge) {
-            name += "ipNetToMediaTable";
-            tracker[i++] = m_ipNetToMedia;            
-        }
-        if (m_collectOspf) {
-            if ( i > 0)
-                name+="/";
-            name += "ospfGeneralGroup/OspfNbrTable";
-            tracker[i++] = m_ospfGeneralGroup;
-            tracker[i++] = m_osNbrTable;            
-        }
-        if (m_collectLldp) {
-            if ( i > 0)
-                name+="/";
-            name += "lldpLocalGroup/lldpLocTable/lldpRemTable";
-            tracker[i++] = m_lldpLocalGroup;
-            tracker[i++] = m_lldpLocTable;
-            tracker[i++] = m_lldpRemTable;
-        }
-        if (collectIpRouteTable) {
-            if ( i > 0)
-                name+="/";
-                name += "ipRouteTable";
-            tracker[i++] = m_ipRoute;
+        if (m_collectIpRoute && m_ipRoute != null) {
+        	bldr.add("ipRouteTable", m_ipRoute);
         }
         if (m_collectCdp) {
-            if ( i > 0)
-                name+="/";
-            name += "cdpCacheTable";
-            tracker[i++] = m_CdpCache;
+        	bldr.add("cdpGlobalGroup/cdpInterface/cdpCacheTable",m_cdpGlobalGroup,m_cdpInterface,m_cdpCache);
         }
-        if (collectVlanTable) {
-            if ( i > 0)
-                name+="/";
-            name += "vlanTable";
-            tracker[i++] = m_vlanTable;
+        if (m_collectVlan && m_vlanTable != null) {
+        	bldr.add("vlanTable", m_vlanTable);
+        }
+        if (m_collectWifi && m_mtxrWlRtabTable != null) {
+            bldr.add("mtxrWlRtabTable", m_mtxrWlRtabTable);
         }
         
-        LogUtils.infof(this, "run: Collecting %s from %s", name,
-                       str(m_agentConfig.getEffectiveAddress()));
+        
+        LOG.debug("run: package {}: Collecting {} from {}", getPackageName(),bldr.getMessage(), str(m_agentConfig.getEffectiveAddress()));
 
-        if (i > 0) {
-            walker = SnmpUtils.createWalker(m_agentConfig, name, tracker);
+        if (!bldr.isEmpty()) {
+            walker = SnmpUtils.createWalker(m_agentConfig, bldr.getMessage(), bldr.getTrackers());
 
             walker.start();
 
             try {
                 walker.waitFor();
             } catch (final InterruptedException e) {
-                LogUtils.errorf(this, e, "run: collection interrupted, exiting");
+                LOG.error("run: collection interrupted, exiting", e);
                 return;
             }
         }
         // Log any failures
         //
         if (m_collectOspf && !this.hasOspfGeneralGroup())
-            LogUtils.infof(this,
-                           "run: failed to collect ospfGeneralGroup for %s",
-                           hostAddress);
+            LOG.info("run: failed to collect ospfGeneralGroup for {}", hostAddress);
         if (m_collectOspf && !this.hasOspfNbrTable())
-            LogUtils.infof(this,
-                           "run: failed to collect ospfNbrTable for %s",
-                           hostAddress);
+            LOG.info("run: failed to collect ospfNbrTable for {}", hostAddress);
+        if (m_collectIsIs && !this.hasIsIsSysObjectGroup())
+            LOG.info("run: failed to collect IsIsSysObjectGroup for {}", hostAddress);
+        if (m_collectIsIs && !this.hasIsisCircTable())
+            LOG.info("run: failed to collect IsisCircTable for {}", hostAddress);
+        if (m_collectIsIs && !this.hasIsisISAdjTable())
+            LOG.info("run: failed to collect IsisIsAdjTable for {}", hostAddress);
         if (m_collectLldp && !this.hasLldpLocalGroup())
-            LogUtils.infof(this,
-                           "run: failed to collect lldpLocalGroup for %s",
-                           hostAddress);
+            LOG.info("run: failed to collect lldpLocalGroup for {}", hostAddress);
         if (m_collectLldp && !this.hasLldpLocTable())
-            LogUtils.infof(this,
-                           "run: failed to collect lldpLocTable for %s",
-                           hostAddress);
+            LOG.info("run: failed to collect lldpLocTable for {}", hostAddress);
         if (m_collectLldp && !this.hasLldpRemTable())
-            LogUtils.infof(this,
-                           "run: failed to collect lldpRemTable for %s",
-                           hostAddress);
-        if (m_collectBridge && !this.hasIpNetToMediaTable())
-            LogUtils.infof(this,
-                           "run: failed to collect ipNetToMediaTable for %s",
-                           hostAddress);
-        if (collectIpRouteTable && !this.hasRouteTable())
-            LogUtils.infof(this,
-                           "run: failed to collect ipRouteTable for %s",
-                           hostAddress);
+            LOG.info("run: failed to collect lldpRemTable for {}", hostAddress);
+        if (m_collectIpNetToMedia && !this.hasIpNetToMediaTable())
+            LOG.info("run: failed to collect ipNetToMediaTable for {}", hostAddress);
+        if (m_collectIpRoute && m_ipRoute != null && !this.hasRouteTable())
+            LOG.info("run: failed to collect ipRouteTable for {}", hostAddress);
+        if (m_collectCdp && !this.hasCdpGlobalGroup())
+            LOG.info("run: failed to collect cdpGlobalGroup for {}", hostAddress);
+        if (m_collectCdp && !this.hasCdpInterfaceTable())
+            LOG.info("run: failed to collect cdpInterfaceTable for []", hostAddress);
         if (m_collectCdp && !this.hasCdpCacheTable())
-            LogUtils.infof(this,
-                           "run: failed to collect dpCacheTable for %s",
-                           hostAddress);
-        if (collectVlanTable && !this.hasVlanTable())
-            LogUtils.infof(this, "run: failed to collect VLAN for %s",
-                           hostAddress);
-        // Schedule SNMP VLAN collection only on VLAN.
-        // If it has not VLAN collection no data download is done.
-
-        // OnmsVlan vlan = null;
+            LOG.info("run: failed to collect cdpCacheTable for []", hostAddress);
+        if (m_collectVlan && m_vlanTable != null && !this.hasVlanTable())
+            LOG.info("run: failed to collect VLAN for {}", hostAddress);
+        if (m_collectWifi && m_mtxrWlRtabTable != null && !this.hasMtxrWlRtabTable())
+            LOG.info("run: failed to collect Wifi for {}", hostAddress);
+        
+        
 
         if (this.hasVlanTable()) {
-            if (!m_vlanClass.equals(CiscoVlanTable.class.getName())
-                    && !m_vlanClass.equals(IntelVlanTable.class.getName())) {
-                runAndSaveSnmpVlanCollection(new OnmsVlan(
-                                                          TRUNK_VLAN_INDEX,
-                                                          TRUNK_VLAN_NAME,
-                                                          VlanCollectorEntry.VLAN_STATUS_OPERATIONAL));
-            } else {
-                LogUtils.debugf(this,
-                                "run: start collection for %d VLAN entries",
-                                getVlanTable().size());
-                for (final SnmpStore ent : m_vlanTable) {
-                    int vlanindex = ent.getInt32(VlanCollectorEntry.VLAN_INDEX);
-                    if (vlanindex == -1) {
-                        LogUtils.debugf(this,
-                                        "run: found null value for VLAN.");
-                        continue;
-                    }
-                    String vlanname = ent.getDisplayString(VlanCollectorEntry.VLAN_NAME);
-                    if (vlanname == null)
-                        vlanname = DEFAULT_VLAN_NAME;
-                    Integer status = ent.getInt32(VlanCollectorEntry.VLAN_STATUS);
-
-                    if (status == null
-                            || status != VlanCollectorEntry.VLAN_STATUS_OPERATIONAL) {
-                        LogUtils.infof(this,
-                                       "run: skipping VLAN %s: NOT ACTIVE or null",
-                                       vlanindex);
-                        continue;
-                    }
-
-                    String community = m_agentConfig.getReadCommunity();
-                    LogUtils.debugf(this,
-                                    "run: peer community: %s with VLAN %s",
-                                    community, vlanindex);
-
-                    Integer type = ent.getInt32(VlanCollectorEntry.VLAN_TYPE);
-                    if (type == null
-                            || type != VlanCollectorEntry.VLAN_TYPE_ETHERNET) {
-                        LogUtils.infof(this,
-                                       "run: skipping VLAN %s NOT ETHERNET TYPE",
-                                       vlanindex);
-                        continue;
-                    }
-                    if (vlanindex != 1)
-                        m_agentConfig.setReadCommunity(community + "@"
-                                + vlanindex);
-
-                    runAndSaveSnmpVlanCollection(new OnmsVlan(vlanindex,
-                                                              vlanname,
-                                                              status));
-                    m_agentConfig.setReadCommunity(community);
-                }
+        	VlanTableBasic basicvlans = (VlanTableBasic) m_vlanTable;
+                LOG.debug("run: start snmp collection for {} VLAN entries", basicvlans.size());
+        	for (OnmsVlan vlan: basicvlans.getVlansForSnmpCollection()) {
+                String community = m_agentConfig.getReadCommunity();
+                Integer vlanindex = vlan.getVlanId();
+                LOG.debug("run: peer community: {} with VLAN {}", community, vlanindex);
+                if (vlanindex != 1)
+                    m_agentConfig.setReadCommunity(community + "@"
+                            + vlanindex);
+                runAndSaveSnmpVlanCollection(vlan);
+                m_agentConfig.setReadCommunity(community);
             }
         } else {
-            runAndSaveSnmpVlanCollection(new OnmsVlan(
-                                                      DEFAULT_VLAN_INDEX,
-                                                      DEFAULT_VLAN_NAME,
-                                                      VlanCollectorEntry.VLAN_STATUS_OPERATIONAL));
+            runAndSaveSnmpVlanCollection(new OnmsVlan(VlanTable.DEFAULT_VLAN_INDEX, VlanTable.DEFAULT_VLAN_NAME, VlanTable.DEFAULT_VLAN_STATUS));
         }
         // update info in linkd used correctly by {@link DiscoveryLink}
-        LogUtils.debugf(this, "run: saving collection into database for %s",
-                        str(m_agentConfig.getEffectiveAddress()));
+        LOG.debug("run: saving collection into database for {}", str(m_agentConfig.getEffectiveAddress()));
 
         m_linkd.updateNodeSnmpCollection(this);
         // clean memory
         // first make everything clean
         m_ipNetToMedia = null;
         m_ipRoute = null;
-        m_CdpCache = null;
+        m_cdpGlobalGroup = null;
+        m_cdpCache = null;
+        m_cdpInterface = null;
         m_vlanTable = null;
         m_lldpLocalGroup = null;
         m_lldpLocTable = null;
         m_lldpRemTable = null;
         m_ospfGeneralGroup = null;
-        m_osNbrTable = null;
+        m_ospfNbrTable = null;
+        m_isisSystemObjectGroup = null;
+        m_isisCircTable = null;
+        m_isisISAdjTable = null;
+        m_mtxrWlRtabTable = null;
 
         m_snmpVlanCollection.clear();
-
-        builder = new EventBuilder(
-                                   "uei.opennms.org/internal/linkd/nodeLinkDiscoveryCompleted",
-                                   "Linkd");
-        builder.setNodeid(m_nodeid);
-        builder.setInterface(m_address);
-        m_linkd.getEventForwarder().sendNow(builder.getEvent());
-
-        // reschedule itself
-        reschedule();
-        runned = true;
     }
 
+	@SuppressWarnings("unchecked")
+	private SnmpTable<SnmpStore> createClass(String className, InetAddress address) {
+		SnmpTable<SnmpStore> vlanTable = null;
+		Class<SnmpTable<SnmpStore>> getter = null;
+		try {
+		    getter = (Class<SnmpTable<SnmpStore>>) Class.forName(className);
+		} catch (ClassNotFoundException e) {
+		    LOG.warn("run: {} class not found", className, e);
+		}
+		Class<?>[] classes = { InetAddress.class };
+		Constructor<SnmpTable<SnmpStore>> constr = null;
+		try {
+		    constr = getter.getConstructor(classes);
+		} catch (NoSuchMethodException e) {
+		    LOG.warn("run: {} class has no such method", className, e);
+		} catch (SecurityException s) {
+		    LOG.warn("run: {} class security violation", className, s);
+		}
+		Object[] argum = { address };
+		try {
+			vlanTable = (SnmpTable<SnmpStore>) constr.newInstance(argum);
+		} catch (Throwable e) {
+		    LOG.warn("run: unable to instantiate class {}", className, e);
+		}
+		return vlanTable;
+	}
+
     private void runAndSaveSnmpVlanCollection(OnmsVlan vlan) {
+        LOG.info("runAndSaveSnmpVlanCollection: address {} package {}: collectStp: {}",str(m_address), getPackageName(),m_collectStp);
+        LOG.info("runAndSaveSnmpVlanCollection: address {} package {}: collectBridge: {}",str(m_address), getPackageName(),m_collectBridge);
         SnmpVlanCollection snmpvlancollection = new SnmpVlanCollection(
                                                                        m_agentConfig,
                                                                        m_collectStp,
                                                                        m_collectBridge);
+        snmpvlancollection.setPackageName(getPackageName());
         snmpvlancollection.run();
 
         if (snmpvlancollection.failed()) {
-            LogUtils.debugf(this,
-                            "runAndSaveSnmpVlanCollection: no bridge info found for %s",
-                            m_agentConfig);
+            LOG.debug("runAndSaveSnmpVlanCollection: no bridge info found for {}", m_agentConfig);
         } else {
-            LogUtils.debugf(this,
-                            "runAndSaveSnmpVlanCollection: adding bridge info to snmpcollection, VLAN = %s, SnmpVlanCollection = %s",
-                            vlan, snmpvlancollection);
+            LOG.debug("runAndSaveSnmpVlanCollection: adding bridge info to snmpcollection, VLAN = {}, SnmpVlanCollection = {}", vlan, snmpvlancollection);
             m_snmpVlanCollection.put(vlan, snmpvlancollection);
         }
     }
@@ -799,21 +745,15 @@ public final class SnmpCollection implements ReadyRunnable {
      * schedule
      * </p>
      */
+    @Override
     public void schedule() {
         if (m_scheduler == null)
             throw new IllegalStateException(
                                             "Cannot schedule a service whose scheduler is set to null");
-        m_scheduler.schedule(initial_sleep_time, this);
-    }
-
-    /**
-	 * 
-	 */
-    private void reschedule() {
-        if (m_scheduler == null)
-            throw new IllegalStateException(
-                                            "Cannot schedule a service whose scheduler is set to null");
-        m_scheduler.schedule(poll_interval, this);
+        if (runned)
+            m_scheduler.schedule(poll_interval, this);
+        else
+            m_scheduler.schedule(initial_sleep_time, this);
     }
 
     /**
@@ -823,6 +763,7 @@ public final class SnmpCollection implements ReadyRunnable {
      * 
      * @return a boolean.
      */
+    @Override
     public boolean isReady() {
         return true;
     }
@@ -834,6 +775,7 @@ public final class SnmpCollection implements ReadyRunnable {
      * 
      * @return Returns the suspendCollection.
      */
+    @Override
     public boolean isSuspended() {
         return suspendCollection;
     }
@@ -843,6 +785,7 @@ public final class SnmpCollection implements ReadyRunnable {
      * suspend
      * </p>
      */
+    @Override
     public void suspend() {
         this.suspendCollection = true;
     }
@@ -852,7 +795,9 @@ public final class SnmpCollection implements ReadyRunnable {
      * wakeUp
      * </p>
      */
+    @Override
     public void wakeUp() {
+    	setAgentConfig(m_linkd.getSnmpAgentConfig(m_address));
         this.suspendCollection = false;
     }
 
@@ -861,6 +806,7 @@ public final class SnmpCollection implements ReadyRunnable {
      * unschedule
      * </p>
      */
+    @Override
     public void unschedule() {
         if (m_scheduler == null)
             throw new IllegalStateException(
@@ -868,7 +814,7 @@ public final class SnmpCollection implements ReadyRunnable {
         if (runned) {
             m_scheduler.unschedule(this, poll_interval);
         } else {
-            m_scheduler.unschedule(this, poll_interval + initial_sleep_time);
+            m_scheduler.unschedule(this, initial_sleep_time);
         }
     }
 
@@ -963,13 +909,13 @@ public final class SnmpCollection implements ReadyRunnable {
     }
 
     /** {@inheritDoc} */
-    public boolean equals(ReadyRunnable run) {
-        if (run instanceof SnmpCollection
-                && this.getPackageName().equals(run.getPackageName())) {
+    @Override
+    public boolean equals(Object run) {
+        if (run instanceof SnmpCollection) {
             SnmpCollection c = (SnmpCollection) run;
-            if (c.getTarget().equals(m_address) && c.getPort() == getPort()
-                    && c.getReadCommunity().equals(getReadCommunity()))
+            if (this.getPackageName().equals(c.getPackageName()) && c.getTarget().equals(m_address)) {
                 return true;
+            }
         }
         return false;
     }
@@ -981,22 +927,25 @@ public final class SnmpCollection implements ReadyRunnable {
      * 
      * @return a {@link java.lang.String} object.
      */
+    @Override
     public String getInfo() {
         return "ReadyRunnable SnmpCollection" + " ip=" + str(getTarget())
                 + " port=" + getPort() + " community=" + getReadCommunity()
                 + " package=" + getPackageName()
-                + " collectBridge="
-                + getCollectBridge() + " collectStpNode="
-                + getCollectStp() + " collectCdp="
-                + getCollectCdp() + " collectIpRoute="
-                + getCollectIpRoute() + " saveIpRouteTable="
-                + getSaveIpRouteTable() + " saveStpInterfaceTable="
-                + getSaveStpInterfaceTable() + " saveStpNodeTable="
-                + getSaveStpNodeTable();
-
+                + " initial=" + getInitialSleepTime()
+                + " interval=" + getPollInterval()
+                + " collectBridge=" + getCollectBridge() 
+                + " collectStpNode=" + getCollectStp() 
+                + " collectCdp=" + getCollectCdp()
+                + " collectIpnetToMedia=" + getCollectIpNetToMedia()
+                + " collectIpRoute=" + getCollectIpRoute()
+                + " collectLldp=" + getCollectLldp() 
+                + " collectOspf=" + getCollectOspf() 
+                + " collectIsis=" + getCollectIsIs()
+                + " collectWifi=" + getCollectWifi();
     }
 
-    public boolean getCollectLldpTable() {
+    public boolean getCollectLldp() {
         return m_collectLldp;
     }
 
@@ -1013,6 +962,29 @@ public final class SnmpCollection implements ReadyRunnable {
      */
     public boolean getCollectBridge() {
         return m_collectBridge;
+    }
+
+    /**
+     * <p>
+     * collectBridgeForwardingTable
+     * </p>
+     * 
+     * @param bridgeForwardingTable
+     *            a boolean.
+     */
+    public void collectIpNetToMedia(boolean collectIpNetToMedia) {
+        m_collectIpNetToMedia = collectIpNetToMedia;
+    }
+
+    /**
+     * <p>
+     * getCollectBridgeForwardingTable
+     * </p>
+     * 
+     * @return a boolean.
+     */
+    public boolean getCollectIpNetToMedia() {
+        return m_collectIpNetToMedia;
     }
 
     /**
@@ -1103,89 +1075,39 @@ public final class SnmpCollection implements ReadyRunnable {
      * 
      * @return a {@link java.lang.String} object.
      */
+    @Override
     public String getPackageName() {
         return packageName;
     }
 
     /** {@inheritDoc} */
+    @Override
     public void setPackageName(String packageName) {
         this.packageName = packageName;
-    }
-
-    /**
-     * <p>
-     * getSaveStpNodeTable
-     * </p>
-     * 
-     * @return a boolean.
-     */
-    public boolean getSaveStpNodeTable() {
-        return m_saveStpNodeTable;
-    }
-
-    /**
-     * <p>
-     * saveStpNodeTable
-     * </p>
-     * 
-     * @param stpNodeTable
-     *            a boolean.
-     */
-    public void saveStpNodeTable(boolean stpNodeTable) {
-        m_saveStpNodeTable = stpNodeTable;
-    }
-
-    /**
-     * <p>
-     * getSaveIpRouteTable
-     * </p>
-     * 
-     * @return a boolean.
-     */
-    public boolean getSaveIpRouteTable() {
-        return m_saveIpRouteTable;
-    }
-
-    /**
-     * <p>
-     * SaveIpRouteTable
-     * </p>
-     * 
-     * @param ipRouteTable
-     *            a boolean.
-     */
-    public void SaveIpRouteTable(boolean ipRouteTable) {
-        m_saveIpRouteTable = ipRouteTable;
-    }
-
-    /**
-     * <p>
-     * getSaveStpInterfaceTable
-     * </p>
-     * 
-     * @return a boolean.
-     */
-    public boolean getSaveStpInterfaceTable() {
-        return m_saveStpInterfaceTable;
-    }
-
-    /**
-     * <p>
-     * saveStpInterfaceTable
-     * </p>
-     * 
-     * @param stpInterfaceTable
-     *            a boolean.
-     */
-    public void saveStpInterfaceTable(boolean stpInterfaceTable) {
-        m_saveStpInterfaceTable = stpInterfaceTable;
     }
 
     public void collectOspf(boolean collectOspfTable) {        
         m_collectOspf = collectOspfTable;
     }
 
-    public boolean getCollectOspfTable() {
+    public boolean getCollectOspf() {
        return m_collectOspf;
     }
+    
+    public void collectIsIs(boolean collectIsIs) {        
+        m_collectIsIs = collectIsIs;
+    }
+
+    public boolean getCollectIsIs() {
+       return m_collectIsIs;
+    }
+
+    public void collectWifi(boolean collectWifi) {        
+        m_collectWifi = collectWifi;
+    }
+
+    public boolean getCollectWifi() {
+       return m_collectWifi;
+    }
+
 }

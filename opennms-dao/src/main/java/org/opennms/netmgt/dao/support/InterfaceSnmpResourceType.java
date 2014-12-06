@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2007-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2007-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -42,10 +42,8 @@ import org.opennms.core.utils.AlphaNumeric;
 import org.opennms.core.utils.InetAddressUtils;
 import org.opennms.core.utils.LazySet;
 import org.opennms.core.utils.SIUtils;
-import org.opennms.core.utils.ThreadCategory;
-import org.opennms.netmgt.dao.NodeDao;
-import org.opennms.netmgt.dao.ResourceDao;
-import org.opennms.netmgt.dao.support.ResourceTypeUtils;
+import org.opennms.netmgt.dao.api.NodeDao;
+import org.opennms.netmgt.dao.api.ResourceDao;
 import org.opennms.netmgt.model.ExternalValueAttribute;
 import org.opennms.netmgt.model.OnmsAttribute;
 import org.opennms.netmgt.model.OnmsIpInterface;
@@ -53,6 +51,10 @@ import org.opennms.netmgt.model.OnmsNode;
 import org.opennms.netmgt.model.OnmsResource;
 import org.opennms.netmgt.model.OnmsResourceType;
 import org.opennms.netmgt.model.OnmsSnmpInterface;
+import org.opennms.netmgt.model.ResourceTypeUtils;
+import org.opennms.netmgt.rrd.RrdFileConstants;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataAccessException;
 import org.springframework.orm.ObjectRetrievalFailureException;
 
@@ -61,6 +63,8 @@ import org.springframework.orm.ObjectRetrievalFailureException;
  * values.  See bug #1703.
  */
 public class InterfaceSnmpResourceType implements OnmsResourceType {
+    
+    private static final Logger LOG = LoggerFactory.getLogger(InterfaceSnmpResourceType.class);
 
     private ResourceDao m_resourceDao;
     private NodeDao m_nodeDao;
@@ -68,8 +72,8 @@ public class InterfaceSnmpResourceType implements OnmsResourceType {
     /**
      * <p>Constructor for InterfaceSnmpResourceType.</p>
      *
-     * @param resourceDao a {@link org.opennms.netmgt.dao.ResourceDao} object.
-     * @param nodeDao a {@link org.opennms.netmgt.dao.NodeDao} object.
+     * @param resourceDao a {@link org.opennms.netmgt.dao.api.ResourceDao} object.
+     * @param nodeDao a {@link org.opennms.netmgt.dao.api.NodeDao} object.
      */
     public InterfaceSnmpResourceType(ResourceDao resourceDao, NodeDao nodeDao) {
         m_resourceDao = resourceDao;
@@ -81,6 +85,7 @@ public class InterfaceSnmpResourceType implements OnmsResourceType {
      *
      * @return a {@link java.lang.String} object.
      */
+    @Override
     public String getName() {
         return "interfaceSnmp";
     }
@@ -90,11 +95,13 @@ public class InterfaceSnmpResourceType implements OnmsResourceType {
      *
      * @return a {@link java.lang.String} object.
      */
+    @Override
     public String getLabel() {
         return "SNMP Interface Data";
     }
     
     /** {@inheritDoc} */
+    @Override
     public boolean isResourceTypeOnNode(int nodeId) {
         return isResourceTypeOnParentResource(Integer.toString(nodeId));
     }
@@ -109,7 +116,7 @@ public class InterfaceSnmpResourceType implements OnmsResourceType {
     }
     
     private File getParentResourceDirectory(String parentResource, boolean verify) {
-        File snmp = new File(m_resourceDao.getRrdDirectory(verify), DefaultResourceDao.SNMP_DIRECTORY);
+        File snmp = new File(m_resourceDao.getRrdDirectory(verify), ResourceTypeUtils.SNMP_DIRECTORY);
         
         File parent = new File(snmp, parentResource);
         if (verify && !parent.isDirectory()) {
@@ -120,6 +127,7 @@ public class InterfaceSnmpResourceType implements OnmsResourceType {
     }
     
     /** {@inheritDoc} */
+    @Override
     public List<OnmsResource> getResourcesForNode(int nodeId) {
         OnmsNode node = m_nodeDao.get(nodeId);
         if (node == null) {
@@ -131,7 +139,7 @@ public class InterfaceSnmpResourceType implements OnmsResourceType {
         
     }
     
-    private ArrayList<OnmsResource> populateResourceList(File parent, File relPath, OnmsNode node, Boolean isForeign) {
+    private List<OnmsResource> populateResourceList(File parent, File relPath, OnmsNode node, Boolean isForeign) {
             
         ArrayList<OnmsResource> resources = new ArrayList<OnmsResource>();
 
@@ -178,7 +186,7 @@ public class InterfaceSnmpResourceType implements OnmsResourceType {
             String mac = "";
 
             // Strip off the MAC address from the end, if there is one
-            int dashIndex = name.lastIndexOf("-");
+            int dashIndex = name.lastIndexOf('-');
 
             if (dashIndex >= 0) {
                 desc = name.substring(0, dashIndex);
@@ -263,9 +271,9 @@ public class InterfaceSnmpResourceType implements OnmsResourceType {
 
                 resource.setEntity(snmpInterface);
             } else {
-                log().debug("populateResourceList: snmpInterface is null");
+                LOG.debug("populateResourceList: snmpInterface is null");
             }
-            log().debug("populateResourceList: adding resource toString " + resource.toString());
+            LOG.debug("populateResourceList: adding resource toString {}", resource.toString());
             resources.add(resource);
         }
         
@@ -295,6 +303,7 @@ public class InterfaceSnmpResourceType implements OnmsResourceType {
             m_ifSpeedFriendly = ifSpeedFriendly;
         }
 
+        @Override
         public Set<OnmsAttribute> load() {
             Set<OnmsAttribute> attributes = ResourceTypeUtils.getAttributesAtRelativePath(m_resourceDao.getRrdDirectory(), getRelativePathForResource(m_parent, m_resource));
             if (m_ifSpeed != null) {
@@ -309,7 +318,7 @@ public class InterfaceSnmpResourceType implements OnmsResourceType {
     }
     
     private String getRelativePathForResource(String parent, String resource) {
-        return DefaultResourceDao.SNMP_DIRECTORY
+        return ResourceTypeUtils.SNMP_DIRECTORY
             + File.separator + parent 
             + File.separator + resource;
     }
@@ -320,11 +329,13 @@ public class InterfaceSnmpResourceType implements OnmsResourceType {
      * This resource type is never available for domains.
      * Only the interface resource type is available for domains.
      */
+    @Override
     public boolean isResourceTypeOnDomain(String domain) {
         return getQueryableInterfacesForDomain(domain).size() > 0;
     }
     
     /** {@inheritDoc} */
+    @Override
     public List<OnmsResource> getResourcesForDomain(String domain) {
         ArrayList<OnmsResource> resources =
             new ArrayList<OnmsResource>();
@@ -349,7 +360,7 @@ public class InterfaceSnmpResourceType implements OnmsResourceType {
         }
 
         ArrayList<String> intfs = new ArrayList<String>();
-        File snmp = new File(m_resourceDao.getRrdDirectory(), DefaultResourceDao.SNMP_DIRECTORY);
+        File snmp = new File(m_resourceDao.getRrdDirectory(), ResourceTypeUtils.SNMP_DIRECTORY);
         File domainDir = new File(snmp, domain);
 
         if (!domainDir.exists() || !domainDir.isDirectory()) {
@@ -374,30 +385,29 @@ public class InterfaceSnmpResourceType implements OnmsResourceType {
     }
 
     /** {@inheritDoc} */
+    @Override
     public String getLinkForResource(OnmsResource resource) {
         return null;
     }
     
     /** {@inheritDoc} */
+    @Override
     public boolean isResourceTypeOnNodeSource(String nodeSource, int nodeId) {
         File parent = ResourceTypeUtils.getRelativeNodeSourceDirectory(nodeSource);
         return isResourceTypeOnParentResource(parent.toString());
     }
     
     /** {@inheritDoc} */
+    @Override
     public List<OnmsResource> getResourcesForNodeSource(String nodeSource, int nodeId) {
         String[] ident = nodeSource.split(":");
         OnmsNode node = m_nodeDao.findByForeignId(ident[0], ident[1]);
         if (node == null) {
             throw new ObjectRetrievalFailureException(OnmsNode.class, nodeSource, "Could not find node with nodeSource " + nodeSource, null);
         }
-        File relPath = new File(DefaultResourceDao.FOREIGN_SOURCE_DIRECTORY, ident[0] + File.separator + ident[1]);
+        File relPath = new File(ResourceTypeUtils.FOREIGN_SOURCE_DIRECTORY, ident[0] + File.separator + ident[1]);
         File parent = getParentResourceDirectory(relPath.toString(), true);
         return OnmsResource.sortIntoResourceList(populateResourceList(parent, relPath, node, true));
-    }
-    
-    private static ThreadCategory log() {
-        return ThreadCategory.getInstance(InterfaceSnmpResourceType.class);
     }
 
 }

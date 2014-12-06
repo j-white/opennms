@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2008-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2008-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -43,13 +43,13 @@ import javax.ws.rs.core.SecurityContext;
 import javax.ws.rs.core.UriInfo;
 
 import org.opennms.core.criteria.CriteriaBuilder;
-import org.opennms.netmgt.dao.AlarmDao;
+import org.opennms.netmgt.dao.api.AcknowledgmentDao;
+import org.opennms.netmgt.dao.api.AlarmDao;
 import org.opennms.netmgt.model.AckAction;
 import org.opennms.netmgt.model.OnmsAcknowledgment;
 import org.opennms.netmgt.model.OnmsAlarm;
 import org.opennms.netmgt.model.OnmsAlarmCollection;
-import org.opennms.netmgt.model.acknowledgments.AckService;
-import org.opennms.web.springframework.security.Authentication;
+import org.opennms.web.api.Authentication;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
@@ -67,7 +67,7 @@ public class AlarmRestService extends AlarmRestServiceBase {
     private AlarmDao m_alarmDao;
 
     @Autowired
-    private AckService m_ackService;
+    private AcknowledgmentDao m_ackDao;
 
     @Context
     UriInfo m_uriInfo;
@@ -92,7 +92,7 @@ public class AlarmRestService extends AlarmRestServiceBase {
     final String alarmId) {
         readLock();
         try {
-            return m_alarmDao.get(new Integer(alarmId));
+            return m_alarmDao.get(Integer.valueOf(alarmId));
         } finally {
             readUnlock();
         }
@@ -137,7 +137,7 @@ public class AlarmRestService extends AlarmRestServiceBase {
             final OnmsAlarmCollection coll = new OnmsAlarmCollection(m_alarmDao.findMatching(builder.toCriteria()));
 
             // For getting totalCount
-            coll.setTotalCount(m_alarmDao.countMatching(builder.clearOrder().limit(0).offset(0).toCriteria()));
+            coll.setTotalCount(m_alarmDao.countMatching(builder.count().toCriteria()));
 
             return coll;
         } finally {
@@ -203,7 +203,7 @@ public class AlarmRestService extends AlarmRestServiceBase {
             } else {
                 throw new IllegalArgumentException("Must supply one of the 'ack', 'escalate', or 'clear' parameters, set to either 'true' or 'false'.");
             }
-            m_ackService.processAck(acknowledgement);
+            m_ackDao.processAck(acknowledgement);
             return Response.seeOther(getRedirectUri(m_uriInfo)).build();
         } finally {
             writeUnlock();
@@ -262,7 +262,7 @@ public class AlarmRestService extends AlarmRestServiceBase {
                 } else {
                     throw new IllegalArgumentException("Must supply one of the 'ack', 'escalate', or 'clear' parameters, set to either 'true' or 'false'.");
                 }
-                m_ackService.processAck(acknowledgement);
+                m_ackDao.processAck(acknowledgement);
             }
             
             if (alarms.size() == 1) {

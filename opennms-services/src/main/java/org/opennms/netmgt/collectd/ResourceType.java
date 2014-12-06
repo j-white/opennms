@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2006-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -30,8 +30,9 @@ package org.opennms.netmgt.collectd;
 
 import java.util.Collection;
 
-import org.opennms.core.utils.ThreadCategory;
 import org.opennms.netmgt.snmp.SnmpInstId;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * <p>Abstract ResourceType class.</p>
@@ -41,17 +42,19 @@ import org.opennms.netmgt.snmp.SnmpInstId;
  */
 public abstract class ResourceType {
     
-    private CollectionAgent m_agent;
+    public static final Logger LOG = LoggerFactory.getLogger(ResourceType.class);
+    
+    private SnmpCollectionAgent m_agent;
     private OnmsSnmpCollection m_snmpCollection;
     private Collection<SnmpAttributeType> m_attributeTypes;
 
     /**
      * <p>Constructor for ResourceType.</p>
      *
-     * @param agent a {@link org.opennms.netmgt.collectd.CollectionAgent} object.
+     * @param agent a {@link org.opennms.netmgt.collection.api.CollectionAgent} object.
      * @param snmpCollection a {@link org.opennms.netmgt.collectd.OnmsSnmpCollection} object.
      */
-    public ResourceType(CollectionAgent agent, OnmsSnmpCollection snmpCollection) {
+    public ResourceType(SnmpCollectionAgent agent, OnmsSnmpCollection snmpCollection) {
         m_agent = agent;
         m_snmpCollection = snmpCollection;
     }
@@ -59,9 +62,9 @@ public abstract class ResourceType {
     /**
      * <p>getAgent</p>
      *
-     * @return a {@link org.opennms.netmgt.collectd.CollectionAgent} object.
+     * @return a {@link org.opennms.netmgt.collection.api.CollectionAgent} object.
      */
-    public CollectionAgent getAgent() {
+    public SnmpCollectionAgent getAgent() {
         return m_agent;
     }
     
@@ -88,7 +91,7 @@ public abstract class ResourceType {
      *
      * @return a {@link java.util.Collection} object.
      */
-    final public Collection<SnmpAttributeType> getAttributeTypes() {
+    public final Collection<SnmpAttributeType> getAttributeTypes() {
         if (m_attributeTypes == null) {
             m_attributeTypes = loadAttributeTypes();
         }
@@ -145,11 +148,4 @@ public abstract class ResourceType {
      * @return a {@link java.util.Collection} object.
      */
     public abstract Collection<? extends SnmpCollectionResource> getResources();
-    
-    /**
-     * <p>log</p>
-     *
-     * @return a {@link org.opennms.core.utils.ThreadCategory} object.
-     */
-    public ThreadCategory log() { return ThreadCategory.getInstance(getClass()); }
 }

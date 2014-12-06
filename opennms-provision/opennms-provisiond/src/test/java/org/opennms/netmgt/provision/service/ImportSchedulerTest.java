@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2009-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2009-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -32,19 +32,19 @@ import static org.junit.Assert.fail;
 
 import java.util.Calendar;
 
-import junit.framework.Assert;
+import org.junit.Assert;
 
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.opennms.core.spring.BeanUtils;
 import org.opennms.core.test.MockLogAppender;
 import org.opennms.core.test.OpenNMSJUnit4ClassRunner;
-import org.opennms.core.test.db.annotations.JUnitTemporaryDatabase;
-import org.opennms.core.utils.BeanUtils;
-import org.opennms.core.utils.LogUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.opennms.netmgt.config.provisiond.RequisitionDef;
-import org.opennms.netmgt.dao.ProvisiondConfigurationDao;
+import org.opennms.netmgt.dao.api.ProvisiondConfigurationDao;
 import org.opennms.test.JUnitConfigurationEnvironment;
 import org.quartz.Job;
 import org.quartz.JobDetail;
@@ -60,18 +60,19 @@ import org.springframework.test.context.ContextConfiguration;
 @RunWith(OpenNMSJUnit4ClassRunner.class)
 @ContextConfiguration(locations={
         "classpath:/META-INF/opennms/applicationContext-soa.xml",
-        "classpath:/META-INF/opennms/applicationContext-dao.xml",
+        "classpath:/META-INF/opennms/applicationContext-mockDao.xml",
         "classpath:/META-INF/opennms/applicationContext-daemon.xml",
         "classpath:/META-INF/opennms/applicationContext-proxy-snmp.xml",
         "classpath:/META-INF/opennms/mockEventIpcManager.xml",
         "classpath:/META-INF/opennms/applicationContext-provisiond.xml",
-        "classpath*:/META-INF/opennms/component-dao.xml",
+        "classpath*:/META-INF/opennms/provisiond-extensions.xml",
         "classpath*:/META-INF/opennms/detectors.xml",
+        "classpath:/mockForeignSourceContext.xml",
         "classpath:/importerServiceTest.xml"
 })
-@JUnitConfigurationEnvironment
-@JUnitTemporaryDatabase
+@JUnitConfigurationEnvironment(systemProperties="org.opennms.provisiond.enableDiscovery=false")
 public class ImportSchedulerTest implements InitializingBean {
+    private static final Logger LOG = LoggerFactory.getLogger(ImportSchedulerTest.class);
     
     @Autowired
     ImportJobFactory m_factory;
@@ -121,17 +122,20 @@ public class ImportSchedulerTest implements InitializingBean {
         m_importScheduler.getScheduler().addTriggerListener(new TriggerListener() {
             
             
+            @Override
             public String getName() {
                 return "TestTriggerListener";
             }
 
+            @Override
             public void triggerComplete(Trigger trigger, JobExecutionContext context, int triggerInstructionCode) {
-                LogUtils.infof(this, "triggerComplete called on trigger listener");
+                LOG.info("triggerComplete called on trigger listener");
                 callTracker.setCalled(true);
             }
 
+            @Override
             public void triggerFired(Trigger trigger, JobExecutionContext context) {
-                LogUtils.infof(this, "triggerFired called on trigger listener");
+                LOG.info("triggerFired called on trigger listener");
                 Job jobInstance = context.getJobInstance();
                 
                 if (jobInstance instanceof ImportJob) {
@@ -142,13 +146,15 @@ public class ImportSchedulerTest implements InitializingBean {
                 callTracker.setCalled(true);
             }
 
+            @Override
             public void triggerMisfired(Trigger trigger) {
-                LogUtils.infof(this, "triggerMisFired called on trigger listener");
+                LOG.info("triggerMisFired called on trigger listener");
                 callTracker.setCalled(true);
             }
 
+            @Override
             public boolean vetoJobExecution(Trigger trigger, JobExecutionContext context) {
-                LogUtils.infof(this, "vetoJobExecution called on trigger listener");
+                LOG.info("vetoJobExecution called on trigger listener");
                 callTracker.setCalled(true);
                 return false;
             }

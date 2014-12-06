@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2011-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2011-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -29,10 +29,11 @@
 package org.opennms.smoketest;
 
 import org.junit.Before;
+import org.junit.FixMethodOrder;
 import org.junit.Test;
+import org.junit.runners.MethodSorters;
 
-import com.thoughtworks.selenium.Selenium;
-
+@FixMethodOrder(MethodSorters.NAME_ASCENDING)
 public class AdminPageTest extends OpenNMSSeleniumTestCase {
 
     @Before
@@ -42,7 +43,7 @@ public class AdminPageTest extends OpenNMSSeleniumTestCase {
     }
 
     @Test
-    public void testAllTextIsPresent() throws Exception {
+    public void a_testAllTextIsPresent() throws Exception {
         waitForText("OpenNMS System");
         waitForText("Operations");
         waitForText("Nodes");
@@ -53,7 +54,7 @@ public class AdminPageTest extends OpenNMSSeleniumTestCase {
     }
 
     @Test
-    public void testAllLinksArePresent() throws Exception  {
+    public void b_testAllLinksArePresent() throws Exception  {
 
         waitForElement("link=Configure Users, Groups and On-Call Roles");
         waitForElement("link=System Information");
@@ -71,12 +72,12 @@ public class AdminPageTest extends OpenNMSSeleniumTestCase {
         waitForElement("link=Manage Surveillance Categories");
         waitForElement("link=Delete Nodes");
         waitForElement("link=Manage Applications");
-        waitForElement("link=Manage Location Monitors");
+        waitForElement("link=Manage Remote Pollers");
         waitForElement("link=the OpenNMS wiki");
     }
 
     @Test
-    public void testLinkGroupOne() throws Exception {
+    public void c_testLinkGroupOne() throws Exception {
         clickAndWait("link=Configure Users, Groups and On-Call Roles");
         waitForText("Users and Groups");
         waitForText("Users");
@@ -91,7 +92,7 @@ public class AdminPageTest extends OpenNMSSeleniumTestCase {
     }
 
     @Test
-    public void testLinkGroupTwo() throws Exception {
+    public void d_testLinkGroupTwo() throws Exception {
         clickAndWait("link=Configure Discovery");
         waitForText("General settings");
         waitForText("Specifics");
@@ -100,8 +101,9 @@ public class AdminPageTest extends OpenNMSSeleniumTestCase {
         waitForText("Exclude Ranges");
         clickAndWait("link=Admin");
         clickAndWait("link=Configure SNMP Community Names by IP");
-        waitForText("Please enter an IP or a range of IPs and the read community string below");
-        waitForText("Updating SNMP Community Names");
+        waitForText("SNMP Config Lookup");
+        waitForText("Updating SNMP Configuration");
+        waitForText("Descriptions");
         waitForText("optimize this list");
         clickAndWait("link=Admin");
         clickAndWait("link=Configure SNMP Data Collection per Interface");
@@ -132,7 +134,7 @@ public class AdminPageTest extends OpenNMSSeleniumTestCase {
     }
 
     @Test
-    public void testLinkGroupThree() throws Exception {
+    public void e_testLinkGroupThree() throws Exception {
         clickAndWait("link=Add Interface for Scanning");
         waitForText("Enter IP address");
         waitForText("Add Interface");
@@ -169,7 +171,7 @@ public class AdminPageTest extends OpenNMSSeleniumTestCase {
     }
 
     @Test
-    public void testLinkGroupFour() throws Exception {
+    public void f_testLinkGroupFour() throws Exception {
         clickAndWait("link=Manage Applications");
         waitForText("Applications");
         waitForText("Edit");
@@ -185,15 +187,7 @@ public class AdminPageTest extends OpenNMSSeleniumTestCase {
     }
 
     @Test
-    public void testLinkGroupFive() throws Exception {
+    public void g_testLinkGroupFive() throws Exception {
         waitForElement("//a[@href='http://www.opennms.org']");
-    }
-
-    public void setSelenium(Selenium s) {
-        selenium = s;
-    }
-
-    public Selenium getSelenium() {
-        return selenium;
     }
 }

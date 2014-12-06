@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2011-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2011-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -78,7 +78,7 @@ public class ReportSelectListCellTree extends CellTree {
     
     private static class CustomTreeModel implements TreeViewModel {
         
-        private final class ResourceListItemCell extends AbstractCell<ResourceListItem> {
+        private final static class ResourceListItemCell extends AbstractCell<ResourceListItem> {
             @Override
             public void render(Context context, ResourceListItem value, SafeHtmlBuilder sb) {
                 if(value != null) {
@@ -88,7 +88,7 @@ public class ReportSelectListCellTree extends CellTree {
             }
         }
 
-        private final class ResourceTypCell extends AbstractCell<ResourceType> {
+        private final static class ResourceTypCell extends AbstractCell<ResourceType> {
             @Override
             public void render(Context context, ResourceType value, SafeHtmlBuilder sb) {
                 if(value != null) {
@@ -198,6 +198,7 @@ public class ReportSelectListCellTree extends CellTree {
          * Get the {@link NodeInfo} that provides the children of the specified
          * value.
          */
+        @Override
         public <T> NodeInfo<?> getNodeInfo(T value) {
           if(value == null) {
               ListDataProvider<ResourceType> dataProvider = new ListDataProvider<ResourceType>(m_resourceTypes);
@@ -218,6 +219,7 @@ public class ReportSelectListCellTree extends CellTree {
          * Check if the specified value represents a leaf node. Leaf nodes cannot be
          * opened.
          */
+        @Override
         public boolean isLeaf(Object value) {
             if(value instanceof ResourceListItem) {
                 return true;

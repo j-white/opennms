@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2011-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2009-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -32,6 +32,8 @@ import java.lang.reflect.UndeclaredThrowableException;
 import java.net.InetAddress;
 
 import org.opennms.netmgt.snmp.SnmpAgentConfig;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
@@ -44,6 +46,8 @@ import org.springframework.stereotype.Component;
  */
 @Scope("prototype")
 public class OpenManageChassisDetector extends SnmpDetector {
+
+    private static final Logger LOG = LoggerFactory.getLogger(OpenManageChassisDetector.class);
 
     /**
      * Name of monitored service.
@@ -100,19 +104,17 @@ public class OpenManageChassisDetector extends SnmpDetector {
 
             // If no chassis status received, do not detect the protocol and quit
             if (chassisStatus == null) {
-                log().warn("isServiceDetected: Cannot receive chassis status");
+                LOG.warn("isServiceDetected: Cannot receive chassis status");
                 return false;
             } else {
-                log().debug("isServiceDetected: OpenManageChassis: " + chassisStatus);
+                LOG.debug("isServiceDetected: OpenManageChassis: {}", chassisStatus);
             }
 
             // Validate chassis status, check status is somewhere between OTHER and NON_RECOVERABLE
-            if  (Integer.parseInt(chassisStatus.toString()) >= DELL_STATUS.OTHER.value() && 
-                    Integer.parseInt(chassisStatus.toString()) <= DELL_STATUS.NON_RECOVERABLE.value()) {
+            if  (Integer.parseInt(chassisStatus) >= DELL_STATUS.OTHER.value() && 
+                    Integer.parseInt(chassisStatus) <= DELL_STATUS.NON_RECOVERABLE.value()) {
                 // OpenManage chassis status detected
-                if (log().isDebugEnabled()) {
-                    log().debug("isServiceDetected: OpenManageChassis: is valid, protocol supported.");
-                }
+                LOG.debug("isServiceDetected: OpenManageChassis: is valid, protocol supported.");
                 return true;
             }
         } catch (Throwable t) {

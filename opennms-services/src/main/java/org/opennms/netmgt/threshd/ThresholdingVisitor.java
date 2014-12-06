@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2008-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2008-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -35,15 +35,16 @@ import java.util.List;
 import java.util.Map;
 
 import org.opennms.core.utils.ParameterMap;
-import org.opennms.core.utils.ThreadCategory;
-import org.opennms.netmgt.collectd.AbstractCollectionSetVisitor;
-import org.opennms.netmgt.config.collector.AttributeGroup;
-import org.opennms.netmgt.config.collector.CollectionAttribute;
-import org.opennms.netmgt.config.collector.CollectionResource;
-import org.opennms.netmgt.config.collector.CollectionSet;
-import org.opennms.netmgt.config.collector.ServiceParameters;
-import org.opennms.netmgt.model.RrdRepository;
+import org.opennms.netmgt.collection.api.AttributeGroup;
+import org.opennms.netmgt.collection.api.CollectionAttribute;
+import org.opennms.netmgt.collection.api.CollectionResource;
+import org.opennms.netmgt.collection.api.CollectionSet;
+import org.opennms.netmgt.collection.api.ServiceParameters;
+import org.opennms.netmgt.collection.support.AbstractCollectionSetVisitor;
+import org.opennms.netmgt.rrd.RrdRepository;
 import org.opennms.netmgt.xml.event.Event;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Implements CollectionSetVisitor to implement thresholding.
@@ -64,6 +65,14 @@ import org.opennms.netmgt.xml.event.Event;
  */
 public class ThresholdingVisitor extends AbstractCollectionSetVisitor {
 
+    public enum ThresholdingResult {
+        THRESHOLDING_UNKNOWN,
+        THRESHOLDING_SUCCEEDED,
+        THRESHOLDING_FAILED
+    }
+
+    private static final Logger LOG = LoggerFactory.getLogger(ThresholdingVisitor.class);
+
 	/**
      * Holds thresholds configuration for a node/interface/service
      */
@@ -75,7 +84,9 @@ public class ThresholdingVisitor extends AbstractCollectionSetVisitor {
     final Map<String, CollectionAttribute> m_attributesMap = new HashMap<String, CollectionAttribute>();
 
 	private Date m_collectionTimestamp;
-    
+
+	private boolean m_counterReset = false;
+
     /**
      * Static method create must be used to create new ThresholdingVisitor instance.
      * Is static because successful creation depends on thresholding-enabled parameter.
@@ -83,22 +94,21 @@ public class ThresholdingVisitor extends AbstractCollectionSetVisitor {
      * @param nodeId a int.
      * @param hostAddress a {@link java.lang.String} object.
      * @param serviceName a {@link java.lang.String} object.
-     * @param repo a {@link org.opennms.netmgt.model.RrdRepository} object.
-     * @param svcParams a {@link org.opennms.netmgt.config.collector.ServiceParameters} object.
+     * @param repo a {@link org.opennms.netmgt.rrd.RrdRepository} object.
+     * @param svcParams a {@link org.opennms.netmgt.collection.api.ServiceParameters} object.
      * @return a {@link org.opennms.netmgt.threshd.ThresholdingVisitor} object.
      */
     public static ThresholdingVisitor create(int nodeId, String hostAddress, String serviceName, RrdRepository repo, ServiceParameters svcParams) {
-        ThreadCategory log = ThreadCategory.getInstance(ThresholdingVisitor.class);
 
         String enabled = ParameterMap.getKeyedString(svcParams.getParameters(), "thresholding-enabled", null);
         if (enabled != null && !"true".equals(enabled)) {
-            log.info("create: Thresholds processing is not enabled. Check thresholding-enabled param on collectd package");
+            LOG.info("create: Thresholds processing is not enabled. Check thresholding-enabled param on collectd package");
             return null;
         }
 
         CollectorThresholdingSet thresholdingSet = new CollectorThresholdingSet(nodeId, hostAddress, serviceName, repo, svcParams);
         if (!thresholdingSet.hasThresholds()) {
-            log.warn("create: the ipaddress/service " + hostAddress + "/" + serviceName + " on node " + nodeId + " has no configured thresholds.");
+            LOG.warn("create: the ipaddress/service {}/{} on node {} has no configured thresholds.", hostAddress, serviceName, nodeId);
         }
 
         return new ThresholdingVisitor(thresholdingSet);
@@ -114,6 +124,10 @@ public class ThresholdingVisitor extends AbstractCollectionSetVisitor {
         m_collectionTimestamp = new Date();
     }
     
+    public void setCounterReset(boolean counterReset) {
+        m_counterReset = counterReset;
+    }
+
     public boolean hasThresholds() {
         return m_thresholdingSet.hasThresholds();
     }
@@ -133,11 +147,12 @@ public class ThresholdingVisitor extends AbstractCollectionSetVisitor {
     List<String> getScheduledOutages() {
         return Collections.unmodifiableList(m_thresholdingSet.m_scheduledOutages);
     }
-    
+
     @Override
-	public void visitCollectionSet(CollectionSet set) {
-    	m_collectionTimestamp = set.getCollectionTimestamp();
-	}
+    public void visitCollectionSet(CollectionSet set) {
+        m_collectionTimestamp = set.getCollectionTimestamp();
+    }
+    
     /**
      * Force reload thresholds configuration, and merge threshold states
      */
@@ -172,11 +187,12 @@ public class ThresholdingVisitor extends AbstractCollectionSetVisitor {
         if (m_thresholdingSet.hasThresholds(attribute)) {
             String name = attribute.getName();
             m_attributesMap.put(name, attribute);
-            if (log().isDebugEnabled()) {
+            if (LOG.isDebugEnabled()) {
                 String value = attribute.getNumericValue();
-                if (value == null)
+                if (value == null) {
                     value = attribute.getStringValue();
-                log().debug("visitAttribute: storing value "+ value +" for attribute named " + name);
+                }
+                LOG.debug("visitAttribute: storing value {} for attribute named {}", value, name);
             }
         }
     }
@@ -204,10 +220,6 @@ public class ThresholdingVisitor extends AbstractCollectionSetVisitor {
     @Override
     public String toString() {
         return "ThresholdingVisitor for " + m_thresholdingSet;
-    }
-
-    private ThreadCategory log() {
-        return ThreadCategory.getInstance(getClass());
     }
     
 }

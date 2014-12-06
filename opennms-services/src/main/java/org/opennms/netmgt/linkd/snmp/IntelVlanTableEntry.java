@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2006-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -28,11 +28,9 @@
 
 package org.opennms.netmgt.linkd.snmp;
 
-import org.opennms.netmgt.capsd.snmp.NamedSnmpVar;
-import org.opennms.netmgt.capsd.snmp.SnmpStore;
-import org.opennms.netmgt.snmp.SnmpObjId;
-import org.opennms.netmgt.snmp.SnmpResult;
-import org.opennms.netmgt.snmp.SnmpUtils;
+import org.opennms.netmgt.model.OnmsVlan.VlanStatus;
+import org.opennms.netmgt.model.OnmsVlan.VlanType;
+import org.opennms.netmgt.snmp.NamedSnmpVar;
 
 /**
  *<P>The IntelVlanTableEntry class is designed to hold all the MIB
@@ -46,8 +44,7 @@ import org.opennms.netmgt.snmp.SnmpUtils;
  * @see <A HREF="http://www.ietf.org/rfc/rfc1213.txt">RFC1213</A>
  * @version $Id: $
  */
-public final class IntelVlanTableEntry extends SnmpStore
-implements VlanCollectorEntry {
+public final class IntelVlanTableEntry extends Vlan {
 
 	// Lookup strings for specific table entries
 	//
@@ -59,8 +56,6 @@ implements VlanCollectorEntry {
 	private final static String VLAN_INDEX_OID=".1.3.6.1.4.1.343.6.11.1.9.1.1";
 	private final static String VLAN_NAME_OID=".1.3.6.1.4.1.343.6.11.1.9.1.2";
 	
-	private boolean hasVlanIndex = false;
-
 	/**
 	 * <P>The keys that will be supported by default from the 
 	 * TreeMap base class. Each of the elements in the list
@@ -69,10 +64,10 @@ implements VlanCollectorEntry {
 	 * this class.</P>
 	 */
 	public static final NamedSnmpVar[] intelVlan_elemList = new NamedSnmpVar[] {
-	    new NamedSnmpVar(NamedSnmpVar.SNMPINT32, VLAN_INDEX, ".1.3.6.1.4.1.343.6.11.1.9.1.1", 1),
-	    new NamedSnmpVar(NamedSnmpVar.SNMPOCTETSTRING, VLAN_NAME, ".1.3.6.1.4.1.343.6.11.1.9.1.2", 2),
-	    new NamedSnmpVar(NamedSnmpVar.SNMPOCTETSTRING, VLAN_CREATEOBJ, ".1.3.6.1.4.1.343.6.11.1.9.1.3", 3),
-	    new NamedSnmpVar(NamedSnmpVar.SNMPINT32, VLAN_DELETEOBJ, ".1.3.6.1.4.1.343.6.11.1.9.1.4", 4)
+	    new NamedSnmpVar(NamedSnmpVar.SNMPINT32, VLAN_INDEX, VLAN_INDEX_OID, 1),
+	    new NamedSnmpVar(NamedSnmpVar.SNMPOCTETSTRING, VLAN_NAME, VLAN_NAME_OID, 2)
+	    //new NamedSnmpVar(NamedSnmpVar.SNMPOCTETSTRING, VLAN_CREATEOBJ, ".1.3.6.1.4.1.343.6.11.1.9.1.3", 3),
+	    //new NamedSnmpVar(NamedSnmpVar.SNMPINT32, VLAN_DELETEOBJ, ".1.3.6.1.4.1.343.6.11.1.9.1.4", 4)
 	};
 
 	/**
@@ -97,17 +92,18 @@ implements VlanCollectorEntry {
 		super(intelVlan_elemList);
 	}
 	
-	/** {@inheritDoc} */
 	@Override
-	public void storeResult(SnmpResult res) {
-		if (!hasVlanIndex) {
-			int vlanid = res.getInstance().getLastSubId();
-			super.storeResult(new SnmpResult(SnmpObjId.get(VLAN_INDEX_OID), res.getInstance(), 
-						SnmpUtils.getValueFactory().getInt32(vlanid)));
-			super.storeResult(new SnmpResult(SnmpObjId.get(VLAN_NAME_OID), res.getInstance(), 
-						SnmpUtils.getValueFactory().getOctetString("default".getBytes())));
-			hasVlanIndex = true;
-		}
-		super.storeResult(res);
+	protected boolean hasVlanIndexOid() {
+		return true;
+	}
+
+	@Override
+	public VlanStatus getVlanStatus() {
+		return VlanStatus.UNKNOWN;
+	}
+
+	@Override
+	public VlanType getVlanType() {
+		return VlanType.CISCO_VTP_ETHERNET;
 	}
 }

@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2009-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2009-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -34,9 +34,10 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import org.apache.log4j.Logger;
-import org.opennms.web.springframework.security.Authentication;
+import org.opennms.web.api.Authentication;
 import org.opennms.web.svclayer.inventory.InventoryService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.validation.BindException;
 import org.springframework.web.bind.ServletRequestDataBinder;
 import org.springframework.web.servlet.ModelAndView;
@@ -52,6 +53,9 @@ import org.springframework.web.servlet.mvc.SimpleFormController;
  */
 @SuppressWarnings("deprecation")
 public class AdminRancidStatusController extends SimpleFormController {
+	
+	private static final Logger LOG = LoggerFactory.getLogger(AdminRancidStatusController.class);
+
 
     InventoryService m_inventoryService;
         
@@ -74,20 +78,21 @@ public class AdminRancidStatusController extends SimpleFormController {
     }
 
     /** {@inheritDoc} */
+    @Override
     protected ModelAndView onSubmit(HttpServletRequest request, HttpServletResponse response,
             Object command, BindException errors) throws ServletException, IOException, Exception {
 
-        log().debug("AdminRancidStatusController ModelAndView onSubmit");
+        LOG.debug("AdminRancidStatusController ModelAndView onSubmit");
 
         AdminRancidRouterDbCommClass bean = (AdminRancidRouterDbCommClass) command;
                        
-        log().debug("AdminRancidStatusController ModelAndView onSubmit setting state to device["+ bean.getDeviceName() + "] group[" + bean.getGroupName() + "] status[" + bean.getStatusName()+"]");
+        LOG.debug("AdminRancidStatusController ModelAndView onSubmit setting state to device[{}] group[{}] status[{}]", bean.getDeviceName(), bean.getGroupName(), bean.getStatusName());
 
         if (request.isUserInRole(Authentication.ROLE_ADMIN)) {
 
             boolean done = m_inventoryService.switchStatus(bean.getGroupName(), bean.getDeviceName());
             if (!done){
-                log().debug("AdminRancidStatusController ModelAndView onSubmit error while updating status for"+ bean.getGroupName() + "/" + bean.getDeviceName());
+                LOG.debug("AdminRancidStatusController ModelAndView onSubmit error while updating status for{}/{}", bean.getGroupName(), bean.getDeviceName());
             }
         }
         String redirectURL = request.getHeader("Referer");
@@ -96,12 +101,10 @@ public class AdminRancidStatusController extends SimpleFormController {
     }
 
     /** {@inheritDoc} */
+    @Override
     protected void initBinder(HttpServletRequest request, ServletRequestDataBinder binder)
         throws ServletException {
-        log().debug("AdminRancidStatusController initBinder");
+        LOG.debug("AdminRancidStatusController initBinder");
     }
     
-    private static Logger log() {
-        return Logger.getLogger("Rancid");
-    }
 }

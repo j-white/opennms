@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2007-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2007-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -33,8 +33,8 @@ import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.TimeZone;
 
-import org.opennms.core.utils.DefaultTimeKeeper;
-import org.opennms.core.utils.TimeKeeper;
+import org.opennms.netmgt.collection.api.TimeKeeper;
+import org.opennms.netmgt.collection.support.DefaultTimeKeeper;
 
 /**
  * <p>RelativeTime class.</p>
@@ -62,36 +62,43 @@ public enum RelativeTime {
     },
     
     LASTTHIRTYONEDAYS {
+        @Override
         public Date getStart() {
             return getStartDate(31);
         }
         
+        @Override
         public Date getEnd() {
                   return getStartOfToday();
         }
     },
 
     LASTSEVENDAYS {
+        @Override
         public Date getStart() {
             return getStartDate(7);
         }
         
+        @Override
         public Date getEnd() {
                   return getStartOfToday();
         }
     },
 
     YESTERDAY {
+        @Override
         public Date getStart() {
             return getStartDate(1);
         }
         
+        @Override
         public Date getEnd() {
             return getStartOfToday();
         }
     },
     
     LASTHOUR {
+        @Override
         public Date getStart() {
             Calendar calendar = new GregorianCalendar(getTimeZone());
             calendar.setTimeInMillis(getCurrentTime());
@@ -104,6 +111,7 @@ public enum RelativeTime {
             return calendar.getTime();
         }
         
+        @Override
         public Date getEnd() {
             Calendar calendar = new GregorianCalendar(getTimeZone());
             calendar.setTimeInMillis(getCurrentTime());
@@ -117,6 +125,7 @@ public enum RelativeTime {
     },
     
     SLIDINGHOUR {
+               @Override
        	public Date getStart() {
            Calendar calendar = new GregorianCalendar(getTimeZone());
            calendar.setTimeInMillis(getCurrentTime());
@@ -128,6 +137,7 @@ public enum RelativeTime {
            return calendar.getTime();
        	}
         
+               @Override
        	public Date getEnd() {
            Calendar calendar = new GregorianCalendar(getTimeZone());
            calendar.setTimeInMillis(getCurrentTime());
@@ -140,6 +150,7 @@ public enum RelativeTime {
     },
     
     SLIDING4HOURS {
+               @Override
        	public Date getStart() {
            Calendar calendar = new GregorianCalendar(getTimeZone());
            calendar.setTimeInMillis(getCurrentTime());
@@ -151,6 +162,7 @@ public enum RelativeTime {
            return calendar.getTime();
        	}
         
+               @Override
        	public Date getEnd() {
            Calendar calendar = new GregorianCalendar(getTimeZone());
            calendar.setTimeInMillis(getCurrentTime());
@@ -163,6 +175,7 @@ public enum RelativeTime {
     },
     
     SLIDING8HOURS {
+        @Override
 	public Date getStart() {
            Calendar calendar = new GregorianCalendar(getTimeZone());
            calendar.setTimeInMillis(getCurrentTime());
@@ -174,6 +187,7 @@ public enum RelativeTime {
            return calendar.getTime();
        }
         
+        @Override
        	public Date getEnd() {
            Calendar calendar = new GregorianCalendar(getTimeZone());
            calendar.setTimeInMillis(getCurrentTime());
@@ -186,6 +200,7 @@ public enum RelativeTime {
     },
     
     SLIDINGDAY {
+               @Override
        	public Date getStart() {
            Calendar calendar = new GregorianCalendar(getTimeZone());
            calendar.setTimeInMillis(getCurrentTime());
@@ -197,6 +212,7 @@ public enum RelativeTime {
            return calendar.getTime();
        	}
         
+               @Override
        	public Date getEnd() {
            Calendar calendar = new GregorianCalendar(getTimeZone());
            calendar.setTimeInMillis(getCurrentTime());
@@ -209,10 +225,12 @@ public enum RelativeTime {
     },
     
     TODAY {
+               @Override
        	public Date getStart() {
                return getStartOfToday();
        	}
         
+               @Override
        	public Date getEnd() {
            Calendar calendar = new GregorianCalendar(getTimeZone());
            calendar.setTimeInMillis(getCurrentTime());
@@ -280,7 +298,7 @@ public enum RelativeTime {
     /**
      * <p>getTimeKeeper</p>
      *
-     * @return a {@link org.opennms.core.utils.TimeKeeper} object.
+     * @return a {@link org.opennms.netmgt.collection.api.TimeKeeper} object.
      */
     public TimeKeeper getTimeKeeper() {
         return m_timeKeeper;
@@ -289,7 +307,7 @@ public enum RelativeTime {
     /**
      * <p>setTimeKeeper</p>
      *
-     * @param timeKeeper a {@link org.opennms.core.utils.TimeKeeper} object.
+     * @param timeKeeper a {@link org.opennms.netmgt.collection.api.TimeKeeper} object.
      */
     public void setTimeKeeper(TimeKeeper timeKeeper) {
         m_timeKeeper = timeKeeper;

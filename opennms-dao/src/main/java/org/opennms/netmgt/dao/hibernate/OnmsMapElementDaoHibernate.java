@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2009-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2009-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -34,7 +34,7 @@ import java.util.Collection;
 import org.hibernate.HibernateException;
 import org.hibernate.Query;
 import org.hibernate.Session;
-import org.opennms.netmgt.dao.OnmsMapElementDao;
+import org.opennms.netmgt.dao.api.OnmsMapElementDao;
 import org.opennms.netmgt.model.OnmsMap;
 import org.opennms.netmgt.model.OnmsMapElement;
 import org.springframework.orm.hibernate3.HibernateCallback;
@@ -49,9 +49,11 @@ public class OnmsMapElementDaoHibernate extends AbstractDaoHibernate<OnmsMapElem
 
     /** {@inheritDoc} */
     @SuppressWarnings("unchecked")
+    @Override
     public Collection<OnmsMapElement> findAll(final Integer offset, final Integer limit) {
         return getHibernateTemplate().execute(new HibernateCallback<Collection<OnmsMapElement>>() {
 
+            @Override
             public Collection<OnmsMapElement> doInHibernate(Session session) throws HibernateException, SQLException {
                 return session.createCriteria(OnmsMap.class)
                 .setFirstResult(offset)
@@ -63,24 +65,29 @@ public class OnmsMapElementDaoHibernate extends AbstractDaoHibernate<OnmsMapElem
     }
 
     /** {@inheritDoc} */
+    @Override
     public OnmsMapElement findElementById(int id) {
         return findUnique("from OnmsMapElement as element where element.id = ?", id);
     }
 
     /** {@inheritDoc} */
+    @Override
     public Collection<OnmsMapElement> findElementsByMapId(OnmsMap map) {
         return find("from OnmsMapElement as element where element.map = ?", map);
     }
 
     /** {@inheritDoc} */
+    @Override
     public Collection<OnmsMapElement> findElementsByNodeId(int nodeid) {
         Object[] values = {nodeid, OnmsMapElement.NODE_TYPE, OnmsMapElement.NODE_HIDE_TYPE};
         return find("from OnmsMapElement as element where element.elementId = ? and (element.type = ? or element.type = ? )", values);
     }
     
     /** {@inheritDoc} */
+    @Override
     public void deleteElementsByMapId(final OnmsMap map) {
         getHibernateTemplate().execute(new HibernateCallback<Void>() {
+            @Override
             public Void doInHibernate(Session session) throws HibernateException, SQLException {
                 
              String hql = "delete from OnmsMapElement as element where element.map.id = :mapId";
@@ -93,8 +100,10 @@ public class OnmsMapElementDaoHibernate extends AbstractDaoHibernate<OnmsMapElem
     }
 
     /** {@inheritDoc} */
+    @Override
     public void deleteElementsByNodeid(final int nodeid) {
       getHibernateTemplate().execute(new HibernateCallback<Void>() {
+          @Override
           public Void doInHibernate(Session session) throws HibernateException, SQLException {
               
            String hql = "delete from OnmsMapElement as element where element.elementId = :nodeId and" +
@@ -110,8 +119,10 @@ public class OnmsMapElementDaoHibernate extends AbstractDaoHibernate<OnmsMapElem
   }
 
     /** {@inheritDoc} */
+    @Override
     public void deleteElementsByType(final String type) {
         getHibernateTemplate().execute(new HibernateCallback<Void>() {
+            @Override
             public Void doInHibernate(Session session) throws HibernateException, SQLException {
                 
              String hql = "delete from OnmsMapElement as element where element.type = :type";
@@ -125,8 +136,10 @@ public class OnmsMapElementDaoHibernate extends AbstractDaoHibernate<OnmsMapElem
     }
 
     /** {@inheritDoc} */
+    @Override
     public void deleteElementsByElementIdAndType(final int id,final String type) {
         getHibernateTemplate().execute(new HibernateCallback<Void>() {
+            @Override
             public Void doInHibernate(Session session) throws HibernateException, SQLException {
                 
              String hql = "delete from OnmsMapElement as element where element.elementId = :id and element.type = :type";
@@ -142,6 +155,7 @@ public class OnmsMapElementDaoHibernate extends AbstractDaoHibernate<OnmsMapElem
     }
 
     /** {@inheritDoc} */
+    @Override
     public Collection<OnmsMapElement> findElementsByElementIdAndType(
             int elementId, String type) {
         Object[] values = {elementId, type};
@@ -149,19 +163,23 @@ public class OnmsMapElementDaoHibernate extends AbstractDaoHibernate<OnmsMapElem
     }
 
     /** {@inheritDoc} */
+    @Override
     public Collection<OnmsMapElement> findElementsByType(String type) {
         return find("from OnmsMapElement as element where element.type = ?", type);
     }
 
     /** {@inheritDoc} */
+    @Override
     public OnmsMapElement findElement(int elementId, String type, OnmsMap map) {
         Object[] values = {elementId, type, map};
         return  findUnique("from OnmsMapElement as element where element.elementId = ? and element.type = ? and element.map = ?", values);
     }
 
     /** {@inheritDoc} */
+    @Override
     public void deleteElementsByMapType(final String mapType) {
         getHibernateTemplate().execute(new HibernateCallback<Void>() {
+            @Override
             public Void doInHibernate(Session session) throws HibernateException, SQLException {
                 
              String hql = "delete from OnmsMapElement as element where element.id in ( select el.id from OnmsMapElement as el where el.map.type = ?)";
@@ -174,6 +192,7 @@ public class OnmsMapElementDaoHibernate extends AbstractDaoHibernate<OnmsMapElem
     }
 
     /** {@inheritDoc} */
+    @Override
     public Collection<OnmsMapElement> findElementsByMapIdAndType(int mapId,
             String type) {
         Object[] values = {mapId,type};
@@ -181,20 +200,24 @@ public class OnmsMapElementDaoHibernate extends AbstractDaoHibernate<OnmsMapElem
     }
 
     /** {@inheritDoc} */
+    @Override
     public Collection<OnmsMapElement> findMapElementsOnMap(int mapId) {
         Object[] values = {mapId,OnmsMapElement.MAP_TYPE,OnmsMapElement.MAP_HIDE_TYPE};
         return find("from OnmsMapElement as element where element.map.id = ? and (element.type = ? or element.type= ? )",values);
     }
 
     /** {@inheritDoc} */
+    @Override
     public Collection<OnmsMapElement> findNodeElementsOnMap(int mapId) {
         Object[] values = {mapId,OnmsMapElement.NODE_TYPE,OnmsMapElement.NODE_HIDE_TYPE};
         return find("from OnmsMapElement as element where element.map.id = ? and (element.type = ? or element.type= ? )",values);
     }
 
     /** {@inheritDoc} */
+    @Override
     public int countElementsOnMap(final int mapid) {
         Number nu = getHibernateTemplate().execute(new HibernateCallback<Number>() {
+              @Override
               public Number doInHibernate(Session session) throws HibernateException, SQLException {
                   
                String hql = "select count(*) from OnmsMapElement as element where element.map.id = ?)";

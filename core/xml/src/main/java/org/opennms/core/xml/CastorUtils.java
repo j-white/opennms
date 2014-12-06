@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2011-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2007-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -100,11 +100,11 @@ public abstract class CastorUtils {
         try {
             StringWriter writer = new StringWriter();
             marshal(obj, writer);
-            
+
             fileWriter= new OutputStreamWriter(new FileOutputStream(resource.getFile()), "UTF-8");
             fileWriter.write(writer.toString());
             fileWriter.flush();
-            
+
         } catch (IOException e) {
             throw CASTOR_EXCEPTION_TRANSLATOR.translate("marshalling XML file", e);
         } catch (MarshalException e) {
@@ -117,9 +117,9 @@ public abstract class CastorUtils {
     }
 
     public static <T> Unmarshaller getUnmarshaller(Class<T> clazz) {
-    	return createUnmarshaller(clazz, true);
+        return createUnmarshaller(clazz, true);
     }
-    
+
     /**
      * Create an Unmarshaller for a specific class and configure it with our
      * default configuration details.  In particular, the Unmarshaller is set
@@ -212,7 +212,7 @@ public abstract class CastorUtils {
     private static <T> T unmarshal(Class<T> clazz, InputSource source, boolean preserveWhitespace) throws MarshalException, ValidationException {
         return (T) createUnmarshaller(clazz, preserveWhitespace).unmarshal(source);
     }
-    
+
     /**
      * Unmarshal a Castor XML configuration file.  Uses Java 5 generics for
      * return type.
@@ -253,7 +253,7 @@ public abstract class CastorUtils {
             newE.initCause(e);
             throw newE;
         }
-    
+
         try {
             InputSource source = new InputSource(in);
             try {
@@ -308,7 +308,7 @@ public abstract class CastorUtils {
             throw CASTOR_EXCEPTION_TRANSLATOR.translate("unmarshalling XML file", e);
         }
     }
-    
+
     /**
      * Unmarshal a Castor XML configuration file.  Uses Java 5 generics for
      * return type and throws DataAccessExceptions.
@@ -360,7 +360,7 @@ public abstract class CastorUtils {
      *      Unmarshaller.unmarshal() call throws a MarshalException or
      *      ValidationException.  The underlying exception will be translated
      *      using MarshallingExceptionTranslator and will include information about
-     *      the resource from its {@link Resource#toString() toString()} method.
+     *      the resource from its toString() method.
      */
     public static <T> T unmarshalWithTranslatedExceptions(Class<T> clazz, Resource resource) {
         return unmarshalWithTranslatedExceptions(clazz, resource, DEFAULT_PRESERVATION_BEHAVIOR);
@@ -378,13 +378,13 @@ public abstract class CastorUtils {
      *      Unmarshaller.unmarshal() call throws a MarshalException or
      *      ValidationException.  The underlying exception will be translated
      *      using MarshallingExceptionTranslator and will include information about
-     *      the resource from its {@link Resource#toString() toString()} method.
+     *      the resource from its toString() method.
      */
     public static <T> T unmarshalWithTranslatedExceptions(Class<T> clazz, Resource resource, boolean preserveWhitespace) {
         // TODO It might be useful to add code to test for readability on real files; the code below is from DefaultManualProvisioningDao - dj@opennms.org 
-//        if (!importFile.canRead()) {
-//            throw new PermissionDeniedDataAccessException("Unable to read file "+importFile, null);
-//        }
+        //        if (!importFile.canRead()) {
+        //            throw new PermissionDeniedDataAccessException("Unable to read file "+importFile, null);
+        //        }
 
         InputStream in;
         try {
@@ -392,7 +392,7 @@ public abstract class CastorUtils {
         } catch (IOException e) {
             throw CASTOR_EXCEPTION_TRANSLATOR.translate("opening XML configuration file for resource '" + resource + "'", e);
         }
-    
+
         try {
             InputSource source = new InputSource(in);
             try {
@@ -433,7 +433,7 @@ public abstract class CastorUtils {
      */
     public static void marshalViaString(Object config, File cfgFile) throws MarshalException, ValidationException, IOException {
         StringWriter stringWriter = new StringWriter();
-        
+
         marshal(config, stringWriter);
 
         Writer fileWriter = new OutputStreamWriter(new FileOutputStream(cfgFile), "UTF-8");

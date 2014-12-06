@@ -39,16 +39,62 @@
  *******************************************************************************/
 package org.opennms.core.test.dns;
 
-import java.io.*;
-import java.net.*;
-import java.util.*;
+import java.io.BufferedReader;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.InterruptedIOException;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.InetAddress;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.net.SocketTimeoutException;
+import java.net.UnknownHostException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.StringTokenizer;
 import java.util.concurrent.CountDownLatch;
 
+import org.apache.commons.io.IOUtils;
 import org.opennms.core.utils.InetAddressUtils;
-import org.opennms.core.utils.LogUtils;
-import org.xbill.DNS.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.xbill.DNS.Address;
+import org.xbill.DNS.CNAMERecord;
+import org.xbill.DNS.Cache;
+import org.xbill.DNS.Credibility;
+import org.xbill.DNS.DClass;
+import org.xbill.DNS.DNAMERecord;
+import org.xbill.DNS.ExtendedFlags;
+import org.xbill.DNS.Flags;
+import org.xbill.DNS.Header;
+import org.xbill.DNS.Message;
+import org.xbill.DNS.Name;
+import org.xbill.DNS.NameTooLongException;
+import org.xbill.DNS.OPTRecord;
+import org.xbill.DNS.Opcode;
+import org.xbill.DNS.RRset;
+import org.xbill.DNS.Rcode;
+import org.xbill.DNS.Record;
+import org.xbill.DNS.Section;
+import org.xbill.DNS.SetResponse;
+import org.xbill.DNS.TSIG;
+import org.xbill.DNS.TSIGRecord;
+import org.xbill.DNS.Type;
+import org.xbill.DNS.Zone;
+import org.xbill.DNS.ZoneTransferException;
 
 public class DNSServer {
+
+    private static final Logger LOG = LoggerFactory.getLogger(DNSServer.class);
+
     private static final int DEFAULT_SOCKET_TIMEOUT = 100;
 
     private final class TCPListener implements Stoppable {
@@ -56,26 +102,38 @@ public class DNSServer {
         private final InetAddress m_addr;
         private ServerSocket m_socket;
         private volatile boolean m_stopped = false;
-        private CountDownLatch m_latch = new CountDownLatch(1);
+        private CountDownLatch m_startingLatch = new CountDownLatch(1);
+        private CountDownLatch m_runningLatch = new CountDownLatch(1);
 
         private TCPListener(final int port, final InetAddress addr) {
             m_port = port;
             m_addr = addr;
         }
 
+        @Override
+        public void await() throws InterruptedException {
+            m_startingLatch.await();
+        }
+
+        @Override
         public void run() {
             try {
                 m_socket = new ServerSocket(m_port, 128, m_addr);
                 m_socket.setSoTimeout(DEFAULT_SOCKET_TIMEOUT);
+                m_startingLatch.countDown();
                 while (!m_stopped) {
                     try {
                         final Socket s = m_socket.accept();
                         final Thread t = new Thread(new Runnable() {
+                            @Override
                             public void run() {
+                                InputStream is = null;
+                                DataInputStream dataIn = null;
+                                DataOutputStream dataOut = null;
                                 try {
                                     try {
-                                        final InputStream is = s.getInputStream();
-                                        final DataInputStream dataIn = new DataInputStream(is);
+                                        is = s.getInputStream();
+                                        dataIn = new DataInputStream(is);
                                         final int inLength = dataIn.readUnsignedShort();
                                         final byte[] in = new byte[inLength];
                                         dataIn.readFully(in);
@@ -84,60 +142,56 @@ public class DNSServer {
                                         byte[] response = null;
                                         try {
                                             query = new Message(in);
-                                            LogUtils.debugf(this, "received query: %s", query);
+                                            LOG.debug("received query: {}", query);
                                             response = generateReply(query, in, in.length, s);
                                         } catch (final IOException e) {
                                             response = formerrMessage(in);
                                         }
-                                        LogUtils.debugf(this, "returned response: %s", response == null? null : new Message(response));
+                                        LOG.debug("returned response: {}", response == null? null : new Message(response));
                                         if (response != null) {
-                                            final DataOutputStream dataOut = new DataOutputStream(s.getOutputStream());
+                                            dataOut = new DataOutputStream(s.getOutputStream());
                                             dataOut.writeShort(response.length);
                                             dataOut.write(response);
                                         }
                                     } catch (final SocketTimeoutException e) {
                                         throw e;
                                     } catch (final IOException e) {
-                                        LogUtils.warnf(this, e, "error while processing socket");
+                                        LOG.warn("error while processing socket", e);
                                     } finally {
-                                        try {
-                                            s.close();
-                                        } catch (final IOException e) {
-                                            LogUtils.warnf(this, e, "unable to close TCP socket");
-                                        }
+                                        IOUtils.closeQuietly(s);
+                                        IOUtils.closeQuietly(dataOut);
+                                        IOUtils.closeQuietly(dataIn);
+                                        IOUtils.closeQuietly(is);
                                     }
                                 } catch (final SocketTimeoutException e) {
-                                    if (LogUtils.isTraceEnabled(this)) {
-                                        LogUtils.tracef(this, e, "timed out waiting for request");
-                                    }
+                                    LOG.trace("timed out waiting for request", e);
                                 }
                             }
                         });
                         t.start();
                     } catch (final SocketTimeoutException e) {
-                        if (LogUtils.isTraceEnabled(this)) {
-                            LogUtils.tracef(this, e, "timed out waiting for request");
-                        }
+                        LOG.trace("timed out waiting for request", e);
                     }
                 }
             } catch (final IOException e) {
-                LogUtils.warnf(this, e, "unable to serve socket on %s", addrport(m_addr, m_port));
+                LOG.warn("unable to serve socket on {}", addrport(m_addr, m_port), e);
             } finally {
                 try {
                     m_socket.close();
                 } catch (final IOException e) {
-                    LogUtils.debugf(this, e, "error while closing socket");
+                    LOG.debug("error while closing socket", e);
                 }
-                m_latch.countDown();
+                m_runningLatch.countDown();
             }
         }
-        
+
+        @Override
         public void stop() {
             m_stopped = true;
             try {
-                m_latch.await();
+                m_runningLatch.await();
             } catch (final InterruptedException e) {
-                LogUtils.warnf(this, e, "interrupted while stopping TCP listener");
+                LOG.warn("interrupted while stopping TCP listener", e);
                 Thread.currentThread().interrupt();
             }
         }
@@ -147,13 +201,20 @@ public class DNSServer {
         private final int m_port;
         private final InetAddress m_addr;
         private volatile boolean m_stopped = false;
-        private CountDownLatch m_latch = new CountDownLatch(1);
+        private CountDownLatch m_startingLatch = new CountDownLatch(1);
+        private CountDownLatch m_runningLatch = new CountDownLatch(1);
 
         private UDPListener(int port, InetAddress addr) {
             m_port = port;
             m_addr = addr;
         }
 
+        @Override
+        public void await() throws InterruptedException {
+            m_startingLatch.await();
+        }
+
+        @Override
         public void run() {
             DatagramSocket sock = null;
             try {
@@ -163,6 +224,7 @@ public class DNSServer {
                 byte[] in = new byte[udpLength];
                 final DatagramPacket indp = new DatagramPacket(in, in.length);
                 DatagramPacket outdp = null;
+                m_startingLatch.countDown();
                 while (!m_stopped) {
                     indp.setLength(in.length);
                     try {
@@ -191,25 +253,26 @@ public class DNSServer {
                     sock.send(outdp);
                 }
             } catch (final IOException e) {
-                LogUtils.warnf(this, e, "error in the UDP listener: %s", addrport(m_addr, m_port));
+                LOG.warn("error in the UDP listener: {}", addrport(m_addr, m_port), e);
             } finally {
                 if (sock != null) {
                     try {
                         sock.close();
                     } catch (final Exception e) {
-                        LogUtils.debugf(this, e, "error while closing socket");
+                        LOG.debug("error while closing socket", e);
                     }
                 }
-                m_latch.countDown();
+                m_runningLatch.countDown();
             }
         }
 
+        @Override
         public void stop() {
             m_stopped = true;
             try {
-                m_latch.await();
+                m_runningLatch.await();
             } catch (final InterruptedException e) {
-                LogUtils.warnf(this, e, "interrupted while waiting for server to stop");
+                LOG.warn("interrupted while waiting for server to stop", e);
                 Thread.currentThread().interrupt();
             }
         }
@@ -223,11 +286,11 @@ public class DNSServer {
     final Map<Name, TSIG> m_TSIGs = new HashMap<Name, TSIG>();
     final List<Integer> m_ports = new ArrayList<Integer>();
     final List<InetAddress> m_addresses = new ArrayList<InetAddress>();
-    
+
     final List<Stoppable> m_activeListeners = new ArrayList<Stoppable>();
 
     private static String addrport(final InetAddress addr, final int port) {
-    	return InetAddressUtils.str(addr) + "#" + port;
+        return InetAddressUtils.str(addr) + "#" + port;
     }
 
     public DNSServer(final String conffile) throws IOException, ZoneTransferException, ConfigurationException {
@@ -242,32 +305,39 @@ public class DNSServer {
 
         for (final InetAddress addr : m_addresses) {
             for (final Integer port : m_ports) {
-                final UDPListener udpListener = new UDPListener(port, addr);
-                final Thread udpThread = new Thread(udpListener);
-                udpThread.start();
-                m_activeListeners.add(udpListener);
+                try {
+                    final UDPListener udpListener = new UDPListener(port, addr);
+                    final Thread udpThread = new Thread(udpListener);
+                    udpThread.start();
+                    m_activeListeners.add(udpListener);
 
-                final TCPListener tcpListener = new TCPListener(port, addr);
-                final Thread tcpThread = new Thread(tcpListener);
-                tcpThread.start();
-                m_activeListeners.add(tcpListener);
+                    final TCPListener tcpListener = new TCPListener(port, addr);
+                    final Thread tcpThread = new Thread(tcpListener);
+                    tcpThread.start();
+                    m_activeListeners.add(tcpListener);
 
-                LogUtils.infof(this, "listening on %s", addrport(addr, port));
+                    udpListener.await();
+                    tcpListener.await();
+
+                    LOG.info("listening on {}", addrport(addr, port));
+                } catch (final Exception e) {
+                    throw new RuntimeException("Failed to start DNS server on " + InetAddressUtils.str(addr) + "/" + port, e);
+                }
             }
         }
-        LogUtils.debugf(this, "finished starting up");
+        LOG.debug("finished starting up");
     }
 
     public void stop() {
         for (final Stoppable listener : m_activeListeners) {
-            LogUtils.debugf(this, "stopping %s", listener);
+            LOG.debug("stopping {}", listener);
             listener.stop();
-            LogUtils.debugf(this, "stopped %s", listener);
+            LOG.debug("stopped {}", listener);
         }
     }
-    
+
     protected void parseConfiguration(final String conffile) throws ConfigurationException, IOException,
-            ZoneTransferException, UnknownHostException {
+    ZoneTransferException, UnknownHostException {
         final FileInputStream fs;
         final InputStreamReader isr;
         final BufferedReader br;
@@ -276,7 +346,7 @@ public class DNSServer {
             isr = new InputStreamReader(fs);
             br = new BufferedReader(isr);
         } catch (final Exception e) {
-            LogUtils.errorf(this, e, "Cannot open %s", conffile);
+            LOG.error("Cannot open {}", conffile, e);
             throw new ConfigurationException("unable to read from " + conffile, e);
         }
 
@@ -289,7 +359,7 @@ public class DNSServer {
                 }
                 final String keyword = st.nextToken();
                 if (!st.hasMoreTokens()) {
-                    LogUtils.warnf(this, "unable to parse line: %s", line);
+                    LOG.warn("unable to parse line: {}", line);
                     continue;
                 }
                 if (keyword.charAt(0) == '#') {
@@ -301,7 +371,7 @@ public class DNSServer {
                     addSecondaryZone(st.nextToken(), st.nextToken());
                 } else if (keyword.equals("cache")) {
                     final Cache cache = new Cache(st.nextToken());
-                    m_caches.put(new Integer(DClass.IN), cache);
+                    m_caches.put(Integer.valueOf(DClass.IN), cache);
                 } else if (keyword.equals("key")) {
                     final String s1 = st.nextToken();
                     final String s2 = st.nextToken();
@@ -316,7 +386,7 @@ public class DNSServer {
                     final String addr = st.nextToken();
                     m_addresses.add(Address.getByAddress(addr));
                 } else {
-                    LogUtils.warnf(this, "unknown keyword: %s", keyword);
+                    LOG.warn("unknown keyword: {}", keyword);
                 }
 
             }
@@ -327,7 +397,7 @@ public class DNSServer {
 
     protected void initializeDefaults() throws UnknownHostException {
         if (m_ports.size() == 0) {
-            m_ports.add(new Integer(53));
+            m_ports.add(Integer.valueOf(53));
         }
 
         if (m_addresses.size() == 0) {
@@ -344,11 +414,11 @@ public class DNSServer {
         m_ports.clear();
         m_ports.addAll(ports);
     }
-    
+
     public void addAddress(final InetAddress address) {
         m_addresses.add(address);
     }
-    
+
     public void setAddresses(final List<InetAddress> addresses) {
         if (m_addresses == addresses) return;
         m_addresses.clear();
@@ -382,7 +452,7 @@ public class DNSServer {
         Cache c = m_caches.get(dclass);
         if (c == null) {
             c = new Cache(dclass);
-            m_caches.put(new Integer(dclass), c);
+            m_caches.put(Integer.valueOf(dclass), c);
         }
         return c;
     }
@@ -592,12 +662,12 @@ public class DNSServer {
                 dataOut.write(out);
             }
         } catch (final IOException ex) {
-            LogUtils.warnf(this, ex, "AXFR failed");
+            LOG.warn("AXFR failed", ex);
         }
         try {
             s.close();
         } catch (final IOException ex) {
-            LogUtils.warnf(this, ex, "error closing socket");
+            LOG.warn("error closing socket", ex);
         }
         return null;
     }
@@ -687,7 +757,7 @@ public class DNSServer {
         try {
             return buildErrorMessage(new Header(in), Rcode.FORMERR, null);
         } catch (final IOException e) {
-            LogUtils.debugf(this, e, "unable to build error message");
+            LOG.debug("unable to build error message", e);
             return null;
         }
     }

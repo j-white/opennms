@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2009-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2002-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -35,9 +35,10 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.opennms.netmgt.dao.api.AlarmRepository;
+import org.opennms.netmgt.model.OnmsCriteria;
 import org.opennms.web.alarm.AcknowledgeType;
 import org.opennms.web.alarm.AlarmUtil;
-import org.opennms.web.alarm.WebAlarmRepository;
 import org.opennms.web.alarm.filter.AlarmCriteria;
 import org.opennms.web.filter.Filter;
 import org.opennms.web.servlet.MissingParameterException;
@@ -57,7 +58,7 @@ import org.springframework.web.servlet.view.RedirectView;
  * @since 1.8.1
  */
 public class AcknowledgeAlarmByFilterController extends AbstractController implements InitializingBean {
-    private WebAlarmRepository m_webAlarmRepository;
+    private AlarmRepository m_webAlarmRepository;
     
     private String m_redirectView;
     
@@ -73,9 +74,9 @@ public class AcknowledgeAlarmByFilterController extends AbstractController imple
     /**
      * <p>setWebAlarmRepository</p>
      *
-     * @param webAlarmRepository a {@link org.opennms.web.alarm.WebAlarmRepository} object.
+     * @param webAlarmRepository a {@link org.opennms.netmgt.dao.api.AlarmRepository} object.
      */
-    public void setWebAlarmRepository(WebAlarmRepository webAlarmRepository) {
+    public void setAlarmRepository(AlarmRepository webAlarmRepository) {
         m_webAlarmRepository = webAlarmRepository;
     }
 
@@ -96,6 +97,7 @@ public class AcknowledgeAlarmByFilterController extends AbstractController imple
      * Acknowledge the events specified in the POST and then redirect the client
      * to an appropriate URL for display.
      */
+    @Override
     public ModelAndView handleRequestInternal(HttpServletRequest request, HttpServletResponse response) throws Exception {
         // required parameter
         String[] filterStrings = request.getParameterValues("filter");
@@ -120,7 +122,7 @@ public class AcknowledgeAlarmByFilterController extends AbstractController imple
 
         Filter[] filters = filterArray.toArray(new Filter[filterArray.size()]);
         
-        AlarmCriteria criteria = new AlarmCriteria(filters);
+        OnmsCriteria criteria = AlarmUtil.getOnmsCriteria(new AlarmCriteria(filters));
 
         if (action.equals(AcknowledgeType.ACKNOWLEDGED.getShortName())) {
             m_webAlarmRepository.acknowledgeMatchingAlarms(request.getRemoteUser(), new Date(), criteria);

@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2008-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2008-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -34,7 +34,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.StringTokenizer;
 
-import org.opennms.core.utils.LogUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * <p>MultilineOrientedResponse class.</p>
@@ -43,6 +44,8 @@ import org.opennms.core.utils.LogUtils;
  * @version $Id: $
  */
 public class MultilineOrientedResponse {
+    
+    private static final Logger LOG = LoggerFactory.getLogger(MultilineOrientedResponse.class);
     private BufferedReader m_in;
     
     private List<String> m_responseList = new ArrayList<String>();
@@ -127,9 +130,9 @@ public class MultilineOrientedResponse {
         try {
             
             final String response = getEntireResponse(m_in);
-            LogUtils.debugf(this, "Checking http response, pattern: %s  URL: %s  isCheckCode: %s  MaxRetCode: %s\n", pattern, url, isCheckCode, checkMaxRetCode);
+            LOG.debug("Checking http response, pattern: {}  URL: {}  isCheckCode: {}  MaxRetCode: {}\n", pattern, url, isCheckCode, checkMaxRetCode);
             if (response != null && response.contains(pattern)) {
-                LogUtils.debugf(this, "Return from server was: %s", response);
+                LOG.debug("Return from server was: {}", response);
                 if (isCheckCode) {
                                                 
                     if (("/".equals(url)) || (isCheckCode == false)) {
@@ -141,11 +144,11 @@ public class MultilineOrientedResponse {
                     final String codeString = t.nextToken();
 
                     if (validateCodeRange(codeString, 99, checkMaxRetCode)) {
-                        LogUtils.debugf(this, "RetCode Passed");
+                        LOG.debug("RetCode Passed");
                         return true;
                     }
                 } else {
-                    LogUtils.debugf(this, "isAServer");
+                    LOG.debug("isAServer");
                     return true;
                 }
             }
@@ -191,6 +194,7 @@ public class MultilineOrientedResponse {
         
     }
 
+    @Override
     public String toString() {
         return getResponseList().isEmpty() ? "MultilineOrientedResponse" : String.format("Response: %s", getResponseList().toArray());
     }

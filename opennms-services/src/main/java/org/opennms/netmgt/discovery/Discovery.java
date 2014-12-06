@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2002-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -47,18 +47,20 @@ import org.exolab.castor.xml.ValidationException;
 import org.opennms.core.db.DataSourceFactory;
 import org.opennms.core.utils.DBUtils;
 import org.opennms.core.utils.InetAddressUtils;
-import org.opennms.netmgt.EventConstants;
 import org.opennms.netmgt.config.DiscoveryConfigFactory;
 import org.opennms.netmgt.daemon.AbstractServiceDaemon;
-import org.opennms.netmgt.eventd.EventIpcManagerFactory;
+import org.opennms.netmgt.events.api.EventConstants;
+import org.opennms.netmgt.events.api.EventForwarder;
+import org.opennms.netmgt.events.api.EventIpcManagerFactory;
+import org.opennms.netmgt.events.api.annotations.EventHandler;
+import org.opennms.netmgt.events.api.annotations.EventListener;
 import org.opennms.netmgt.icmp.Pinger;
 import org.opennms.netmgt.model.discovery.IPPollAddress;
 import org.opennms.netmgt.model.events.EventBuilder;
-import org.opennms.netmgt.model.events.EventForwarder;
-import org.opennms.netmgt.model.events.annotations.EventHandler;
-import org.opennms.netmgt.model.events.annotations.EventListener;
 import org.opennms.netmgt.xml.event.Event;
 import org.opennms.netmgt.xml.event.Parm;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.util.Assert;
 
 /**
@@ -70,13 +72,17 @@ import org.springframework.util.Assert;
  * @author <a href="mailto:weave@oculan.com">Brian Weaver </a>
  * @author <a href="http://www.opennms.org/">OpenNMS.org </a>
  */
-@EventListener(name="OpenNMS.Discovery")
+@EventListener(name="OpenNMS.Discovery", logPrefix="discover")
 public class Discovery extends AbstractServiceDaemon {
-
+    
+    private static final Logger LOG = LoggerFactory.getLogger(Discovery.class);
+    
     /**
      * The callback that sends newSuspect events upon successful ping response.
      */
     private static final DiscoveryPingResponseCallback cb = new DiscoveryPingResponseCallback();
+
+    private static final String LOG4J_CATEGORY = "discover";
 
 
     private static final int PING_IDLE = 0;
@@ -102,11 +108,11 @@ public class Discovery extends AbstractServiceDaemon {
     private volatile EventForwarder m_eventForwarder;
 
     private Pinger m_pinger;
-
+    
     /**
      * <p>setEventForwarder</p>
      *
-     * @param eventForwarder a {@link org.opennms.netmgt.model.events.EventForwarder} object.
+     * @param eventForwarder a {@link org.opennms.netmgt.events.api.EventForwarder} object.
      */
     public void setEventForwarder(EventForwarder eventForwarder) {
         m_eventForwarder = eventForwarder;
@@ -124,7 +130,7 @@ public class Discovery extends AbstractServiceDaemon {
     /**
      * <p>getEventForwarder</p>
      *
-     * @return a {@link org.opennms.netmgt.model.events.EventForwarder} object.
+     * @return a {@link org.opennms.netmgt.events.api.EventForwarder} object.
      */
     public EventForwarder getEventForwarder() {
         return m_eventForwarder;
@@ -152,7 +158,7 @@ public class Discovery extends AbstractServiceDaemon {
      * Constructs a new discovery instance.
      */
     public Discovery() {
-        super("OpenNMS.Discovery");
+        super(LOG4J_CATEGORY);
     }
 
     /**
@@ -160,15 +166,23 @@ public class Discovery extends AbstractServiceDaemon {
      *
      * @throws java.lang.IllegalStateException if any.
      */
+    @Override
     protected void onInit() throws IllegalStateException {
 
         Assert.state(m_eventForwarder != null, "must set the eventForwarder property");
         
+        //Wiring doesn't seem to be working.
+        Assert.state(m_discoveryFactory != null, "must set the Discovery Factory propertly");
+        cb.setDiscoveryFactory(m_discoveryFactory);
+        
         try {
+        	LOG.debug("Initializing configuration...");
             initializeConfiguration();
+        	LOG.debug("Configuration initialized.  Init the factory...");
             EventIpcManagerFactory.init();
+        	LOG.debug("Factory init'd.");
         } catch (Throwable e) {
-            log().debug("onInit: initialization failed: "+e, e);
+            LOG.debug("onInit: initialization failed", e);
             throw new IllegalStateException("Could not initialize discovery configuration.", e);
         }
     }
@@ -177,14 +191,14 @@ public class Discovery extends AbstractServiceDaemon {
         DiscoveryConfigFactory.reload();
         setDiscoveryFactory(DiscoveryConfigFactory.getInstance());
     }
-
+    
     private void doPings() {
-        infof("starting ping sweep");
+        LOG.info("starting ping sweep");
         
         try {
             initializeConfiguration();
         } catch (Throwable e) {
-            log().error("doPings: could not re-init configuration, continuing with in memory configuration."+e, e);
+            LOG.error("doPings: could not re-init configuration, continuing with in memory configuration.", e);
         }
 
 
@@ -197,11 +211,12 @@ public class Discovery extends AbstractServiceDaemon {
                     m_xstatus = PING_IDLE;
                     return;
                 }
+                LOG.debug("Pinging: {} of foreign source {}", pollAddress.getAddress().toString(), m_discoveryFactory.getForeignSource(pollAddress.getAddress()));
                 ping(pollAddress);
                 try {
                     Thread.sleep(getDiscoveryFactory().getIntraPacketDelay());
                 } catch (InterruptedException e) {
-                    infof("interrupting discovery sweep");
+                    LOG.info("interrupting discovery sweep");
                     break;
                 }
             }
@@ -209,7 +224,7 @@ public class Discovery extends AbstractServiceDaemon {
             getDiscoveryFactory().getReadLock().unlock();
         }
 
-        infof("finished discovery sweep");
+        LOG.info("finished discovery sweep");
         m_xstatus = PING_IDLE;
     }
 
@@ -220,8 +235,10 @@ public class Discovery extends AbstractServiceDaemon {
                 try {
                     m_pinger.ping(address, pollAddress.getTimeout(), pollAddress.getRetries(), (short) 1, cb);
                 } catch (Throwable e) {
-                    debugf(e, "error pinging %s", address.getAddress());
+                    LOG.debug("error pinging {}", address.getAddress(), e);
                 }
+            } else {
+            	LOG.debug("{} already discovered.", address.toString());
             }
         }
     }
@@ -235,12 +252,12 @@ public class Discovery extends AbstractServiceDaemon {
 
     private void startTimer() {
         if (m_timer != null) {
-            debugf("startTimer() called, but a previous timer exists; making sure it's cleaned up");
+            LOG.debug("startTimer() called, but a previous timer exists; making sure it's cleaned up");
             m_xstatus = PING_FINISHING;
             m_timer.cancel();
         }
         
-        debugf("scheduling new discovery timer");
+        LOG.debug("scheduling new discovery timer");
         m_timer = new Timer("Discovery.Pinger", true);
 
         TimerTask task = new TimerTask() {
@@ -262,18 +279,19 @@ public class Discovery extends AbstractServiceDaemon {
 
     private void stopTimer() {
         if (m_timer != null) {
-            debugf("stopping existing timer");
+            LOG.debug("stopping existing timer");
             m_xstatus = PING_FINISHING;
             m_timer.cancel();
             m_timer = null;
         } else {
-            debugf("stopTimer() called, but there is no existing timer");
+            LOG.debug("stopTimer() called, but there is no existing timer");
         }
     }
 
     /**
      * <p>onStart</p>
      */
+    @Override
     protected void onStart() {
     	syncAlreadyDiscovered();
         startTimer();
@@ -282,6 +300,7 @@ public class Discovery extends AbstractServiceDaemon {
     /**
      * <p>onStop</p>
      */
+    @Override
     protected void onStop() {
         stopTimer();
     }
@@ -289,6 +308,7 @@ public class Discovery extends AbstractServiceDaemon {
     /**
      * <p>onPause</p>
      */
+    @Override
     protected void onPause() {
         stopTimer();
     }
@@ -296,6 +316,7 @@ public class Discovery extends AbstractServiceDaemon {
     /**
      * <p>onResume</p>
      */
+    @Override
     protected void onResume() {
         startTimer();
     }
@@ -325,15 +346,15 @@ public class Discovery extends AbstractServiceDaemon {
     				newAlreadyDiscovered.add(rs.getString(1));
     			}
     		} else {
-    			log().warn("Got null ResultSet from query for all IP addresses");
+    			LOG.warn("Got null ResultSet from query for all IP addresses");
     		}
     		m_alreadyDiscovered = newAlreadyDiscovered;
     	} catch (SQLException sqle) {
-    		log().warn("Caught SQLException while trying to query for all IP addresses: " + sqle.getMessage());
+		LOG.warn("Caught SQLException while trying to query for all IP addresses: {}", sqle.getMessage());
     	} finally {
     	    d.cleanUp();
     	}
-    	log().info("syncAlreadyDiscovered initialized list of managed IP addresses with " + m_alreadyDiscovered.size() + " members");
+	LOG.info("syncAlreadyDiscovered initialized list of managed IP addresses with {} members", m_alreadyDiscovered.size());
     }
 
     /**
@@ -343,7 +364,7 @@ public class Discovery extends AbstractServiceDaemon {
      */
     @EventHandler(uei=EventConstants.DISCOVERYCONFIG_CHANGED_EVENT_UEI)
     public void handleDiscoveryConfigurationChanged(Event event) {
-        log().info("handleDiscoveryConfigurationChanged: handling message that a change to configuration happened...");
+        LOG.info("handleDiscoveryConfigurationChanged: handling message that a change to configuration happened...");
         reloadAndReStart();
     }
 
@@ -356,17 +377,17 @@ public class Discovery extends AbstractServiceDaemon {
             this.stop();
             this.start();
         } catch (MarshalException e) {
-            fatalf(e, "Unable to initialize the discovery configuration factory");
+            LOG.error("Unable to initialize the discovery configuration factory", e);
             ebldr = new EventBuilder(EventConstants.RELOAD_DAEMON_CONFIG_FAILED_UEI, getName());
             ebldr.addParam(EventConstants.PARM_DAEMON_NAME, "Discovery");
             ebldr.addParam(EventConstants.PARM_REASON, e.getLocalizedMessage().substring(0, 128));
         } catch (ValidationException e) {
-            fatalf(e, "Unable to initialize the discovery configuration factory");
+            LOG.error("Unable to initialize the discovery configuration factory", e);
             ebldr = new EventBuilder(EventConstants.RELOAD_DAEMON_CONFIG_FAILED_UEI, getName());
             ebldr.addParam(EventConstants.PARM_DAEMON_NAME, "Discovery");
             ebldr.addParam(EventConstants.PARM_REASON, e.getLocalizedMessage().substring(0, 128));
         } catch (IOException e) {
-            fatalf(e, "Unable to initialize the discovery configuration factory");
+            LOG.error("Unable to initialize the discovery configuration factory", e);
             ebldr = new EventBuilder(EventConstants.RELOAD_DAEMON_CONFIG_FAILED_UEI, getName());
             ebldr.addParam(EventConstants.PARM_DAEMON_NAME, "Discovery");
             ebldr.addParam(EventConstants.PARM_REASON, e.getLocalizedMessage().substring(0, 128));
@@ -381,11 +402,11 @@ public class Discovery extends AbstractServiceDaemon {
      */
     @EventHandler(uei=EventConstants.RELOAD_DAEMON_CONFIG_UEI)
     public void reloadDaemonConfig(Event e) {
-        log().info("reloadDaemonConfig: processing reload daemon event...");
+        LOG.info("reloadDaemonConfig: processing reload daemon event...");
         if (isReloadConfigEventTarget(e)) {
             reloadAndReStart();
         }
-        log().info("reloadDaemonConfig: reload daemon event processed.");
+        LOG.info("reloadDaemonConfig: reload daemon event processed.");
     }
     
     private boolean isReloadConfigEventTarget(Event event) {
@@ -400,7 +421,7 @@ public class Discovery extends AbstractServiceDaemon {
             }
         }
         
-        log().debug("isReloadConfigEventTarget: discovery was target of reload event: "+isTarget);
+        LOG.debug("isReloadConfigEventTarget: discovery was target of reload event: {}", isTarget);
         return isTarget;
     }
 
@@ -416,7 +437,7 @@ public class Discovery extends AbstractServiceDaemon {
             final String iface = event.getInterface();
 			m_alreadyDiscovered.remove(iface);
 
-            debugf("Removed %s from known node list", iface);
+            LOG.debug("Removed {} from known node list", iface);
         }
     }
 
@@ -457,7 +478,10 @@ public class Discovery extends AbstractServiceDaemon {
         final String iface = event.getInterface();
 		m_alreadyDiscovered.add(iface);
 
-        debugf("Added %s as discovered", iface);
+        LOG.debug("Added {} as discovered", iface);
     }
 
+    public static String getLoggingCategory() {
+        return LOG4J_CATEGORY;
+    }
 }

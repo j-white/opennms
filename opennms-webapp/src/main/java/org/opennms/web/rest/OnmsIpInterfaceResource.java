@@ -2,22 +2,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2008-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2008-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -47,17 +47,19 @@ import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.UriInfo;
 
 import org.opennms.core.criteria.CriteriaBuilder;
+import org.opennms.core.criteria.Alias.JoinType;
 import org.opennms.core.utils.InetAddressUtils;
-import org.opennms.core.utils.LogUtils;
-import org.opennms.netmgt.EventConstants;
-import org.opennms.netmgt.dao.IpInterfaceDao;
-import org.opennms.netmgt.dao.NodeDao;
+import org.opennms.netmgt.dao.api.IpInterfaceDao;
+import org.opennms.netmgt.dao.api.NodeDao;
+import org.opennms.netmgt.events.api.EventConstants;
+import org.opennms.netmgt.events.api.EventProxy;
+import org.opennms.netmgt.events.api.EventProxyException;
 import org.opennms.netmgt.model.OnmsIpInterface;
 import org.opennms.netmgt.model.OnmsIpInterfaceList;
 import org.opennms.netmgt.model.OnmsNode;
 import org.opennms.netmgt.model.events.EventBuilder;
-import org.opennms.netmgt.model.events.EventProxy;
-import org.opennms.netmgt.model.events.EventProxyException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeanWrapper;
 import org.springframework.beans.PropertyAccessorFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -69,17 +71,13 @@ import com.sun.jersey.api.core.ResourceContext;
 import com.sun.jersey.spi.resource.PerRequest;
 
 @Component
-/**
- * <p>OnmsIpInterfaceResource class.</p>
- *
- * @author ranger
- * @version $Id: $
- * @since 1.8.1
- */
 @PerRequest
 @Scope("prototype")
 @Transactional
 public class OnmsIpInterfaceResource extends OnmsRestService {
+	
+	private static final Logger LOG = LoggerFactory.getLogger(OnmsIpInterfaceResource.class);
+
 
     @Autowired
     private NodeDao m_nodeDao;
@@ -108,13 +106,14 @@ public class OnmsIpInterfaceResource extends OnmsRestService {
         readLock();
         
         try {
-            LogUtils.debugf(this, "getIpInterfaces: reading interfaces for node %s", nodeCriteria);
+            LOG.debug("getIpInterfaces: reading interfaces for node {}", nodeCriteria);
     
             final OnmsNode node = m_nodeDao.get(nodeCriteria);
             
             final MultivaluedMap<String,String> params = m_uriInfo.getQueryParameters();
             
             final CriteriaBuilder builder = new CriteriaBuilder(OnmsIpInterface.class);
+            builder.alias("monitoredServices.serviceType", "serviceType", JoinType.LEFT_JOIN);
             builder.ne("isManaged", "D");
             builder.limit(20);
             applyQueryFilters(params, builder);
@@ -178,7 +177,7 @@ public class OnmsIpInterfaceResource extends OnmsRestService {
             } else if (ipInterface.getIpAddress().getAddress() == null) {
                 throw getException(Status.BAD_REQUEST, "addIpInterface: ipInterface's ipAddress bytes cannot be null");
             }
-            LogUtils.debugf(this, "addIpInterface: adding interface %s", ipInterface);
+            LOG.debug("addIpInterface: adding interface {}", ipInterface);
             node.addIpInterface(ipInterface);
             m_ipInterfaceDao.save(ipInterface);
             
@@ -221,18 +220,22 @@ public class OnmsIpInterfaceResource extends OnmsRestService {
             if (ipInterface == null) {
                 throw getException(Status.CONFLICT, "deleteIpInterface: can't find interface with ip address " + ipAddress + " for node " + nodeCriteria);
             }
-            LogUtils.debugf(this, "updateIpInterface: updating ip interface %s", ipInterface);
+            LOG.debug("updateIpInterface: updating ip interface {}", ipInterface);
     
             final BeanWrapper wrapper = PropertyAccessorFactory.forBeanPropertyAccess(ipInterface);
     
             for(final String key : params.keySet()) {
+                // skip nodeId since we already know the node this is associated with and don't want to overwrite it
+                if ("nodeId".equals(key)) {
+                    continue;
+                }
                 if (wrapper.isWritableProperty(key)) {
                     final String stringValue = params.getFirst(key);
                     final Object value = wrapper.convertIfNecessary(stringValue, (Class<?>)wrapper.getPropertyType(key));
                     wrapper.setPropertyValue(key, value);
                 }
             }
-            LogUtils.debugf(this, "updateIpInterface: ip interface %s updated", ipInterface);
+            LOG.debug("updateIpInterface: ip interface {} updated", ipInterface);
             m_ipInterfaceDao.saveOrUpdate(ipInterface);
             return Response.seeOther(getRedirectUri(m_uriInfo)).build();
         } finally {
@@ -261,7 +264,7 @@ public class OnmsIpInterfaceResource extends OnmsRestService {
             if (intf == null) {
                 throw getException(Status.CONFLICT, "deleteIpInterface: can't find interface with ip address " + ipAddress + " for node " + nodeCriteria);
             }
-            LogUtils.debugf(this, "deleteIpInterface: deleting interface %s from node %s", ipAddress, nodeCriteria);
+            LOG.debug("deleteIpInterface: deleting interface {} from node {}", ipAddress, nodeCriteria);
             node.getIpInterfaces().remove(intf);
             m_nodeDao.save(node);
             

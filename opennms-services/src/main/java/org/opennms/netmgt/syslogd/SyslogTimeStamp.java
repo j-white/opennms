@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2006-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -51,14 +51,14 @@ public class SyslogTimeStamp extends Format {
     private static final long serialVersionUID = -6116771489369028204L;
 
     /** Constant <code>DEFAULT_GMT_TZID="GMT+00"</code> */
-    static public final String DEFAULT_GMT_TZID = "GMT+00";
+    public static final String DEFAULT_GMT_TZID = "GMT+00";
 
     /**
      * <p>getInstance</p>
      *
      * @return a {@link org.opennms.netmgt.syslogd.SyslogTimeStamp} object.
      */
-    static public final SyslogTimeStamp getInstance() {
+    public static final SyslogTimeStamp getInstance() {
         return new SyslogTimeStamp();
     }
 
@@ -101,6 +101,7 @@ public class SyslogTimeStamp extends Format {
     }
 
     /** {@inheritDoc} */
+    @Override
     public StringBuffer format(Object date, StringBuffer appendTo,
                                FieldPosition fieldPos) throws IllegalArgumentException {
         // UNDONE - handle fieldPos!
@@ -121,6 +122,7 @@ public class SyslogTimeStamp extends Format {
     }
 
     /** {@inheritDoc} */
+    @Override
     public Object parseObject(String source, ParsePosition pos) {
         Date stamp = null;
 

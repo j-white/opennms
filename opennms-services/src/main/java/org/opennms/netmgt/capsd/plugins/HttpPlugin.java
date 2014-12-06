@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2002-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -34,6 +34,7 @@ import java.io.InputStreamReader;
 import java.net.InetAddress;
 import java.net.Socket;
 import java.net.SocketException;
+import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -41,7 +42,8 @@ import java.util.StringTokenizer;
 import java.util.regex.Pattern;
 
 import org.opennms.core.utils.InetAddressUtils;
-import org.opennms.core.utils.ThreadCategory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.opennms.netmgt.capsd.AbstractTcpPlugin;
 import org.opennms.netmgt.capsd.ConnectionConfig;
 
@@ -91,6 +93,7 @@ import org.opennms.netmgt.capsd.ConnectionConfig;
  * @author <A HREF="http://www.opennms.org">OpenNMS </A>
  */
 public class HttpPlugin extends AbstractTcpPlugin {
+    private static final Logger LOG = LoggerFactory.getLogger(HttpPlugin.class);
 
     // Names of properties configured for the protocol-plugin
     /** Constant <code>PROPERTY_NAME_PORT="port"</code> */
@@ -198,19 +201,17 @@ public class HttpPlugin extends AbstractTcpPlugin {
         m_checkReturnCode = checkReturnCode;
         m_queryString = queryString;
         m_responseString = responseString;
-        m_defaultPorts = defaultPorts;
+        m_defaultPorts = Arrays.copyOf(defaultPorts, defaultPorts.length);
     }
 
     /** {@inheritDoc} */
+    @Override
     protected boolean checkProtocol(Socket socket, ConnectionConfig config) throws IOException {
         boolean isAServer = false;
 
         m_queryString = "GET " + config.getKeyedString(PROPERTY_NAME_URL, DEFAULT_URL) + " HTTP/1.0\r\n\r\n";
 
-        ThreadCategory log = ThreadCategory.getInstance(getClass());
-        if (log.isDebugEnabled()) {
-            log.debug( "Query: " + m_queryString);
-        }
+        LOG.debug("Query: {}", m_queryString);
 
         try {
             BufferedReader lineRdr = new BufferedReader(new InputStreamReader(socket.getInputStream()));
@@ -223,18 +224,14 @@ public class HttpPlugin extends AbstractTcpPlugin {
                 while ((chars = lineRdr.read( cbuf, 0, 1024)) != -1)
                 {
                     String line = new String( cbuf, 0, chars );
-                    if (log.isDebugEnabled()) {
-                        log.debug( "Read: " + line.length() + " bytes: [" + line.toString() + "] from socket." );
-                    }
+                    LOG.debug("Read: {} bytes: [{}] from socket.", line.length(), line);
                     response.append( line );
                 }
             } catch ( java.net.SocketTimeoutException timeoutEx ) {
                 if ( timeoutEx.bytesTransferred > 0 )
                 {
                     String line = new String( cbuf, 0, timeoutEx.bytesTransferred );
-                    if (log.isDebugEnabled()) {
-                        log.debug( "Read: " + line.length() + " bytes: [" + line.toString() + "] from socket @ timeout!" );
-                    }
+                    LOG.debug("Read: {} bytes: [{}] from socket @ timeout!", line.length(), line);
                     response.append(line);
                 }
             }
@@ -248,9 +245,7 @@ public class HttpPlugin extends AbstractTcpPlugin {
                     StringTokenizer t = new StringTokenizer(response.toString());
                     t.nextToken();
                     int rVal = Integer.parseInt(t.nextToken());
-                    if (log.isDebugEnabled()) {
-                        log.debug(getPluginName() + ": Request returned code: " + rVal);
-                    }
+                    LOG.debug("{} : Request returned code: {}", getPluginName(), rVal);
                     if (rVal >= 99 && rVal <= maxRetCode )
                         isAServer = true;
                 } else {
@@ -261,10 +256,10 @@ public class HttpPlugin extends AbstractTcpPlugin {
                 }
             }
         } catch (SocketException e) {
-            log.debug(getPluginName() + ": a protocol error occurred talking to host " + InetAddressUtils.str(config.getInetAddress()), e);
+            LOG.debug("{}: a protocol error occurred talking to host {}", getPluginName(), InetAddressUtils.str(config.getInetAddress()), e);
             isAServer = false;
         } catch (NumberFormatException e) {
-            log.debug(getPluginName() + ": failed to parse response code from host " + InetAddressUtils.str(config.getInetAddress()), e);
+            LOG.debug("{}: failed to parse response code from host {}", getPluginName(), InetAddressUtils.str(config.getInetAddress()), e);
             isAServer = false;
         }
         return isAServer;
@@ -277,6 +272,7 @@ public class HttpPlugin extends AbstractTcpPlugin {
      *      java.net.InetAddress)
      */
     /** {@inheritDoc} */
+    @Override
     protected List<ConnectionConfig> getConnectionConfigList(Map<String, Object> qualifiers, InetAddress address) {
         int[] ports = getKeyedIntegerArray(qualifiers, PROPERTY_NAME_PORT, m_defaultPorts);
 

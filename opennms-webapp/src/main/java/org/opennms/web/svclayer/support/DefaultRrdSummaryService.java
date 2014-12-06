@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2007-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2007-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -36,9 +36,9 @@ import java.util.Map;
 import org.opennms.netmgt.config.attrsummary.Attribute;
 import org.opennms.netmgt.config.attrsummary.Resource;
 import org.opennms.netmgt.config.attrsummary.Summary;
-import org.opennms.netmgt.dao.NodeDao;
-import org.opennms.netmgt.dao.ResourceDao;
-import org.opennms.netmgt.dao.RrdDao;
+import org.opennms.netmgt.dao.api.NodeDao;
+import org.opennms.netmgt.dao.api.ResourceDao;
+import org.opennms.netmgt.dao.api.RrdDao;
 import org.opennms.netmgt.dao.support.FilterWalker;
 import org.opennms.netmgt.dao.support.NodeSnmpResourceType;
 import org.opennms.netmgt.filter.FilterDao;
@@ -69,13 +69,15 @@ public class DefaultRrdSummaryService implements RrdSummaryService, Initializing
             public void commit();
         }
 
-        class SummaryHolder implements ResourceParent {
+        static class SummaryHolder implements ResourceParent {
             Summary m_summary = new Summary();
 
+            @Override
             public void addResource(Resource resource) {
                 m_summary.addResource(resource);
             }
 
+            @Override
             public void commit() {
 
             }
@@ -84,10 +86,12 @@ public class DefaultRrdSummaryService implements RrdSummaryService, Initializing
                 return m_summary;
             }
 
+            @Override
             public boolean isRoot() {
                 return true;
             }
 
+            @Override
             public String toString() {
                 return "[root]";
             }
@@ -114,6 +118,7 @@ public class DefaultRrdSummaryService implements RrdSummaryService, Initializing
                 return m_commited;
             }
 
+            @Override
             public void commit() {
                 if (isCommited()) return;
                 if (m_parent != null) m_parent.commit();
@@ -121,6 +126,7 @@ public class DefaultRrdSummaryService implements RrdSummaryService, Initializing
                 m_commited = true;
             }
 
+            @Override
             public void addResource(Resource resource) {
                 m_resource.addResource(resource);
             }
@@ -141,10 +147,12 @@ public class DefaultRrdSummaryService implements RrdSummaryService, Initializing
                 }
             }
 
+            @Override
             public String toString() {
                 return (getParent() == null ? "[root]" : getParent().toString())+".["+m_resource.getName()+"]";
             }
 
+            @Override
             public boolean isRoot() {
                 return false;
             }
@@ -287,6 +295,7 @@ public class DefaultRrdSummaryService implements RrdSummaryService, Initializing
             walker.setNodeDao(m_nodeDao);
             walker.setFilter(filterRule);
             walker.setVisitor(new AbstractEntityVisitor() {
+                @Override
                 public void visitNode(OnmsNode node) {
 
                     OnmsResource nodeResource = getResourceForNode(node);
@@ -418,7 +427,7 @@ public class DefaultRrdSummaryService implements RrdSummaryService, Initializing
     /**
      * <p>setResourceDao</p>
      *
-     * @param resourceDao a {@link org.opennms.netmgt.dao.ResourceDao} object.
+     * @param resourceDao a {@link org.opennms.netmgt.dao.api.ResourceDao} object.
      */
     public void setResourceDao(ResourceDao resourceDao) {
         m_resourceDao = resourceDao;
@@ -427,7 +436,7 @@ public class DefaultRrdSummaryService implements RrdSummaryService, Initializing
     /**
      * <p>setRrdDao</p>
      *
-     * @param rrdDao a {@link org.opennms.netmgt.dao.RrdDao} object.
+     * @param rrdDao a {@link org.opennms.netmgt.dao.api.RrdDao} object.
      */
     public void setRrdDao(RrdDao rrdDao) {
         m_rrdDao = rrdDao;
@@ -448,6 +457,7 @@ public class DefaultRrdSummaryService implements RrdSummaryService, Initializing
     }
 
     /** {@inheritDoc} */
+    @Override
     public Summary getSummary(SummarySpecification spec) {
         return getSummary(spec.getFilterRule(), spec.getStartTime(), spec.getEndTime(), spec.getAttributeSieve());
     }

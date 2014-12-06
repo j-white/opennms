@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2007-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2002-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -42,6 +42,7 @@ public class Correlator implements CorrelatorMBean {
      * 
      * Retrieves the Spring context for the correlator.
      */
+    @Override
     public void init() {
         final BeanFactoryLocator bfl = DefaultLocatorFactory.getInstance();
         final BeanFactoryReference bf = bfl.useBeanFactory("correlatorContext");
@@ -55,6 +56,7 @@ public class Correlator implements CorrelatorMBean {
     /**
      * Start the correlator daemon.
      */
+    @Override
     public void start() {
         if (getBean() != null) getBean().start();
     }
@@ -62,6 +64,7 @@ public class Correlator implements CorrelatorMBean {
     /**
      * Stop the correlator daemon.
      */
+    @Override
     public void stop() {
         if (getBean() != null) getBean().stop();
     }
@@ -71,6 +74,7 @@ public class Correlator implements CorrelatorMBean {
      * 
      * @return The integer constant from {@link Fiber} that represents the daemon's status.
      */
+    @Override
     public int getStatus() {
         return getBean() == null? Fiber.STOPPED : getBean().getStatus();
     }
@@ -80,6 +84,7 @@ public class Correlator implements CorrelatorMBean {
      * 
      * @return The status, as text.
      */
+    @Override
     public String getStatusText() {
         return Fiber.STATUS_NAMES[getStatus()];
     }
@@ -89,6 +94,7 @@ public class Correlator implements CorrelatorMBean {
      * 
      * @return The status, as text.
      */
+    @Override
     public String status() {
         return Fiber.STATUS_NAMES[getStatus()];
     }

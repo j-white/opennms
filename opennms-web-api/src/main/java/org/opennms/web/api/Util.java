@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2010-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2002-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -36,12 +36,14 @@ import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.net.UnknownHostException;
 import java.text.DateFormat;
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
 import java.util.Enumeration;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.SortedMap;
 import java.util.TreeMap;
 
@@ -50,8 +52,8 @@ import javax.servlet.http.HttpServletRequest;
 import org.opennms.core.resource.Vault;
 import org.opennms.core.utils.InetAddressUtils;
 import org.opennms.core.utils.WebSecurityUtils;
-import org.opennms.netmgt.model.events.EventProxy;
-import org.opennms.netmgt.utils.TcpEventProxy;
+import org.opennms.netmgt.events.api.EventProxy;
+import org.opennms.netmgt.events.api.support.TcpEventProxy;
 
 /**
  * Provides convenience functions for web-based interfaces.
@@ -62,7 +64,7 @@ import org.opennms.netmgt.utils.TcpEventProxy;
 public abstract class Util extends Object {
 
     private static final String[] EMPTY_STRING_ARRAY = new String[0];
-	private static final HashMap<String, Object> EMPTY_HASH_MAP = new HashMap<String,Object>();
+	private static final Map<String, Object> EMPTY_HASH_MAP = new HashMap<String,Object>();
 
 	/**
      * Return a string that represents the fully qualified URL for our servlet
@@ -77,7 +79,7 @@ public abstract class Util extends Object {
      * <p>
      * If this guess is wrong, you can override it by setting the property
      * <code>opennms.web.base-url</code> in opennms.properties
-     * (for embedded Jetty) or WEB-INF/configuration.properties (for Tomcat).
+     * (for embedded Jetty).
      * </p>
      *
      * @param request
@@ -296,10 +298,7 @@ public abstract class Util extends Object {
 
         final StringBuffer buffer = new StringBuffer();
 
-        final ArrayList<String> ignoreList = new ArrayList<String>();
-        for (int i = 0; i < ignores.length; i++) {
-            ignoreList.add(ignores[i]);
-        }
+        final List<String> ignoreList = Arrays.asList(ignores);
 
         @SuppressWarnings("unchecked")
         final Enumeration<String> names = request.getParameterNames();
@@ -320,9 +319,10 @@ public abstract class Util extends Object {
             }
         }
 
-        for (final String name : additions.keySet()) {
+        for (final Entry<String,Object> entry : additions.entrySet()) {
+            final String name = entry.getKey();
             // handle both a String value or a String[] value
-        	final Object tmp = additions.get(name);
+        	final Object tmp = entry.getValue();
         	final String[] values = (tmp instanceof String[]) ? ((String[]) tmp) : (new String[] { (String) tmp });
 
             if ((ignoreType == IgnoreType.REQUEST_ONLY || !ignoreList.contains(name)) && values != null) {
@@ -424,10 +424,7 @@ public abstract class Util extends Object {
 
         final StringBuffer buffer = new StringBuffer();
 
-        final ArrayList<String> ignoreList = new ArrayList<String>();
-        for (int i = 0; i < ignores.length; i++) {
-            ignoreList.add(ignores[i]);
-        }
+        final List<String> ignoreList = Arrays.asList(ignores);
 
         @SuppressWarnings("unchecked")
         final Enumeration<String> names = request.getParameterNames();
@@ -446,10 +443,11 @@ public abstract class Util extends Object {
             }
         }
 
-        for (final String name : additions.keySet()) {
+        for (final Entry<String,Object> entry : additions.entrySet()) {
+            final String name = entry.getKey();
             // handle both a String value or a String[] value
-        	final Object tmp = additions.get(name);
-        	final String[] values;
+            final Object tmp = entry.getValue();
+            final String[] values;
             if (tmp instanceof String[]) {
                 values = (String[]) tmp;
             } else if (tmp instanceof String) {
@@ -488,7 +486,7 @@ public abstract class Util extends Object {
      * @param names an array of {@link java.lang.String} objects.
      * @return a {@link java.util.Map} object.
      */
-    public static SortedMap<String, String> getOrderedMap(final String names[][]) {
+    public static SortedMap<String, String> getOrderedMap(final String[][] names) {
     	final TreeMap<String, String> orderedMap = new TreeMap<String, String>();
 
         for (int i = 0; i < names.length; i++) {
@@ -511,7 +509,7 @@ public abstract class Util extends Object {
     /**
      * <p>createEventProxy</p>
      *
-     * @return a {@link org.opennms.netmgt.model.events.EventProxy} object.
+     * @return a {@link org.opennms.netmgt.events.api.EventProxy} object.
      */
     public static EventProxy createEventProxy() {
         /*
@@ -556,7 +554,10 @@ public abstract class Util extends Object {
      *   the model code.
      */
     public static final String formatDateToUIString(final Date date) {
-        return DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.MEDIUM).format(date);
+        if (date != null) {
+            return DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.MEDIUM).format(date);
+        }
+        return "";
     }
     
     /**

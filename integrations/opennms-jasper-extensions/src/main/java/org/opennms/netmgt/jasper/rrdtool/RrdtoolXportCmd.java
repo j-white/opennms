@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2011-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2011-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -39,10 +39,12 @@ import net.sf.jasperreports.engine.util.JRProperties;
 
 import org.exolab.castor.xml.Unmarshaller;
 import org.opennms.core.utils.StringUtils;
-import org.opennms.core.utils.ThreadCategory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.util.FileCopyUtils;
 
 public class RrdtoolXportCmd {
+    private static final Logger LOG = LoggerFactory.getLogger(RrdtoolXportCmd.class);
 
 	public JRDataSource executeCommand(String queryString) throws JRException {
 		Xport data = getXportData(queryString);
@@ -56,7 +58,7 @@ public class RrdtoolXportCmd {
         }
 
 		String command = rrdBinary + " xport " + queryString.replaceAll("[\r\n]+", " ").replaceAll("\\s+", " ");
-		log().debug("getXportData: executing command: " + command);
+		LOG.debug("getXportData: executing command: {}", command);
 		String[] commandArray = StringUtils.createCommandArray(command, '@');
 		Xport data = null;
 		try {
@@ -66,7 +68,7 @@ public class RrdtoolXportCmd {
 			// this close the stream when its finished
 			String errors = FileCopyUtils.copyToString(new InputStreamReader(process.getErrorStream()));
 			if (errors.length() > 0) {
-				log().error("getXportData: RRDtool command fail: " + errors);
+				LOG.error("getXportData: RRDtool command fail: {}", errors);
 				return null;
 			}
 			BufferedReader reader = null;
@@ -78,7 +80,7 @@ public class RrdtoolXportCmd {
 				reader.close();
 			}
 		} catch (Exception e) {
-			log().error("getXportData: can't execute command '" + command + ": ", e);
+			LOG.error("getXportData: can't execute command '{}'", command, e);
 			throw new JRException("getXportData: can't execute command '" + command + ": ", e);
 		}
 		return data;
@@ -94,9 +96,4 @@ public class RrdtoolXportCmd {
         }
 
     }
-
-    private ThreadCategory log() {
-		return ThreadCategory.getInstance(getClass());
-	}
-
 }

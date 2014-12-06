@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2010-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2010-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -31,15 +31,16 @@
  */
 package org.opennms.netmgt.provision.service;
 
-import static org.opennms.core.utils.LogUtils.debugf;
-import static org.opennms.core.utils.LogUtils.infof;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 
 import java.net.InetAddress;
 import java.util.List;
 
 import org.opennms.core.tasks.BatchTask;
 import org.opennms.core.tasks.RunInBatch;
-import org.opennms.netmgt.config.SnmpAgentConfigFactory;
+import org.opennms.netmgt.config.api.SnmpAgentConfigFactory;
 import org.opennms.netmgt.model.OnmsNode;
 import org.opennms.netmgt.provision.NodePolicy;
 import org.opennms.netmgt.provision.service.snmp.SystemGroup;
@@ -49,6 +50,7 @@ import org.opennms.netmgt.snmp.SnmpWalker;
 import org.springframework.util.Assert;
 
 final class NodeInfoScan implements RunInBatch {
+    private static final Logger LOG = LoggerFactory.getLogger(NodeInfoScan.class);
 
     private final SnmpAgentConfigFactory m_agentConfigFactory;
     private final InetAddress m_agentAddress;
@@ -71,15 +73,18 @@ final class NodeInfoScan implements RunInBatch {
     }
 
     /** {@inheritDoc} */
+    @Override
     public void run(BatchTask phase) {
         
         phase.getBuilder().addSequence(
                 new RunInBatch() {
+                    @Override
                     public void run(BatchTask batch) {
                         collectNodeInfo();
                     }
                 },
                 new RunInBatch() {
+                    @Override
                     public void run(BatchTask phase) {
                         doPersistNodeInfo();
                     }
@@ -153,14 +158,14 @@ final class NodeInfoScan implements RunInBatch {
                 if (getNodeId() != null && nodePolicies.size() > 0) {
                     restoreCategories = true;
                     node = m_provisionService.getDbNodeInitCat(getNodeId());
-                    debugf(this, "collectNodeInfo: checking %d node policies for restoration of categories", nodePolicies.size());
+                    LOG.debug("collectNodeInfo: checking {} node policies for restoration of categories", nodePolicies.size());
                 }
             } else {
                 node = getNode();
             }
             for(NodePolicy policy : nodePolicies) {
                 if (node != null) {
-                    infof(this, "Applying NodePolicy %s(%s) to %s", policy.getClass(), policy, node.getLabel());
+                    LOG.info("Applying NodePolicy {}({}) to {}", policy.getClass(), policy, node.getLabel());
                     node = policy.apply(node);
                 }
             }
@@ -187,7 +192,7 @@ final class NodeInfoScan implements RunInBatch {
 
     private void doPersistNodeInfo() {
         if (restoreCategories) {
-            debugf(this, "doPersistNodeInfo: Restoring %d categories to DB", getNode().getCategories().size());
+            LOG.debug("doPersistNodeInfo: Restoring {} categories to DB", getNode().getCategories().size());
         }
         if (!isAborted() || restoreCategories) {
             getProvisionService().updateNodeAttributes(getNode());
