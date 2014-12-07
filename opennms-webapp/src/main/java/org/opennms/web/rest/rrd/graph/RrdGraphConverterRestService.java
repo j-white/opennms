@@ -10,10 +10,12 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriInfo;
 
-import org.opennms.netmgt.dao.ResourceDao;
+import org.opennms.netmgt.dao.api.ResourceDao;
 import org.opennms.web.controller.RrdGraphController;
 import org.opennms.web.rest.OnmsRestService;
 import org.opennms.web.svclayer.RrdGraphService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
@@ -25,6 +27,8 @@ import com.sun.jersey.spi.resource.PerRequest;
 @Scope("prototype")
 @Path("/graphs")
 public class RrdGraphConverterRestService extends OnmsRestService {
+	private static final Logger LOG = LoggerFactory.getLogger(RrdGraphConverterRestService.class);
+	
     @Autowired
     private ResourceDao m_resourceDao;
 
@@ -58,7 +62,7 @@ public class RrdGraphConverterRestService extends OnmsRestService {
             try {
                 m_graphBuilder = new NGGraphModelBuilder();
             } catch (Exception e) {
-                log().error("Failed to create the graph builder.", e);
+            	LOG.error("Failed to create the graph builder.", e);
                 throw new WebApplicationException(Response.Status.INTERNAL_SERVER_ERROR);
             }
         }
@@ -80,7 +84,7 @@ public class RrdGraphConverterRestService extends OnmsRestService {
         try {
             ngGraphModel = m_graphBuilder.createNGGraph(rrdGraphCommand, m_resourceDao.getRrdDirectory(true));
         } catch (org.jrobin.core.RrdException e) {
-            log().error("Failed to create the graph.", e);
+        	LOG.error("Failed to create the graph.", e);
             throw new WebApplicationException(Response.Status.INTERNAL_SERVER_ERROR);
         }
         graph.setModel(ngGraphModel);

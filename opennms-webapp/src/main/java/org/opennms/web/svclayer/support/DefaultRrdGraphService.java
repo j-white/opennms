@@ -173,14 +173,12 @@ public class DefaultRrdGraphService implements RrdGraphService, InitializingBean
 
         Graph graph = new Graph(prefabGraph, r, new Date(start), new Date(end));
 
-        String command = createPrefabCommand(graph,
-                                             t.getCommandPrefix(),
-                                             m_resourceDao.getRrdDirectory(true),
-                                             report,
-                                             width,
-                                             height);
-
-        return getInputStreamForCommand(command);
+        return createPrefabCommand(graph,
+	                                 t.getCommandPrefix(),
+	                                 m_resourceDao.getRrdDirectory(true),
+	                                 report,
+	                                 width,
+	                                 height);
     }
 
     /**
