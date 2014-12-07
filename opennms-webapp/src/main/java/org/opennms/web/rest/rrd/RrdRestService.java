@@ -47,14 +47,13 @@ public class RrdRestService extends OnmsRestService {
     @Path("/")
     @Consumes({MediaType.APPLICATION_XML, MediaType.APPLICATION_JSON, MediaType.APPLICATION_ATOM_XML})
     @Produces({MediaType.APPLICATION_XML, MediaType.APPLICATION_JSON, MediaType.APPLICATION_ATOM_XML})
-    public Response query(final QueryRequest request) throws Exception {
+    public Response query(final QueryRequest request) {
         readLock();
         try {
             // Compile the expressions
             final JexlEngine jexl = new JexlEngine();
             final LinkedHashMap<String, Expression> expressions = new LinkedHashMap<String, Expression>();
             for (final QueryRequest.Expression e : request.getExpressions()) {
-            	LOG.debug("Compiling {}", e);
                 expressions.put(e.getLabel(),
                                 jexl.createExpression(e.getExpression()));
             }
@@ -66,7 +65,14 @@ public class RrdRestService extends OnmsRestService {
             response.setEnd(request.getEnd());
 
             // Fetch the data
-            final SortedMap<Long, Map<String, Double>> data = fetchData(request);
+            SortedMap<Long, Map<String, Double>> data;
+			try {
+				data = fetchData(request);
+			} catch (Exception e) {
+				LOG.error("An error occured while retrieve the RRD data for {}",
+						request, e);
+				throw new WebApplicationException(Response.Status.INTERNAL_SERVER_ERROR);
+			}
 
             // Do the calculations and build the list of resulting metrics
             final List<QueryResponse.Metric> metrics = new ArrayList<QueryResponse.Metric>(data.size());
@@ -74,7 +80,6 @@ public class RrdRestService extends OnmsRestService {
             	long timestamp = dataEntry.getKey();
                 Map<String, Double> values = dataEntry.getValue();
 
-                LOG.debug("Values before expressions @ {}: {}", timestamp, values);
                 for (final Map.Entry<String, Expression> expressionEntry : expressions.entrySet()) {
                     Map<String, Object> jexlValues = new HashMap<String, Object>(values);
                     jexlValues.put("__inf", Double.POSITIVE_INFINITY);
@@ -84,7 +89,6 @@ public class RrdRestService extends OnmsRestService {
                     values.put(expressionEntry.getKey(),
                                (Double) expressionEntry.getValue().evaluate(context));
                 }
-                LOG.debug("Values after expressions @ {}: {}", timestamp, values);
 
                 final QueryResponse.Metric metric = new QueryResponse.Metric();
                 metric.setTimestamp(timestamp);

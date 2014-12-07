@@ -64,6 +64,16 @@ public class QueryRequest {
         public void setAggregation(final String aggregation) {
             this.aggregation = aggregation;
         }
+
+        @Override
+        public String toString() {
+            return Objects.toStringHelper(this.getClass())
+            		.add("label", label)
+                    .add("resource", resource)
+                    .add("attribute", attribute)
+                    .add("aggregation", aggregation)
+                    .toString();
+        }
     }
 
     public static class Expression {
@@ -157,5 +167,16 @@ public class QueryRequest {
 
     public void setExpressions(final List<Expression> expressions) {
         this.expressions = expressions;
+    }
+
+    @Override
+    public String toString() {
+        return Objects.toStringHelper(this.getClass())
+        		.add("start", start)
+                .add("end", end)
+                .add("step", step)
+                .add("sources", getSources())
+                .add("expressions", getExpressions())
+                .toString();
     }
 }
