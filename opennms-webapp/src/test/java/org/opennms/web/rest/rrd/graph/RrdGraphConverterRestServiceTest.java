@@ -39,16 +39,19 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.opennms.core.test.OpenNMSJUnit4ClassRunner;
+import org.opennms.core.test.db.annotations.JUnitTemporaryDatabase;
 import org.opennms.core.test.rest.AbstractSpringJerseyRestTestCase;
 import org.opennms.netmgt.dao.DatabasePopulator;
 import org.opennms.netmgt.dao.api.ResourceDao;
 import org.opennms.netmgt.dao.support.DefaultResourceDao;
 import org.opennms.test.JUnitConfigurationEnvironment;
 import org.springframework.test.context.ContextConfiguration;
+import org.springframework.test.context.web.WebAppConfiguration;
 import org.springframework.web.context.WebApplicationContext;
 import org.springframework.web.context.support.WebApplicationContextUtils;
 
 @RunWith(OpenNMSJUnit4ClassRunner.class)
+@WebAppConfiguration
 @ContextConfiguration(locations={
         "classpath:/org/opennms/web/rest/applicationContext-test.xml",
         "classpath:/META-INF/opennms/applicationContext-commonConfigs.xml",
@@ -68,6 +71,7 @@ import org.springframework.web.context.support.WebApplicationContextUtils;
         "file:src/main/webapp/WEB-INF/applicationContext-jersey.xml"
 })
 @JUnitConfigurationEnvironment
+@JUnitTemporaryDatabase
 public class RrdGraphConverterRestServiceTest extends AbstractSpringJerseyRestTestCase {
     @Rule
     public TemporaryFolder testFolder = new TemporaryFolder();

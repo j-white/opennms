@@ -6,6 +6,11 @@ import java.util.List;
 
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
+import javax.xml.bind.annotation.XmlTransient;
+
+import org.codehaus.jackson.annotate.JsonIgnore;
+
+import com.google.common.collect.Lists;
 
 @XmlRootElement(name="model")
 public class NGGraphModel implements Serializable {
@@ -39,11 +44,21 @@ public class NGGraphModel implements Serializable {
     }
 
     @XmlElement(name = "sources")
+    public List<Source> getSources() {
+    	List<Source> sources = Lists.newLinkedList();
+    	sources.addAll(getRrdSources());
+    	sources.addAll(getExpressionSources());
+    	return sources;
+    }
+
+    @XmlTransient
+    @JsonIgnore
     public List<RrdSource> getRrdSources() {
         return m_rrdSources;
     }
 
-    @XmlElement(name = "sources")
+    @XmlTransient
+    @JsonIgnore
     public List<ExpressionSource> getExpressionSources() {
         return m_expressionSources;
     }
