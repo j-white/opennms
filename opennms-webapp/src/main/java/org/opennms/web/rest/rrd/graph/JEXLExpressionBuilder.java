@@ -26,6 +26,12 @@ public class JEXLExpressionBuilder {
 		ops.add(new SimpleOp("%"));
 		ops.add(new IfOp());
 		ops.add(new UnOp());
+		ops.add(new BooleanOp("LT", "<"));
+		ops.add(new BooleanOp("LE", "<="));
+		ops.add(new BooleanOp("GT", ">"));
+		ops.add(new BooleanOp("GE", ">="));
+		ops.add(new BooleanOp("EQ", "=="));
+		ops.add(new BooleanOp("NE", "!="));
 
 		for (Operator op : ops) {
 			opsBySymbol.put(op.getSymbol(), op);
@@ -82,6 +88,19 @@ public class JEXLExpressionBuilder {
 
 		public String getExpression(String... args) {
 			return String.format("(%s != 0 ? %s : %s)", args[0], args[1], args[2]);
+		}
+	}
+
+	public static class BooleanOp extends Operator {
+		private final String op;
+		
+		public BooleanOp(final String symbol, final String op) {
+			super(symbol, 2);
+			this.op = op;
+		}
+		
+		public String getExpression(String... args) {
+			return String.format("(%s %s %s ? 1 : 0)", args[0], op, args[1]);
 		}
 	}
 

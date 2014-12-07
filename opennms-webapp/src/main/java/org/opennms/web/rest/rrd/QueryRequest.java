@@ -4,6 +4,9 @@ import javax.xml.bind.annotation.XmlAttribute;
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.bind.annotation.XmlValue;
+
+import com.google.common.base.Objects;
+
 import java.util.LinkedList;
 import java.util.List;
 
@@ -92,6 +95,14 @@ public class QueryRequest {
 
         public void setExpression(final String expression) {
             this.expression = expression;
+        }
+
+        @Override
+        public String toString() {
+            return Objects.toStringHelper(this.getClass())
+            		.add("label", label)
+                    .add("expression", expression)
+                    .toString();
         }
     }
 

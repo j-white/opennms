@@ -25,5 +25,10 @@ public class JEXLExpressionBuilderTest {
     	rpn = "maxMemshared,UN,0,maxMemshared,IF,1024,*";
     	expr = "((( (maxMemshared == __inf) || (maxMemshared == __neg_inf) ? 1 : 0) != 0 ? 0 : maxMemshared) * 1024)";
     	assertEquals(expr, builder.fromRPN(rpn));
+    	
+    	// Pulled from netsnmp.cpuStatsFull
+    	rpn = "0,cpuUse,GE,0,float15,IF";
+    	expr = "((0 >= cpuUse ? 1 : 0) != 0 ? 0 : float15)";
+    	assertEquals(expr, builder.fromRPN(rpn));
     }
 }

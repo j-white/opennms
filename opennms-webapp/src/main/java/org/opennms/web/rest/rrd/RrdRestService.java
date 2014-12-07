@@ -18,6 +18,8 @@ import org.opennms.netmgt.rrd.RrdUtils;
 import org.opennms.netmgt.rrd.jrobin.JRobinRrdStrategy;
 import org.opennms.netmgt.rrd.rrdtool.JniRrdStrategy;
 import org.opennms.web.rest.OnmsRestService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
@@ -35,6 +37,8 @@ import java.util.*;
 @Scope("prototype")
 @Path("/rrd")
 public class RrdRestService extends OnmsRestService {
+	
+	private static final Logger LOG = LoggerFactory.getLogger(RrdRestService.class);
 
     @Autowired
     private ResourceDao m_resourceDao;
@@ -50,6 +54,7 @@ public class RrdRestService extends OnmsRestService {
             final JexlEngine jexl = new JexlEngine();
             final LinkedHashMap<String, Expression> expressions = new LinkedHashMap<String, Expression>();
             for (final QueryRequest.Expression e : request.getExpressions()) {
+            	LOG.debug("Compiling {}", e);
                 expressions.put(e.getLabel(),
                                 jexl.createExpression(e.getExpression()));
             }
@@ -61,28 +66,15 @@ public class RrdRestService extends OnmsRestService {
             response.setEnd(request.getEnd());
 
             // Fetch the data
-            final SortedMap<Long, Map<String, Double>> data;
-            if (findStrategy() instanceof JniRrdStrategy) {
-                data = queryRrd(request.getStep(),
-                                request.getStart(),
-                                request.getEnd(),
-                                request.getSources());
-
-            } else if (findStrategy() instanceof JRobinRrdStrategy) {
-                data = queryJrb(request.getStep(),
-                                request.getStart(),
-                                request.getEnd(),
-                                request.getSources());
-                
-            } else {
-                throw new RuntimeException("No appropriate RRD strategy found");
-            }
+            final SortedMap<Long, Map<String, Double>> data = fetchData(request);
 
             // Do the calculations and build the list of resulting metrics
             final List<QueryResponse.Metric> metrics = new ArrayList<QueryResponse.Metric>(data.size());
             for (final SortedMap.Entry<Long, Map<String, Double>> dataEntry : data.entrySet()) {
+            	long timestamp = dataEntry.getKey();
                 Map<String, Double> values = dataEntry.getValue();
 
+                LOG.debug("Values before expressions @ {}: {}", timestamp, values);
                 for (final Map.Entry<String, Expression> expressionEntry : expressions.entrySet()) {
                     Map<String, Object> jexlValues = new HashMap<String, Object>(values);
                     jexlValues.put("__inf", Double.POSITIVE_INFINITY);
@@ -92,9 +84,10 @@ public class RrdRestService extends OnmsRestService {
                     values.put(expressionEntry.getKey(),
                                (Double) expressionEntry.getValue().evaluate(context));
                 }
+                LOG.debug("Values after expressions @ {}: {}", timestamp, values);
 
                 final QueryResponse.Metric metric = new QueryResponse.Metric();
-                metric.setTimestamp(dataEntry.getKey());
+                metric.setTimestamp(timestamp);
                 metric.setValues(values);
                 metrics.add(metric);
             }
@@ -166,6 +159,24 @@ public class RrdRestService extends OnmsRestService {
             return Response.ok(result, "text/html").build();
         } finally {
             readUnlock();
+        }
+    }
+
+    public SortedMap<Long, Map<String, Double>> fetchData(final QueryRequest request) throws Exception {
+    	if (findStrategy() instanceof JniRrdStrategy) {
+            return queryRrd(request.getStep(),
+                            request.getStart(),
+                            request.getEnd(),
+                            request.getSources());
+
+        } else if (findStrategy() instanceof JRobinRrdStrategy) {
+            return queryJrb(request.getStep(),
+                            request.getStart(),
+                            request.getEnd(),
+                            request.getSources());
+            
+        } else {
+            throw new RuntimeException("No appropriate RRD strategy found");
         }
     }
 
