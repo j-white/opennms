@@ -1,6 +1,7 @@
 package org.opennms.web.rest.rrd;
 
 import com.sun.jersey.spi.resource.PerRequest;
+
 import org.apache.commons.jexl2.*;
 import org.exolab.castor.xml.Unmarshaller;
 import org.jrobin.core.RrdException;
@@ -25,6 +26,7 @@ import org.springframework.util.FileCopyUtils;
 import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+
 import java.io.*;
 import java.util.*;
 
@@ -82,7 +84,10 @@ public class RrdRestService extends OnmsRestService {
                 Map<String, Double> values = dataEntry.getValue();
 
                 for (final Map.Entry<String, Expression> expressionEntry : expressions.entrySet()) {
-                    final JexlContext context = new MapContext(new HashMap<String, Object>(values));
+                    Map<String, Object> jexlValues = new HashMap<String, Object>(values);
+                    jexlValues.put("__inf", Double.POSITIVE_INFINITY);
+                    jexlValues.put("__neg_inf", Double.NEGATIVE_INFINITY);
+                    final JexlContext context = new MapContext(jexlValues);
 
                     values.put(expressionEntry.getKey(),
                                (Double) expressionEntry.getValue().evaluate(context));

@@ -86,7 +86,10 @@ public class RrdGraphConverterRestService extends OnmsRestService {
         } catch (org.jrobin.core.RrdException e) {
         	LOG.error("Failed to create the graph.", e);
             throw new WebApplicationException(Response.Status.INTERNAL_SERVER_ERROR);
-        }
+        } catch (JEXLConversionException e) {
+        	LOG.error("Failed to convert an RPN expression to JEXL.", e);
+            throw new WebApplicationException(Response.Status.INTERNAL_SERVER_ERROR);
+		}
         graph.setModel(ngGraphModel);
 
         return graph;

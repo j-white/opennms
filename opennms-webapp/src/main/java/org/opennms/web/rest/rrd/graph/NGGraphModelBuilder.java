@@ -17,7 +17,7 @@ public class NGGraphModelBuilder extends JRobinRrdStrategy {
         return new RrdGraphDefVisitor();
     }
 
-    public NGGraphModel createNGGraph(final String command, final File workDir) throws RrdException {
+    public NGGraphModel createNGGraph(final String command, final File workDir) throws RrdException, JEXLConversionException {
         RrdGraphDefVisitor visitor = (RrdGraphDefVisitor)createGraphDef(command, workDir);
         return visitor.toModel();
     }
@@ -25,11 +25,16 @@ public class NGGraphModelBuilder extends JRobinRrdStrategy {
     public static class RrdGraphDefVisitor extends RrdGraphDef  {
         private JEXLExpressionBuilder m_jexlBuilder = new JEXLExpressionBuilder();
 
+        private JEXLConversionException m_jexlConversionException = null;
+        
         private NGGraphModel m_model = new NGGraphModel();
 
         private String m_lastRrdPath = null;
 
-        public NGGraphModel toModel() {
+        public NGGraphModel toModel() throws JEXLConversionException {
+        	if (m_jexlConversionException != null) {
+        		throw m_jexlConversionException;
+        	}
             return m_model;
         }
 
@@ -47,7 +52,11 @@ public class NGGraphModelBuilder extends JRobinRrdStrategy {
         }
         
         public void datasource(String name, String rpnExpression) {
-            m_model.addSource(new NGGraphModel.ExpressionSource(name, m_lastRrdPath, m_jexlBuilder.fromRPN(rpnExpression)));
+            try {
+				m_model.addSource(new NGGraphModel.ExpressionSource(name, m_lastRrdPath, m_jexlBuilder.fromRPN(rpnExpression)));
+			} catch (JEXLConversionException e) {
+				m_jexlConversionException = e;
+			}
         }
 
         /*
