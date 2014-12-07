@@ -86,8 +86,13 @@ public class RrdRestService extends OnmsRestService {
                     jexlValues.put("__neg_inf", Double.NEGATIVE_INFINITY);
                     final JexlContext context = new MapContext(jexlValues);
 
-                    values.put(expressionEntry.getKey(),
-                               (Double) expressionEntry.getValue().evaluate(context));
+                    try {
+                    	values.put(expressionEntry.getKey(),
+                                (Double) expressionEntry.getValue().evaluate(context));
+                    } catch (Throwable t) {
+                    	LOG.error("An error occurred while evaluating the expression for {}. Skipping.",
+                    			expressionEntry.getKey(), t);
+                    }
                 }
 
                 final QueryResponse.Metric metric = new QueryResponse.Metric();
