@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2009-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -42,6 +42,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.opennms.core.xml.JaxbUtils;
 import org.opennms.netmgt.config.service.Service;
 import org.opennms.netmgt.config.service.types.InvokeAtType;
 import org.opennms.test.OpenNMSConfigurationExecutionListener;
@@ -130,12 +131,12 @@ public class InvokerTest {
     private static Service[] getServiceList() throws Exception {
         List<Service> serviceList = new ArrayList<Service>();
 
-        serviceList.add(Service.unmarshal(new StringReader("  <service>\n" + 
+        serviceList.add(JaxbUtils.unmarshal(Service.class, new StringReader("  <service>\n" + 
         		"    <name>:Name=XSLTProcessor</name>\n" + 
         		"    <class-name>mx4j.tools.adaptor.http.XSLTProcessor</class-name>\n" + 
         		"  </service>\n" + 
         		"")));
-        serviceList.add(Service.unmarshal(new StringReader("  <service>\n" + 
+        serviceList.add(JaxbUtils.unmarshal(Service.class, new StringReader("  <service>\n" + 
         		"    <name>:Name=HttpAdaptor</name>\n" + 
         		"    <class-name>mx4j.tools.adaptor.http.HttpAdaptor</class-name>\n" + 
         		"    <attribute>\n" + 
@@ -161,7 +162,7 @@ public class InvokerTest {
         		"    <invoke at=\"start\" pass=\"0\" method=\"start\"/>\n" + 
         		"  </service>\n" + 
         		"")));
-        serviceList.add(Service.unmarshal(new StringReader("  <service>\n" + 
+        serviceList.add(JaxbUtils.unmarshal(Service.class, new StringReader("  <service>\n" + 
         		"    <name>:Name=HttpAdaptorMgmt</name>\n" + 
         		"    <class-name>mx4j.tools.adaptor.http.HttpAdaptor</class-name>\n" + 
         		"    <attribute>\n" + 

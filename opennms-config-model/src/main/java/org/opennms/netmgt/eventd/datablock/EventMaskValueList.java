@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2002-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -102,6 +102,7 @@ public class EventMaskValueList extends ArrayList<String> {
      * @param o a {@link java.lang.String} object.
      * @return a boolean.
      */
+    @Override
     public boolean add(String o) {
         boolean ret = super.add(o);
         evaluateHashCode();
@@ -115,6 +116,7 @@ public class EventMaskValueList extends ArrayList<String> {
      * @param index a int.
      * @param o a {@link java.lang.String} object.
      */
+    @Override
     public void add(int index, String o) {
         super.add(index, o);
         evaluateHashCode();
@@ -126,6 +128,7 @@ public class EventMaskValueList extends ArrayList<String> {
      * Override to re-evaluate hashcode
      * @see java.util.ArrayList#addAll(Collection)
      */
+    @Override
     public boolean addAll(Collection<? extends String> o) {
         boolean ret = super.addAll(o);
         evaluateHashCode();
@@ -138,6 +141,7 @@ public class EventMaskValueList extends ArrayList<String> {
      * Override to re-evaluate hashcode
      * @see java.util.ArrayList#addAll(int, Collection)
      */
+    @Override
     public boolean addAll(int index, Collection<? extends String> o) {
         boolean ret = super.addAll(index, o);
         evaluateHashCode();
@@ -149,6 +153,7 @@ public class EventMaskValueList extends ArrayList<String> {
      *
      * @see java.util.ArrayList#clear()
      */
+    @Override
     public void clear() {
         super.clear();
         evaluateHashCode();
@@ -160,6 +165,7 @@ public class EventMaskValueList extends ArrayList<String> {
      * Override to re-evaluate hashcode
      * @see java.util.ArrayList#remove(int)
      */
+    @Override
     public String remove(int index) {
         String obj = super.remove(index);
         evaluateHashCode();
@@ -173,6 +179,7 @@ public class EventMaskValueList extends ArrayList<String> {
      * Override to re-evaluate hashcode
      * @see java.util.ArrayList#removeRange(int,int)
      */
+    @Override
     protected void removeRange(int from, int to) {
         super.removeRange(from, to);
         evaluateHashCode();
@@ -197,6 +204,7 @@ public class EventMaskValueList extends ArrayList<String> {
      * Override to re-evaluate hashcode
      * @see java.util.ArrayList#removeAll(Collection)
      */
+    @Override
     public boolean removeAll(Collection<?> o) {
         boolean ret = super.removeAll(o);
         evaluateHashCode();
@@ -211,6 +219,7 @@ public class EventMaskValueList extends ArrayList<String> {
      * @param o a {@link java.lang.String} object.
      * @return a {@link java.lang.String} object.
      */
+    @Override
     public String set(int index, String o) {
         String old = super.set(index, o);
         evaluateHashCode();
@@ -259,7 +268,7 @@ public class EventMaskValueList extends ArrayList<String> {
         }
 
         if (value.endsWith("%")) {
-            char val[] = value.toCharArray();
+            char[] val = value.toCharArray();
             int len = value.length();
             int lastIndex = len - 1;
 
@@ -295,6 +304,7 @@ public class EventMaskValueList extends ArrayList<String> {
      *
      * @return a hash code for this object
      */
+    @Override
     public int hashCode() {
         if (m_hashCode != -1111) {
             return m_hashCode;

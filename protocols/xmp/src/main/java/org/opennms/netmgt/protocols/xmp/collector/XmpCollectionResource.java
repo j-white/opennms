@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2011-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2009-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -55,29 +55,30 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
 
-import org.opennms.core.utils.ThreadCategory;
-import org.opennms.netmgt.collectd.AbstractCollectionResource;
-import org.opennms.netmgt.collectd.CollectionAgent;
-import org.opennms.netmgt.config.collector.AttributeGroup;
-import org.opennms.netmgt.config.collector.CollectionSetVisitor;
-import org.opennms.netmgt.config.collector.ServiceParameters;
-import org.opennms.netmgt.model.RrdRepository;
+import org.opennms.netmgt.collection.api.AttributeGroup;
+import org.opennms.netmgt.collection.api.CollectionAgent;
+import org.opennms.netmgt.collection.api.CollectionResource;
+import org.opennms.netmgt.collection.api.CollectionSetVisitor;
+import org.opennms.netmgt.collection.support.AbstractCollectionResource;
+import org.opennms.netmgt.rrd.RrdRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
-class XmpCollectionResource extends AbstractCollectionResource 
+public class XmpCollectionResource extends AbstractCollectionResource 
 {
     /* class variables and methods *********************** */
+	private static final Logger LOG = LoggerFactory.getLogger(XmpCollectionResource.class);
+
 
     /* instance variables ******************************** */
-    String nodeTypeName;
-    String instance;
-    String resourceType;
-    int nodeType;
-    Set<AttributeGroup> listOfGroups;
-    CollectionAgent agent;
+    private final String m_nodeTypeName;
+    private final String m_instance;
+    private final String m_resourceType;
+    private final Set<AttributeGroup> m_listOfGroups;
 
     /* constructors  ************************************* */
-    XmpCollectionResource(CollectionAgent agent, String resourceType, String nodeTypeName, String instance) 
+    public XmpCollectionResource(CollectionAgent agent, String resourceType, String nodeTypeName, String instance) 
     {
         super(agent);
 
@@ -89,13 +90,12 @@ class XmpCollectionResource extends AbstractCollectionResource
         // resourceType tells us if we are writing under a separate RRD
         // subdir
 
-        this.agent = agent;
-        this.nodeTypeName = nodeTypeName;
-        if ((resourceType == null) || (resourceType.length() == 0))
-            this.resourceType = null;
-        else
-            this.resourceType = resourceType;
-        nodeType = -1;
+        this.m_nodeTypeName = nodeTypeName;
+        if ((resourceType == null) || (resourceType.length() == 0)) {
+            this.m_resourceType = null;
+        } else {
+            this.m_resourceType = resourceType;
+        }
 
         // filter the instance so it does not have slashes (/) nor colons 
         // in it as they can munge our rrd file layout
@@ -105,34 +105,34 @@ class XmpCollectionResource extends AbstractCollectionResource
         // rdk - 9/11/2009
 
         if (instance != null) {
-            this.instance = instance.replace('/','_');
-            this.instance = this.instance.replace('\\','_');
-            this.instance = this.instance.replace(':','_');
-            this.instance = this.instance.replace(' ','_');
+            String instanceValue = instance.replace('/','_');
+            instanceValue = instanceValue.replace('\\','_');
+            instanceValue = instanceValue.replace(':','_');
+            instanceValue = instanceValue.replace(' ','_');
+            this.m_instance = instanceValue;
         }
         else {
-            this.instance = instance;
+            this.m_instance = null;
         }
 
-        listOfGroups = new HashSet<AttributeGroup>();
+        m_listOfGroups = new HashSet<AttributeGroup>();
     }
 
     /* private methods *********************************** */
-    private ThreadCategory log() {
-        return ThreadCategory.getInstance(getClass());
-    }
+    
 
     /* public methods ************************************ */
 
     // get the location where we are supposed to write our data to
     /** {@inheritDoc} */
+    @Override
     public File getResourceDir(RrdRepository repository)
     {
 
         // if we are a collection resource for scalars,
         // return what our super class would return
 
-        if (nodeTypeName.equalsIgnoreCase("node")) {
+        if (m_nodeTypeName.equalsIgnoreCase(CollectionResource.RESOURCE_TYPE_NODE)) {
             return new File(repository.getRrdBaseDir(), getParent());
         }
 
@@ -152,12 +152,12 @@ class XmpCollectionResource extends AbstractCollectionResource
         File nodeDir = new File(rrdBaseDir, getParent());
 
         // if we have a resourceType, put instances under it
-        if (resourceType != null) {
-            rtDir = new File(nodeDir,resourceType);
-            instDir = new File(rtDir,instance);
+        if (m_resourceType != null) {
+            rtDir = new File(nodeDir,m_resourceType);
+            instDir = new File(rtDir,m_instance);
         }
         else {
-            instDir = new File(nodeDir,instance);
+            instDir = new File(nodeDir,m_instance);
         }
 
         return instDir;
@@ -166,11 +166,11 @@ class XmpCollectionResource extends AbstractCollectionResource
     /**
      * <p>addAttributeGroup</p>
      *
-     * @param aGroup a {@link org.opennms.netmgt.config.collector.AttributeGroup} object.
+     * @param aGroup a {@link org.opennms.netmgt.collection.api.AttributeGroup} object.
      */
     public void addAttributeGroup(AttributeGroup aGroup)  
     {  
-        listOfGroups.add(aGroup);
+        m_listOfGroups.add(aGroup);
     }
 
     /**
@@ -178,76 +178,45 @@ class XmpCollectionResource extends AbstractCollectionResource
      *
      * @return a {@link java.lang.String} object.
      */
+    @Override
     public String getInstance()
     {
         // for node level resources, no instance
-        return instance;
+        return m_instance;
     }
-
-    /**
-     * <p>Setter for the field <code>instance</code>.</p>
-     *
-     * @param instance a {@link java.lang.String} object.
-     */
-    public void setInstance(String instance) { this.instance = instance; }
 
     /**
      * <p>getResourceTypeName</p>
      *
      * @return a {@link java.lang.String} object.
      */
-    public String getResourceTypeName() { return nodeTypeName; };
+    @Override
+    public String getResourceTypeName() { return m_nodeTypeName; };
 
-    /**
-     * <p>setResourceTypeName</p>
-     *
-     * @param nodeTypeName a {@link java.lang.String} object.
-     */
-    public void setResourceTypeName(String nodeTypeName) { this.nodeTypeName = nodeTypeName; }
-
-    // return -1 for non-tabular; what do we return for 
-    // for interface or tabular data?
-
-    /**
-     * <p>getType</p>
-     *
-     * @return a int.
-     */
-    public int getType() { return nodeType; }
-    /**
-     * <p>setType</p>
-     *
-     * @param nodeType a int.
-     */
-    public void setType(int nodeType) { this.nodeType = nodeType; }
-
-    /**
-     * <p>rescanNeeded</p>
-     *
-     * @return a boolean.
-     */
-    public boolean rescanNeeded() { return false; }
-    /** {@inheritDoc} */
-    public boolean shouldPersist(ServiceParameters params) { return true; }
 
     /**
      * <p>getGroups</p>
      *
      * @return a {@link java.util.Collection} object.
      */
-    public Collection<AttributeGroup>getGroups() { return listOfGroups; }
+    public Collection<AttributeGroup>getGroups() { return m_listOfGroups; }
 
     /**
      * <p>toString</p>
      *
      * @return a {@link java.lang.String} object.
      */
-    public String toString() { return "XmpCollectionResource for "+agent+" resType="+resourceType+" instance="+instance+" nodeType="+nodeTypeName+" nodeType="+nodeType; }
+    @Override
+    public String toString() { return "XmpCollectionResource for "+m_agent+" resType="+m_resourceType+" instance="+m_instance+" nodeType="+m_nodeTypeName; }
 
-    /** {@inheritDoc} */
+    /**
+     * @deprecated This class should be changed to store its {@link AttributeGroup}
+     * collection in {@link #m_attributeGroups} like all of the other implementations do. 
+     */
+    @Override
     public void visit(CollectionSetVisitor visitor) 
     { 
-        log().debug("XmpCollectionResource: visit starting with "+ getGroups().size()+" attribute groups");
+        LOG.debug("XmpCollectionResource: visit starting with {} attribute groups", getGroups().size());
 
         visitor.visitResource(this);
 
@@ -258,12 +227,8 @@ class XmpCollectionResource extends AbstractCollectionResource
 
         visitor.completeResource(this);
 
-        log().debug("XmpCollectionResource: visit finished for "+agent);
+        LOG.debug("XmpCollectionResource: visit finished for {}", m_agent);
 
     } /* visit */
-
-    public String getParent() {
-        return agent.getStorageDir().toString();
-    }
 
 } /* class XmpCollectionResource */

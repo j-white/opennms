@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2006-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -28,10 +28,8 @@
 
 package org.opennms.web.element;
 
-import java.util.HashMap;
-import java.util.Map;
-
-import org.opennms.netmgt.linkd.DbAtInterfaceEntry;
+import org.opennms.netmgt.model.OnmsArpInterface;
+import org.opennms.netmgt.model.OnmsArpInterface.StatusType;
 
 /**
  * <p>AtInterface class.</p>
@@ -46,33 +44,18 @@ public class AtInterface
         private final String  m_ipaddr;
         private final String  m_physaddr;
         private final String  m_lastPollTime;
-        private final char    m_status;
-
-        private static final Map<Character, String> statusMap = new HashMap<Character, String>();
-
-        static {
-            statusMap.put( DbAtInterfaceEntry.STATUS_ACTIVE, "Active" );
-            statusMap.put( DbAtInterfaceEntry.STATUS_UNKNOWN, "Unknown" );
-            statusMap.put( DbAtInterfaceEntry.STATUS_DELETED, "Deleted" );
-            statusMap.put( DbAtInterfaceEntry.STATUS_NOT_POLLED, "Not Active" );
-        }
+        private final String  m_status;
 
         /* package-protected so only the NetworkElementFactory can instantiate */
-        AtInterface(   int nodeId,
-                int sourcenodeid,
-				int ifindex,
-                String ipaddr,
-                String physaddr,
-                String lastPollTime,
-                char status)
+        AtInterface(OnmsArpInterface iface)
         {
-                m_nodeId = nodeId;
-                m_sourcenodeid = sourcenodeid;
-				m_ifindex = ifindex;
-                m_ipaddr = ipaddr;
-                m_physaddr = physaddr;
-                m_lastPollTime = lastPollTime; 
-                m_status = status;
+                m_nodeId = iface.getNode().getId();
+                m_sourcenodeid = iface.getSourceNode().getId();
+				m_ifindex = iface.getIfIndex();
+                m_ipaddr = iface.getIpAddress();
+                m_physaddr = iface.getPhysAddr();
+                m_lastPollTime = iface.getLastPoll().toString(); 
+                m_status = StatusType.getStatusString(iface.getStatus().getCharCode());
         }
 
         /**
@@ -80,6 +63,7 @@ public class AtInterface
          *
          * @return a {@link java.lang.String} object.
          */
+        @Override
         public String toString()
         {
                 StringBuffer str = new StringBuffer("Node Id = " + m_nodeId + "\n" );
@@ -148,7 +132,7 @@ public class AtInterface
 		 *
 		 * @return a char.
 		 */
-		public char get_status() {
+		public String get_status() {
 			return m_status;
 		}
 

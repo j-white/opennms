@@ -2,22 +2,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2009-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2009-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -32,15 +32,11 @@
 <%@ page contentType="text/html;charset=UTF-8" language="java"%>
 <%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"%>
 
-<%@page import="java.util.Set"%>
-
-<%@page import="org.opennms.netmgt.provision.persist.foreignsource.ForeignSource" %>
-<%@page import="org.opennms.web.servlet.XssRequestWrapper" %>
-
 <jsp:include page="/includes/header.jsp" flush="false" >
 	<jsp:param name="title" value="Requisition Node" />
 	<jsp:param name="headTitle" value="Provisioning Requisitions" />
 	<jsp:param name="headTitle" value="Add Node" />
+	<jsp:param name="location" value="addNode" />		
 	<jsp:param name="breadcrumb" value="<a href='admin/index.jsp'>Admin</a>" />
 	<jsp:param name="breadcrumb" value="<a href='admin/provisioningGroups.htm'>Provisioning Requisitions</a>" />
 	<jsp:param name="breadcrumb" value="Node Quick-Add" />
@@ -163,7 +159,7 @@
 				<td>Access Method:</td>
 				<td>
 					<select name="accessMethod" >
-					<option value="" selected="true">--</option>
+					<option value="" selected="selected">--</option>
 					<option value="rsh">RSH</option>
 					<option value="ssh">SSH</option>
 					<option value="telnet">Telnet</option>

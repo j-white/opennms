@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2002-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -31,7 +31,6 @@ package org.opennms.core.resource.db;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
-import java.util.Properties;
 
 /**
  * A trivial implementation of <code>DbConnectionFactory</code> that creates a
@@ -54,14 +53,12 @@ import java.util.Properties;
  *
  * @author <A HREF="mailto:larry@opennms.org">Lawrence Karnowski </A>
  */
-public class SimpleDbConnectionFactory extends Object implements DbConnectionFactory {
-    protected String url = null;
+public class SimpleDbConnectionFactory implements DbConnectionFactory {
+    private String url = null;
 
-    protected String username = null;
+    private String username = null;
 
-    protected String password = null;
-
-    protected Properties properties = null;
+    private String password = null;
 
     /**
      * {@inheritDoc}
@@ -71,7 +68,8 @@ public class SimpleDbConnectionFactory extends Object implements DbConnectionFac
      * database credentials. When a connection is requested, a new connection
      * will be made using the credentials.
      */
-    public void init(String dbUrl, String dbDriver, String username, String password) throws ClassNotFoundException, SQLException {
+    @Override
+    public void init(String dbUrl, String dbDriver, String username, String password) throws ClassNotFoundException {
         if (dbUrl == null || dbDriver == null || username == null || password == null) {
             throw new IllegalArgumentException("Cannot take null parameters.");
         }
@@ -87,11 +85,11 @@ public class SimpleDbConnectionFactory extends Object implements DbConnectionFac
      * Clear all database URL and credential information so no more connections
      * can be requested.
      */
+    @Override
     public void destroy() {
         this.url = null;
         this.username = null;
         this.password = null;
-        this.properties = null;
     }
 
     /**
@@ -103,6 +101,7 @@ public class SimpleDbConnectionFactory extends Object implements DbConnectionFac
      * @return a {@link java.sql.Connection} object.
      * @throws java.sql.SQLException if any.
      */
+    @Override
     public Connection getConnection() throws SQLException {
         if (this.url == null) {
             throw new IllegalArgumentException("This database factory has not been initialized or has been destroyed.");
@@ -110,9 +109,7 @@ public class SimpleDbConnectionFactory extends Object implements DbConnectionFac
 
         Connection connection = null;
 
-        if (this.properties != null) {
-            connection = DriverManager.getConnection(this.url, this.properties);
-        } else if (this.username != null && this.password != null) {
+        if (this.username != null && this.password != null) {
             connection = DriverManager.getConnection(this.url, this.username, this.password);
         } else {
             connection = DriverManager.getConnection(this.url);
@@ -126,6 +123,7 @@ public class SimpleDbConnectionFactory extends Object implements DbConnectionFac
      *
      * Close the given connection.
      */
+    @Override
     public void releaseConnection(Connection connection) throws SQLException {
         if (connection == null) {
             throw new IllegalArgumentException("Cannot take null parameters.");

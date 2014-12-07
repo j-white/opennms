@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2007-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2006-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -38,18 +38,24 @@ import java.util.Set;
 
 import org.opennms.core.utils.InetAddressUtils;
 import org.opennms.core.utils.LazySet;
-import org.opennms.core.utils.ThreadCategory;
-import org.opennms.netmgt.dao.LocationMonitorDao;
-import org.opennms.netmgt.dao.ResourceDao;
+import org.opennms.netmgt.dao.api.LocationMonitorDao;
+import org.opennms.netmgt.dao.api.ResourceDao;
 import org.opennms.netmgt.model.LocationMonitorIpInterface;
 import org.opennms.netmgt.model.OnmsAttribute;
 import org.opennms.netmgt.model.OnmsIpInterface;
 import org.opennms.netmgt.model.OnmsResource;
 import org.opennms.netmgt.model.OnmsResourceType;
+import org.opennms.netmgt.model.ResourceTypeUtils;
+import org.opennms.netmgt.rrd.RrdFileConstants;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataAccessException;
 import org.springframework.orm.ObjectRetrievalFailureException;
 
 public class DistributedStatusResourceType implements OnmsResourceType {
+    
+    private static final Logger LOG = LoggerFactory.getLogger(DistributedStatusResourceType.class);
+    
     /** Constant <code>DISTRIBUTED_DIRECTORY="distributed"</code> */
     public static final String DISTRIBUTED_DIRECTORY = "distributed";
     
@@ -59,8 +65,8 @@ public class DistributedStatusResourceType implements OnmsResourceType {
     /**
      * <p>Constructor for DistributedStatusResourceType.</p>
      *
-     * @param resourceDao a {@link org.opennms.netmgt.dao.ResourceDao} object.
-     * @param locationMonitorDao a {@link org.opennms.netmgt.dao.LocationMonitorDao} object.
+     * @param resourceDao a {@link org.opennms.netmgt.dao.api.ResourceDao} object.
+     * @param locationMonitorDao a {@link org.opennms.netmgt.dao.api.LocationMonitorDao} object.
      */
     public DistributedStatusResourceType(ResourceDao resourceDao, LocationMonitorDao locationMonitorDao) {
         m_resourceDao = resourceDao;
@@ -72,6 +78,7 @@ public class DistributedStatusResourceType implements OnmsResourceType {
      *
      * @return a {@link java.lang.String} object.
      */
+    @Override
     public String getLabel() {
         return "Distributed Status";
     }
@@ -81,17 +88,19 @@ public class DistributedStatusResourceType implements OnmsResourceType {
      *
      * @return a {@link java.lang.String} object.
      */
+    @Override
     public String getName() {
         return "distributedStatus";
     }
 
     /** {@inheritDoc} */
+    @Override
     public List<OnmsResource> getResourcesForDomain(String domain) {
-        List<OnmsResource> empty = Collections.emptyList();
-        return empty;
+        return Collections.emptyList();
     }
 
     /** {@inheritDoc} */
+    @Override
     public List<OnmsResource> getResourcesForNode(int nodeId) {
         LinkedList<OnmsResource> resources =
             new LinkedList<OnmsResource>();
@@ -169,24 +178,27 @@ public class DistributedStatusResourceType implements OnmsResourceType {
     }
     
     /** {@inheritDoc} */
+    @Override
     public boolean isResourceTypeOnNodeSource(String nodeSource, int nodeId) {
         // is this right?
         return false;
     }
     
     /** {@inheritDoc} */
+    @Override
     public List<OnmsResource> getResourcesForNodeSource(String nodeSource, int nodeId) {
-        // is this right?
-        List<OnmsResource> empty = Collections.emptyList();
-        return empty;
+        // TODO: is this right?
+        return Collections.emptyList();
     }
 
     /** {@inheritDoc} */
+    @Override
     public boolean isResourceTypeOnDomain(String domain) {
         return false;
     }
 
     /** {@inheritDoc} */
+    @Override
     public boolean isResourceTypeOnNode(int nodeId) {
         return getResourcesForNode(nodeId).size() > 0;
     }
@@ -217,7 +229,7 @@ public class DistributedStatusResourceType implements OnmsResourceType {
     */
 
     private String getDefinitionNameFromLocationMonitorDirectory(String dir) {
-        int index = dir.indexOf("-");
+        int index = dir.indexOf('-');
         if (index == -1) {
             throw new IllegalArgumentException("Location monitor directory \""
                                                + dir + "\" isn't a valid "
@@ -227,7 +239,7 @@ public class DistributedStatusResourceType implements OnmsResourceType {
     }
 
     private int getLocationMonitorIdFromLocationMonitorDirectory(String dir) {
-        int index = dir.indexOf("-");
+        int index = dir.indexOf('-');
         if (index == -1) {
             throw new IllegalArgumentException("Location monitor directory \""
                                                + dir + "\" isn't a valid "
@@ -255,7 +267,7 @@ public class DistributedStatusResourceType implements OnmsResourceType {
      * @return a {@link java.lang.String} object.
      */
     public String getRelativeInterfacePath(int id, String ipAddr) {
-        return DefaultResourceDao.RESPONSE_DIRECTORY
+        return ResourceTypeUtils.RESPONSE_DIRECTORY
             + File.separator + DISTRIBUTED_DIRECTORY
             + File.separator + Integer.toString(id)
             + File.separator + ipAddr;
@@ -276,10 +288,6 @@ public class DistributedStatusResourceType implements OnmsResourceType {
         return locationMonitorDirectory;
     }
     
-    private ThreadCategory log() {
-        return ThreadCategory.getInstance();
-    }
-    
     public class AttributeLoader implements LazySet.Loader<OnmsAttribute> {
         private String m_definitionName;
         private int m_locationMonitorId;
@@ -291,16 +299,16 @@ public class DistributedStatusResourceType implements OnmsResourceType {
             m_intf = intf;
         }
 
+        @Override
         public Set<OnmsAttribute> load() {
-            if (log().isDebugEnabled()) {
-                log().debug("lazy-loading attributes for distributed status resource " + (m_definitionName + "-" + m_locationMonitorId + "/" + m_intf));
-            }
+            LOG.debug("lazy-loading attributes for distributed status resource {}-{}/{}", m_definitionName, m_locationMonitorId, m_intf);
             
             return ResourceTypeUtils.getAttributesAtRelativePath(m_resourceDao.getRrdDirectory(), getRelativeInterfacePath(m_locationMonitorId, m_intf));
         }
     }
 
     /** {@inheritDoc} */
+    @Override
     public String getLinkForResource(OnmsResource resource) {
         return null;
     }

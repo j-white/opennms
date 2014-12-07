@@ -2,22 +2,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2002-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -35,9 +35,8 @@
 	buffer="1024kb"
 	import="java.util.*,
 		org.opennms.web.element.NetworkElementFactory,
-		org.opennms.netmgt.model.OnmsSeverity,
-		org.opennms.web.event.*
-		"
+		org.opennms.netmgt.model.OnmsSeverity
+	"
 %>
 <%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c" %> 
 <%@ taglib uri="http://java.sun.com/jsp/jstl/fmt" prefix="fmt" %> 
@@ -46,7 +45,6 @@
     //get the service names, in alpha order
     Map<String, Integer> serviceNameMap = new TreeMap<String, Integer>(NetworkElementFactory.getInstance(getServletContext()).getServiceNameToIdMap());
     Set<String> serviceNameSet = serviceNameMap.keySet();
-    Iterator<String> serviceNameIterator = serviceNameSet.iterator();
 
 %>
 
@@ -71,10 +69,10 @@
 
 
 <form action="event/query" method="get">
-  <table width="100%" border="0" cellpadding="2" cellspacing="0">
+  <table width="100%">
     <tr>
       <td valign="top">
-        <table width="100%" border="0" cellpadding="2" cellspacing="0" >
+        <table width="100%">
           <tr>
             <td>Event Text Contains:</td>
             <td>TCP/IP Address Like:</td>
@@ -116,8 +114,7 @@
               <select name="service" size="1">
                 <option selected>Any</option>
 
-                <% while( serviceNameIterator.hasNext() ) { %>
-                  <% String name = (String)serviceNameIterator.next(); %>
+                <% for (String name : serviceNameSet) { %>
                   <option value="<%=serviceNameMap.get(name)%>"><%=name%></option>
                 <% } %>
               </select>

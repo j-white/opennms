@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2006-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -39,9 +39,9 @@ import org.hibernate.SessionFactory;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.opennms.core.spring.BeanUtils;
 import org.opennms.core.test.OpenNMSJUnit4ClassRunner;
 import org.opennms.core.test.db.annotations.JUnitTemporaryDatabase;
-import org.opennms.core.utils.BeanUtils;
 import org.opennms.netmgt.dao.DatabasePopulator;
 import org.opennms.netmgt.model.OnmsAlarm;
 import org.opennms.netmgt.model.OnmsAssetRecord;
@@ -69,7 +69,9 @@ import org.springframework.transaction.annotation.Transactional;
         "classpath:/META-INF/opennms/applicationContext-dao.xml",
         "classpath:/META-INF/opennms/applicationContext-databasePopulator.xml",
         "classpath:/META-INF/opennms/applicationContext-setupIpLike-enabled.xml",
-        "classpath*:/META-INF/opennms/component-dao.xml"
+        "classpath*:/META-INF/opennms/component-dao.xml",
+        "classpath:/META-INF/opennms/applicationContext-minimal-conf.xml",
+        "classpath:/META-INF/opennms/applicationContext-commonConfigs.xml"
 })
 @JUnitConfigurationEnvironment
 @JUnitTemporaryDatabase
@@ -97,9 +99,11 @@ public class AnnotationTest implements InitializingBean {
 	
 	public class NullChecker<T> implements Checker<T> {
 
+                @Override
 		public void check(T entity) {
 		}
 
+                @Override
 		public void checkCollection(Collection<T> collection) {
 		}
 		
@@ -107,6 +111,7 @@ public class AnnotationTest implements InitializingBean {
 
 
 	public abstract class EmptyChecker<T> implements Checker<T> {
+                @Override
 		public void checkCollection(Collection<T> collection) {
 			assertFalse("collection should not be empty", collection.isEmpty());
 		}
@@ -117,6 +122,7 @@ public class AnnotationTest implements InitializingBean {
 	public void testDistPoller() {
 		assertLoadAll(OnmsDistPoller.class, new EmptyChecker<OnmsDistPoller>() {
 
+                        @Override
 			public void check(OnmsDistPoller entity) {
 				assertNotNull("name not should be null", entity.getName());
 			}
@@ -129,6 +135,7 @@ public class AnnotationTest implements InitializingBean {
 	public void testAssetRecord() {
 		assertLoadAll(OnmsAssetRecord.class, new EmptyChecker<OnmsAssetRecord>() {
 
+                        @Override
 			public void check(OnmsAssetRecord entity) {
 				assertNotNull("node should not be null", entity.getNode());
 				assertNotNull("node label should not be null", entity.getNode().getLabel());
@@ -142,6 +149,7 @@ public class AnnotationTest implements InitializingBean {
 	public void testNode() {
 		assertLoadAll(OnmsNode.class, new EmptyChecker<OnmsNode>() {
 
+                        @Override
 			public void check(OnmsNode entity) {
 				assertNotNull("asset record should not be null", entity.getAssetRecord());
 				assertNotNull("asset record ID should not be null", entity.getAssetRecord().getId());
@@ -164,6 +172,7 @@ public class AnnotationTest implements InitializingBean {
 	public void testIpInterfaces() {
 		assertLoadAll(OnmsIpInterface.class, new EmptyChecker<OnmsIpInterface>() {
 
+                        @Override
 			public void check(OnmsIpInterface entity) {
 				assertNotNull("ip address should not be null", entity.getIpAddress());
 				assertNotNull("node should not be null", entity.getNode());
@@ -180,6 +189,7 @@ public class AnnotationTest implements InitializingBean {
 	public void testSnmpInterfaces() {
 		assertLoadAll(OnmsSnmpInterface.class, new EmptyChecker<OnmsSnmpInterface>() {
 
+                        @Override
 			public void check(OnmsSnmpInterface entity) {
 				assertNotNull("ifindex should not be null", entity.getIfIndex());
 				assertNotNull("node should not be null", entity.getNode());
@@ -197,6 +207,7 @@ public class AnnotationTest implements InitializingBean {
 	public void testCategories() {
 		assertLoadAll(OnmsCategory.class, new EmptyChecker<OnmsCategory>() {
 
+                        @Override
 			public void check(OnmsCategory entity) {
 				assertNotNull("name should not be null", entity.getName());
 			}
@@ -209,6 +220,7 @@ public class AnnotationTest implements InitializingBean {
 	public void testMonitoredServices() {
 		assertLoadAll(OnmsMonitoredService.class, new EmptyChecker<OnmsMonitoredService>() {
 
+                        @Override
 			public void check(OnmsMonitoredService entity) {
 				assertNotNull("ip interface should be null", entity.getIpInterface());
 				assertNotNull("ip address should not be null", entity.getIpAddress());
@@ -227,6 +239,7 @@ public class AnnotationTest implements InitializingBean {
 	public void testServiceTypes() {
 		assertLoadAll(OnmsServiceType.class, new EmptyChecker<OnmsServiceType>() {
 
+                        @Override
 			public void check(OnmsServiceType entity) {
 				assertNotNull("id should not be null", entity.getId());
 				assertNotNull("name should not be null", entity.getName());
@@ -240,6 +253,7 @@ public class AnnotationTest implements InitializingBean {
     public void testOutages() {
 		assertLoadAll(OnmsOutage.class, new EmptyChecker<OnmsOutage>() {
 
+                        @Override
 			public void check(OnmsOutage entity) {
 				assertNotNull("monitored service should not be null", entity.getMonitoredService());
 				assertNotNull("ip address should not be null", entity.getIpAddress());
@@ -261,6 +275,7 @@ public class AnnotationTest implements InitializingBean {
 	public void testEvents() {
 		assertLoadAll(OnmsEvent.class, new EmptyChecker<OnmsEvent>() {
 
+                        @Override
 			public void check(OnmsEvent entity) {
 				if (entity.getAlarm() != null) {
 					assertEquals("event UEI should equal the alarm UEI", entity.getEventUei(), entity.getAlarm().getUei());
@@ -283,6 +298,7 @@ public class AnnotationTest implements InitializingBean {
     public void testAlarms() {
 		assertLoadAll(OnmsAlarm.class, new EmptyChecker<OnmsAlarm>() {
 
+                        @Override
 			public void check(OnmsAlarm entity) {
 				assertNotNull("last event should not be null", entity.getLastEvent());
 				assertEquals("alarm UEI should match the last event UEI", entity.getUei(), entity.getLastEvent().getEventUei());

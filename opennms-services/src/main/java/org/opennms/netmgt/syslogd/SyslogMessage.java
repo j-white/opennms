@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2010-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2010-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -36,10 +36,13 @@ import java.util.TimeZone;
 
 import org.apache.commons.lang.builder.ToStringBuilder;
 import org.opennms.core.utils.InetAddressUtils;
-import org.opennms.core.utils.LogUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class SyslogMessage {
+    private static final Logger LOG = LoggerFactory.getLogger(SyslogMessage.class);
     private static final ThreadLocal<DateFormat> m_dateFormat = new ThreadLocal<DateFormat>() {
+        @Override
         protected DateFormat initialValue() {
             final DateFormat dateFormat = new SimpleDateFormat("MMM dd HH:mm:ss");
             dateFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
@@ -48,6 +51,7 @@ public class SyslogMessage {
     };
 
     private static final ThreadLocal<DateFormat> m_rfc3339Format = new ThreadLocal<DateFormat>() {
+        @Override
         protected DateFormat initialValue() {
             final DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
             dateFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
@@ -132,7 +136,7 @@ public class SyslogMessage {
                 final InetAddress address = InetAddressUtils.addr(m_hostname);
                 return InetAddressUtils.str(address).replace("/", "");
             } catch (final IllegalArgumentException e) {
-                LogUtils.debugf(this, e, "Unable to resolve hostname '%s' in syslog message.", m_hostname);
+                LOG.debug("Unable to resolve hostname '{}' in syslog message.", m_hostname, e);
                 return null;
             }
         }
@@ -214,6 +218,7 @@ public class SyslogMessage {
         return m_fullText;
     }
 
+    @Override
     public String toString() {
         return new ToStringBuilder(this)
             .append("facility", m_facility)

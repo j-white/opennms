@@ -2,22 +2,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2002-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -34,12 +34,11 @@
 	session="true"
 %>
 <%@page import="java.util.*" %>
-<%@page import="javax.servlet.*" %>
 <%@page import="org.opennms.netmgt.config.*" %>
 <%@page import="org.opennms.netmgt.config.users.*" %>
 <%
 	UserManager userFactory;
-  	Map users = null;
+  	Map<String,User> users = null;
 	
 	try
     	{
@@ -62,6 +61,8 @@
   <jsp:param name="breadcrumb" value="<a href='admin/userGroupView/index.jsp'>Users and Groups</a>" />
   <jsp:param name="breadcrumb" value="User List" />
 </jsp:include>
+
+<link rel="stylesheet" href="css/font-awesome-4.0.3/css/font-awesome.min.css">
 
 <script type="text/javascript" >
 
@@ -121,13 +122,13 @@
   user.
 </p>
 
-<a id="doNewUser" href="javascript:addNewUser()"><img src="images/add1.gif" alt="Add new user" border="0"></a>
-<a href="javascript:addNewUser()">Add New User</a>
+<p>
+  <a id="doNewUser" href="javascript:addNewUser()">
+    <i class="fa fa-plus-circle fa-2x"></i> Add new user
+  </a>
+</p>
 
-<br/>
-<br/>
-
-     <table width="100%" border="1" cellspacing="0" cellpadding="2" bordercolor="black">
+     <table width="100%" border="1" bordercolor="black">
 
          <tr bgcolor="#999999">
           <td width="5%"><b>Delete</b></td>
@@ -140,16 +141,14 @@
           <td width="15%"><b>XMPP Address</b></td>
           <!--
           <td width="10%"><b>Num Service</b></td>
-          <td width="10%"><b>Num Pin</b></td>
+          <td width="10%"><b>Num PIN</b></td>
           <td width="15%"><b>Text Service</b></td>
-          <td width="15%"><b>Text Pin</b></td>
+          <td width="15%"><b>Text PIN</b></td>
           -->
         </tr>
-        <% Iterator i = users.keySet().iterator();
+        <% 
            int row = 0;
-           while(i.hasNext()) 
-           {
-              User curUser = (User)users.get(i.next());
+           for (User curUser : users.values()) {
 	      String userid = curUser.getUserId();
 	      String email = userFactory.getEmail(userid);
 	      String pagerEmail = userFactory.getPagerEmail(userid);
@@ -159,19 +158,18 @@
 	      String numericPin = userFactory.getNumericPin(userid);
 	      String textPin = userFactory.getTextPin(userid);
          %>
-         <tr bgcolor=<%=row%2==0 ? "#ffffff" : "#cccccc"%>>
+         <tr bgcolor=<%=row%2==0 ? "#ffffff" : "#cccccc"%> id="user-<%= userid %>">
           <% if (!curUser.getUserId().equals("admin")) { %>
           <td width="5%" rowspan="2" align="center"> 
-            <a id="<%= "users("+curUser.getUserId()+").doDelete" %>" href="javascript:deleteUser('<%=curUser.getUserId()%>')" onclick="return confirm('Are you sure you want to delete the user <%=curUser.getUserId()%>?')"><img src="images/trash.gif" alt="<%="Delete " + curUser.getUserId()%>"></a> 
-            
+            <a id="<%= "users("+curUser.getUserId()+").doDelete" %>" href="javascript:deleteUser('<%=curUser.getUserId()%>')" onclick="return confirm('Are you sure you want to delete the user <%=curUser.getUserId()%>?')"><i class="fa fa-trash-o fa-2x"></i></a> 
           </td>
           <% } else { %>
           <td width="5%" rowspan="2" align="center">
-            <img id="<%= "users("+curUser.getUserId()+").doDelete" %>" src="images/trash.gif" alt="Cannot delete admin user">
+            <i class="fa fa-trash-o fa-2x" onclick="alert('Sorry, the admin user cannot be deleted.')"></i>
           </td>
           <% } %>
           <td width="5%" rowspan="2" align="center">
-            <a id="<%= "users("+curUser.getUserId()+").doModify" %>" href="javascript:modifyUser('<%=curUser.getUserId()%>')"><img src="images/modify.gif"></a>
+            <a id="<%= "users("+curUser.getUserId()+").doModify" %>" href="javascript:modifyUser('<%=curUser.getUserId()%>')"><i class="fa fa-edit fa-2x"></i></a>
           </td>
           <td width="5%" rowspan="2" align="center">
             <% if ( !curUser.getUserId().equals("admin")) { %>

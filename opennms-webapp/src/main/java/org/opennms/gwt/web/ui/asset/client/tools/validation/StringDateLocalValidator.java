@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2011-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2011-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -44,8 +44,6 @@ public class StringDateLocalValidator implements Validator {
 
 	private final DateTimeFormat m_formater = DateTimeFormat.getFormat("yyyy-MM-dd");
 
-	private String m_dateString = "";
-
 	/**
 	 * Validates if the string representation of given object is parseable to an
 	 * {@link Date}. The expected format is "yyyy-MM-dd". The given object will
@@ -56,8 +54,9 @@ public class StringDateLocalValidator implements Validator {
 	@Override
 	public String validate(Object object) {
 
+	    String dateString = "";
 		try {
-			m_dateString = (String) object;
+			dateString = (String) object;
 		} catch (Exception e) {
 			// GWT.LOG("DATETIMEFORMATVALIDATOR: CAN'T CAST OBJECT: " + OBJECT +
 			// " TO STRING");
@@ -65,13 +64,13 @@ public class StringDateLocalValidator implements Validator {
 			// it's a STRING-validator... so nothing happens
 		}
 
-		if (m_dateString.equals("")) {
+		if (dateString.equals("")) {
 			return "";
 		}
 
 		try {
 			// GWT.log("DateTimeFormatValidator: m_DateSting: " + m_dateString);
-			m_formater.parseStrict(m_dateString);
+			m_formater.parseStrict(dateString);
 		} catch (Exception e) {
 			// GWT.log("DateTimeFormatValidator: m_DateSting: " + m_dateString +
 			// " can't be formated by m_formater; " + "yyyy-MM-dd");

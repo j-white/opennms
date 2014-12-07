@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2005-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -32,13 +32,15 @@ import java.lang.reflect.InvocationTargetException;
 import java.net.MalformedURLException;
 import java.util.Collection;
 import java.util.Hashtable;
+import java.util.List;
 import java.util.Map;
 import java.util.Vector;
 
 import org.apache.xmlrpc.WebServer;
 import org.apache.xmlrpc.XmlRpcException;
 import org.apache.xmlrpc.XmlRpcHandler;
-import org.opennms.core.utils.ThreadCategory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.support.ArgumentConvertingMethodInvoker;
@@ -52,6 +54,8 @@ import org.springframework.util.MethodInvoker;
  * @version $Id: $
  */
 public class XmlRpcServiceExporter extends RemoteExporter implements InitializingBean, DisposableBean, XmlRpcHandler {
+	
+	private static final Logger LOG = LoggerFactory.getLogger(XmlRpcServiceExporter.class);
     
     private WebServer webServer;
     private Object proxy;
@@ -119,6 +123,7 @@ public class XmlRpcServiceExporter extends RemoteExporter implements Initializin
      *
      * @throws java.lang.Exception if any.
      */
+    @Override
     public void destroy() throws Exception {
         if (serviceName == null || "".equals(serviceName)) {
             this.webServer.removeHandler("$default");
@@ -138,6 +143,7 @@ public class XmlRpcServiceExporter extends RemoteExporter implements Initializin
             super(code, message);
         }
         
+        @Override
         public String toString() {
             return getMessage();
         }
@@ -145,9 +151,10 @@ public class XmlRpcServiceExporter extends RemoteExporter implements Initializin
     }
 
     /** {@inheritDoc} */
-    public Object execute(String method, @SuppressWarnings("unchecked") Vector params) throws Exception {
+    @Override
+    public Object execute(String method, @SuppressWarnings("rawtypes") Vector params) throws Exception {
         
-        log().debug("calling: "+method+'('+toArgList(params)+')');
+        LOG.debug("calling: {}({})", method, toArgList(params));
         
         MethodInvoker invoker = new ArgumentConvertingMethodInvoker();
         invoker.setTargetObject(this.proxy);
@@ -170,7 +177,7 @@ public class XmlRpcServiceExporter extends RemoteExporter implements Initializin
             returnValue = new Vector<Object>((Collection<?>)returnValue);
         }
         
-        log().debug("returning from: "+method+'('+toArgList(params)+") result = "+returnValue);
+        LOG.debug("returning from: {}({}) result = {}", method, toArgList(params), returnValue);
         return returnValue;
         
         } catch (InvocationTargetException e) {
@@ -195,17 +202,13 @@ public class XmlRpcServiceExporter extends RemoteExporter implements Initializin
 
     }
 
-    private String toArgList(@SuppressWarnings("unchecked") Vector params) {
+    private String toArgList(@SuppressWarnings("rawtypes") List params) {
         StringBuffer sb = new StringBuffer();
         for(int i = 0; i < params.size(); i++) {
             if (i != 0) sb.append(", ");
             sb.append(params.get(i));
         }
         return sb.toString();
-    }
-
-    private ThreadCategory log() {
-        return ThreadCategory.getInstance(getClass()); 
     }
 
     private String getMethodName(String method) {

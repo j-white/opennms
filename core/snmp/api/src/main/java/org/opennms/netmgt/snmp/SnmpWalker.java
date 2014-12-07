@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2011-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2011-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -28,22 +28,25 @@
 
 package org.opennms.netmgt.snmp;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
-import org.opennms.core.utils.ThreadCategory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-
-public abstract class SnmpWalker {
+public abstract class SnmpWalker implements Closeable {
+	
+	private static final transient Logger LOG = LoggerFactory.getLogger(SnmpWalker.class);
     
-    protected static abstract class WalkerPduBuilder extends PduBuilder {
+    protected abstract static class WalkerPduBuilder extends PduBuilder {
         protected WalkerPduBuilder(int maxVarsPerPdu) {
             super(maxVarsPerPdu);
         }
         
-        abstract public void reset();
+        public abstract void reset();
     }
     
     private final String m_name;
@@ -51,7 +54,7 @@ public abstract class SnmpWalker {
 
     private final CountDownLatch m_signal;
 
-    private InetAddress m_address;
+    private final InetAddress m_address;
     private WalkerPduBuilder m_pduBuilder;
     private ResponseProcessor m_responseProcessor;
     private final int m_maxVarsPerPdu;
@@ -59,14 +62,14 @@ public abstract class SnmpWalker {
     private String m_errorMessage = "";
     private Throwable m_errorThrowable = null;
     
-    protected SnmpWalker(InetAddress address, String name, int maxVarsPerPdu, int maxRepititions, CollectionTracker tracker) {
+    protected SnmpWalker(InetAddress address, String name, int maxVarsPerPdu, int maxRepetitions, CollectionTracker tracker) {
         m_address = address;
         m_signal = new CountDownLatch(1);
         
         m_name = name;
 
         m_tracker = tracker;
-        m_tracker.setMaxRepetitions(maxRepititions);
+        m_tracker.setMaxRepetitions(maxRepetitions);
         
         m_maxVarsPerPdu = maxVarsPerPdu;
     }
@@ -82,7 +85,7 @@ public abstract class SnmpWalker {
         }
     }
     
-    public int getMaxVarsPerPdu() {
+    public final int getMaxVarsPerPdu() {
         return (m_pduBuilder == null ? m_maxVarsPerPdu : m_pduBuilder.getMaxVarsPerPdu());
     }
 
@@ -157,13 +160,14 @@ public abstract class SnmpWalker {
         try {
             close();
         } catch (IOException e) {
-            log().error(getName()+": Unexpected Error occured closing SNMP session for: "+m_address, e);
+            LOG.error("{}: Unexpected Error occured closing SNMP session for: {}", getName(), m_address, e);
         }
     }
 
-    protected abstract void close() throws IOException;
-    
-    public String getName() {
+    @Override
+    public abstract void close() throws IOException;
+
+    public final String getName() {
         return m_name;
     }
 
@@ -176,16 +180,16 @@ public abstract class SnmpWalker {
         }
     }
 
-    protected static ThreadCategory log() {
-        return ThreadCategory.getInstance(SnmpWalker.class);
-    }
-
     public void waitFor() throws InterruptedException {
         m_signal.await();
     }
     
     public void waitFor(long timeout) throws InterruptedException {
-        m_signal.await(timeout, TimeUnit.MILLISECONDS);
+        if (m_signal.await(timeout, TimeUnit.MILLISECONDS)) {
+            // Everything completed on time
+        } else {
+            handleTimeout("Timeout of " + timeout + " expired while waiting for " + getClass().getSimpleName() + " to finish");
+        }
     }
     
     // processErrors returns true if we need to retry the request and false otherwise
@@ -197,19 +201,15 @@ public abstract class SnmpWalker {
         m_responseProcessor.processResponse(receivedOid, val);
     }
 
-    protected void setAddress(InetAddress address) {
-        m_address = address;
-    }
-
-    protected InetAddress getAddress() {
+    protected final InetAddress getAddress() {
         return m_address;
     }
 
-    public String getErrorMessage() {
+    public final String getErrorMessage() {
         return m_errorMessage;
     }
 
-    public Throwable getErrorThrowable() {
+    public final Throwable getErrorThrowable() {
         return m_errorThrowable;
     }
 

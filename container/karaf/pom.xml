@@ -7,7 +7,7 @@
     <parent>
         <groupId>org.opennms</groupId>
         <artifactId>container</artifactId>
-        <version>1.12.9-SNAPSHOT</version>
+        <version>15.0.0-SNAPSHOT</version>
     </parent>
 
     <groupId>org.opennms.container</groupId>
@@ -16,6 +16,13 @@
     <name>OpenNMS OSGi Container - Embedded Karaf</name>
 
     <dependencies>
+        <dependency>
+            <groupId>org.opennms.container</groupId>
+            <artifactId>standalone</artifactId>
+            <version>${project.version}</version>
+            <type>tar.gz</type>
+            <scope>provided</scope>
+        </dependency>
         <dependency>
             <groupId>org.opennms.container</groupId>
             <artifactId>branding</artifactId>
@@ -37,13 +44,12 @@
             <type>zip</type>
             <scope>provided</scope>
             <version>${karafVersion}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.opennms.container</groupId>
-            <artifactId>standalone</artifactId>
-            <version>${project.version}</version>
-            <type>tar.gz</type>
-            <scope>provided</scope>
+            <exclusions>
+              <exclusion>
+                <groupId>commons-logging</groupId>
+                <artifactId>commons-logging</artifactId>
+              </exclusion>
+            </exclusions>
         </dependency>
     </dependencies>
 
@@ -77,7 +83,7 @@
                 <executions>
                     <execution>
                         <id>karaf</id>
-                        <phase>process-resources</phase>
+                        <phase>package</phase>
                         <goals>
                             <goal>single</goal>
                         </goals>
@@ -94,7 +100,6 @@
           <plugin>
             <groupId>org.codehaus.mojo</groupId>
             <artifactId>build-helper-maven-plugin</artifactId>
-            <version>1.7</version>
             <executions>
               <execution>
                 <id>attach-artifacts</id>

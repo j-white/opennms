@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2012-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -52,7 +52,7 @@ import org.opennms.features.topology.api.Constants;
 import org.opennms.features.topology.api.GraphContainer;
 import org.opennms.features.topology.api.OperationContext;
 import org.opennms.features.topology.api.topo.AbstractVertex;
-import org.opennms.features.topology.api.topo.AbstractVertexRef;
+import org.opennms.features.topology.api.topo.DefaultVertexRef;
 import org.opennms.features.topology.api.topo.Edge;
 import org.opennms.features.topology.api.topo.EdgeRef;
 import org.opennms.features.topology.api.topo.GraphProvider;
@@ -67,7 +67,7 @@ import org.opennms.features.topology.api.topo.WrappedVertex;
 import org.opennms.features.topology.plugins.topo.simple.internal.operations.AddVertexOperation;
 import org.opennms.features.topology.plugins.topo.simple.internal.operations.RemoveVertexOperation;
 
-import com.vaadin.ui.Window;
+import com.vaadin.ui.UI;
 
 public class SimpleGraphProviderTest {
 
@@ -80,8 +80,8 @@ public class SimpleGraphProviderTest {
         }
 
         @Override
-        public Window getMainWindow() {
-            return EasyMock.createMock(Window.class);
+        public UI getMainWindow() {
+            return EasyMock.createMock(UI.class);
         }
 
         @Override
@@ -91,7 +91,6 @@ public class SimpleGraphProviderTest {
 
         @Override
         public boolean isChecked() {
-            // TODO Auto-generated method stub
             return false;
         }
 
@@ -157,8 +156,8 @@ public class SimpleGraphProviderTest {
         assertFalse(m_topologyProvider.containsVertexId("v1"));
         ((AbstractVertex)vertexA).setIpAddress("10.0.0.4");
         final String namespace = m_topologyProvider.getVertexNamespace();
-        VertexRef ref0 = new AbstractVertexRef(namespace, "v0", namespace + ":v0");
-        VertexRef ref1 = new AbstractVertexRef(namespace, "v1", namespace + ":v0");
+        VertexRef ref0 = new DefaultVertexRef(namespace, "v0", namespace + ":v0");
+        VertexRef ref1 = new DefaultVertexRef(namespace, "v1", namespace + ":v0");
         assertEquals(1, m_topologyProvider.getVertices(Collections.singletonList(ref0)).size());
         assertEquals(0, m_topologyProvider.getVertices(Collections.singletonList(ref1)).size());
 

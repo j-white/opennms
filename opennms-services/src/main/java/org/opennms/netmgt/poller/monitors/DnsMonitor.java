@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2014 The OpenNMS Group, Inc.
+ * Copyright (C) 2002-2014 The OpenNMS Group, Inc.
  * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -38,16 +38,16 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.log4j.Level;
 import org.opennms.core.utils.InetAddressUtils;
-import org.opennms.core.utils.LogUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.opennms.core.utils.ParameterMap;
 import org.opennms.core.utils.TimeoutTracker;
-import org.opennms.netmgt.model.PollStatus;
 import org.opennms.netmgt.poller.Distributable;
 import org.opennms.netmgt.poller.MonitoredService;
 import org.opennms.netmgt.poller.NetworkInterface;
 import org.opennms.netmgt.poller.NetworkInterfaceNotSupportedException;
+import org.opennms.netmgt.poller.PollStatus;
 import org.xbill.DNS.DClass;
 import org.xbill.DNS.Message;
 import org.xbill.DNS.Name;
@@ -69,6 +69,7 @@ import org.xbill.DNS.Type;
  */
 @Distributable
 final public class DnsMonitor extends AbstractServiceMonitor {
+    private static final Logger LOG = LoggerFactory.getLogger(DnsMonitor.class);
     /**
      * Default DNS port.
      */
@@ -117,6 +118,7 @@ final public class DnsMonitor extends AbstractServiceMonitor {
      * the service status is set to SERVICE_AVAILABLE and the method returns.
      * </P>
      */
+    @Override
     public PollStatus poll(MonitoredService svc, Map<String, Object> parameters) {
         NetworkInterface<InetAddress> iface = svc.getNetInterface();
 
@@ -161,7 +163,9 @@ final public class DnsMonitor extends AbstractServiceMonitor {
         serviceStatus = pollDNS(timeoutTracker, port, addr, lookup, fatalCodes, minAnswers, maxAnswers);
 
         if (serviceStatus == null) {
-            serviceStatus = logDown(Level.DEBUG, "Never received valid DNS response for address: " + addr);
+            String reason = "Never received valid DNS response for address: " + addr;
+            LOG.debug(reason);
+            serviceStatus = PollStatus.unavailable(reason);
         }
         
         // 
@@ -183,44 +187,63 @@ final public class DnsMonitor extends AbstractServiceMonitor {
                 resolver.setTimeout((timeout < 1 ? 1 : (int) timeout));
                 final Record question = Record.newRecord(name, Type.A, DClass.IN);
                 final Message query = Message.newQuery(question);
+                PollStatus status;
 
                 timeoutTracker.startAttempt();
                 final Message response = resolver.send(query);
                 double responseTime = timeoutTracker.elapsedTimeInMillis();
 
                 final Integer rcode = response.getHeader().getRcode();
-                LogUtils.debugf(this, "received response code: %s", rcode);
+                LOG.debug("received response code: {}", rcode);
 
                 if (fatalCodes.contains(rcode)) {
-                    return logDown(Level.DEBUG, "Received an invalid DNS response for address: " + addr);
+                    status = PollStatus.unavailable("Received an invalid DNS response for address: " + addr);
+                    LOG.debug(status.getReason());
+                    return status;
                 } else if (minAnswers != DEFAULT_MIN_ANSWERS || maxAnswers != DEFAULT_MAX_ANSWERS) {
                     int numAnswers = response.getSectionArray(Section.ANSWER).length;
                     boolean tooFewAnswers = numAnswers < minAnswers;
                     boolean tooManyAnswers = numAnswers > maxAnswers;
                     if (tooFewAnswers) {
-                        return logDown(Level.WARN, "Response contained only " + numAnswers + " answer(s), but at least " + minAnswers + " answers(s) are needed.");
+                        status = PollStatus.unavailable("Response contained only " + numAnswers + " answer(s), but at least " + minAnswers + " answers(s) are needed.");
+                        LOG.warn(status.getReason());
+                        return status;
                     }
                     if (tooManyAnswers) {
-                        return logDown(Level.WARN, "Response contained " + numAnswers + " answer(s), but " + minAnswers + " or fewer answers(s) are needed.");
+                        status = PollStatus.unavailable("Response contained " + numAnswers + " answer(s), but " + minAnswers + " or fewer answers(s) are needed.");
+                        LOG.warn(status.getReason());
+                        return status;
                     }
-                    return logUp(Level.DEBUG, responseTime, "valid DNS response received with " +numAnswers + " answer(s), responseTime = " + responseTime + "ms");
+                    status = PollStatus.up(responseTime);
+                    LOG.debug("valid DNS response received with {} answer(s), responseTime = {}ms", numAnswers, responseTime);
+                    return status;
                 } else {
-                    return logUp(Level.DEBUG, responseTime, "valid DNS response received, responseTime = " + responseTime + "ms");
+                    status = PollStatus.up(responseTime);
+                    LOG.debug("valid DNS response received, responseTime = {}ms", responseTime);
+                    return status;
                 }
 
             } catch (final InterruptedIOException e) {
                 // No response received, retry without marking the poll failed. If we get this condition over and over until 
                 // the retries are exhausted, it will leave serviceStatus null and we'll get the log message at the bottom 
             } catch (final NoRouteToHostException e) {
-                return logDown(Level.WARN, "No route to host exception for address: " + addr, e);
+                String reason1 = "No route to host exception for address: " + addr;
+                LOG.debug(reason1, e);
+                return PollStatus.unavailable(reason1);
             } catch (final ConnectException e) {
-                return logDown(Level.WARN, "Connection exception for address: " + addr, e);
+                String reason1 = "Connection exception for address: " + addr;
+                LOG.debug(reason1, e);
+                return PollStatus.unavailable(reason1);
             } catch (final IOException e) {
-                return logDown(Level.WARN, "IOException while polling address: " + addr + " " + e.getMessage(), e);
+                String reason1 = "IOException while polling address: " + addr + " " + e.getMessage();
+                LOG.debug(reason1, e);
+                return PollStatus.unavailable(reason1);
             }
         }
-
-        return logDown(Level.DEBUG, "Never received valid DNS response for address: " + addr);
+        String reason = "Never received valid DNS response for address: " + addr;
+       
+        LOG.debug(reason);
+        return PollStatus.unavailable(reason);
     }
 
 

@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2008-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2008-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -32,7 +32,8 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.StringTokenizer;
 
-import org.opennms.core.utils.ThreadCategory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Implementation of the <code>Tl1MessageProcessor</code> Interface.  This is the default
@@ -42,6 +43,8 @@ import org.opennms.core.utils.ThreadCategory;
  * @version $Id: $
  */
 public class Tl1AutonomousMessageProcessor implements Tl1MessageProcessor {
+	
+	private static final Logger LOG = LoggerFactory.getLogger(Tl1AutonomousMessageProcessor.class);
 
     /**
      *  Use ThreadLocal SimpleDateFormat instances because SimpleDateFormat is not thread-safe.
@@ -68,6 +71,7 @@ public class Tl1AutonomousMessageProcessor implements Tl1MessageProcessor {
      * @see org.opennms.netmgt.tl1d.Tl1MessageProcessor#process(java.lang.String, int)
      */
     /** {@inheritDoc} */
+    @Override
     public Tl1AutonomousMessage process(String rawMessage, int messageType) {
 
         StringTokenizer lineParser = new StringTokenizer(rawMessage, "\n");
@@ -185,17 +189,13 @@ public class Tl1AutonomousMessageProcessor implements Tl1MessageProcessor {
 
         StringTokenizer autoBlockParser = new StringTokenizer(line,",");
         
-        if (log().isDebugEnabled()) {
-            log().debug("parseAutoBlock: Autoblock: " + line);
-        }
+        LOG.debug("parseAutoBlock: Autoblock: {}", line);
         
         // should count tokens and see if only aid:code;
         // for now I am assuming more than one parm.
         // Also we could have muliple messages in this block. Need to handle later.
         String aidAndCode = autoBlockParser.nextToken().trim();
-        if (log().isDebugEnabled()) {
-            log().debug("parseAutoBlock: aidAndCode: " + aidAndCode);
-        }
+        LOG.debug("parseAutoBlock: aidAndCode: {}", aidAndCode);
         
         StringTokenizer aidParser = new StringTokenizer(aidAndCode,":");
         //get the aid. Trimoff the begining "
@@ -205,31 +205,23 @@ public class Tl1AutonomousMessageProcessor implements Tl1MessageProcessor {
         String ntfcncde = aidParser.nextToken().trim();
         StringTokenizer codeParser;
         if (ntfcncde.startsWith("NTFCNCDE=")) {
-            if (log().isInfoEnabled()) {
-                log().info("NTFCNCDE appears to be of form: NTFCNCDE=<CODE>");
-            }
+            LOG.info("NTFCNCDE appears to be of form: NTFCNCDE=<CODE>");
             codeParser = new StringTokenizer(ntfcncde,"=");
             if(codeParser.countTokens() >= 2) {
                 codeParser.nextToken();
                 ntfcncde = codeParser.nextToken().trim();
-                if (log().isDebugEnabled()) {
-                    log().debug("Determined NTFCNCDE is " + ntfcncde);
-                }
+                LOG.debug("Determined NTFCNCDE is {}", ntfcncde);
             } else {
-                log().warn("NTFCNCDE could not be determined from auto block: " + ntfcncde);
+                LOG.warn("NTFCNCDE could not be determined from auto block: {}", ntfcncde);
             }
         } else if (ntfcncde.matches("^(CL|CR|MJ|MN|NA|NR),")) {
-            if (log().isInfoEnabled()) {
-                log().info("NTFCNCDE appears to be of form: <CODE>");
-            }
+            LOG.info("NTFCNCDE appears to be of form: <CODE>");
             codeParser = new StringTokenizer(ntfcncde, ",");
             if (codeParser.hasMoreTokens()) {
                 ntfcncde = codeParser.nextToken().trim();
-                if (log().isDebugEnabled()) {
-                    log().debug("Determined NTFCNCDE is " + ntfcncde);
-                }
+                LOG.debug("Determined NTFCNCDE is {}", ntfcncde);
             } else {
-                log().warn("NTFCNCDE could not be determined from auto block: " + ntfcncde);
+                LOG.warn("NTFCNCDE could not be determined from auto block: {}", ntfcncde);
             }
 
         }
@@ -247,9 +239,5 @@ public class Tl1AutonomousMessageProcessor implements Tl1MessageProcessor {
         message.getAutoBlock().setAdditionalParams(sb.toString().trim());
    
         return true;
-    }
-    
-    private ThreadCategory log() {
-        return ThreadCategory.getInstance(getClass().getName());
     }
 }

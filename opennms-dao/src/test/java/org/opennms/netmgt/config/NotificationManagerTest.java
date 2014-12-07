@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2006-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -41,19 +41,17 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.opennms.core.spring.BeanUtils;
 import org.opennms.core.test.ConfigurationTestUtils;
 import org.opennms.core.test.OpenNMSJUnit4ClassRunner;
-import org.opennms.core.test.db.TemporaryDatabase;
-import org.opennms.core.test.db.TemporaryDatabaseAware;
 import org.opennms.core.test.db.annotations.JUnitTemporaryDatabase;
-import org.opennms.core.utils.BeanUtils;
 import org.opennms.netmgt.config.mock.MockNotifdConfigManager;
 import org.opennms.netmgt.config.notifications.Notification;
-import org.opennms.netmgt.dao.CategoryDao;
-import org.opennms.netmgt.dao.IpInterfaceDao;
-import org.opennms.netmgt.dao.MonitoredServiceDao;
-import org.opennms.netmgt.dao.NodeDao;
-import org.opennms.netmgt.dao.ServiceTypeDao;
+import org.opennms.netmgt.dao.api.CategoryDao;
+import org.opennms.netmgt.dao.api.IpInterfaceDao;
+import org.opennms.netmgt.dao.api.MonitoredServiceDao;
+import org.opennms.netmgt.dao.api.NodeDao;
+import org.opennms.netmgt.dao.api.ServiceTypeDao;
 import org.opennms.netmgt.filter.FilterDaoFactory;
 import org.opennms.netmgt.filter.FilterParseException;
 import org.opennms.netmgt.filter.JdbcFilterDao;
@@ -73,11 +71,13 @@ import org.springframework.test.context.ContextConfiguration;
 @ContextConfiguration(locations={
         "classpath:/META-INF/opennms/applicationContext-soa.xml",
         "classpath:/META-INF/opennms/applicationContext-dao.xml",
-        "classpath*:/META-INF/opennms/component-dao.xml"
+        "classpath*:/META-INF/opennms/component-dao.xml",
+        "classpath:/META-INF/opennms/applicationContext-minimal-conf.xml",
+        "classpath:/META-INF/opennms/applicationContext-commonConfigs.xml"
 })
 @JUnitConfigurationEnvironment
-@JUnitTemporaryDatabase
-public class NotificationManagerTest implements TemporaryDatabaseAware<TemporaryDatabase>, InitializingBean {
+@JUnitTemporaryDatabase(reuseDatabase=false)
+public class NotificationManagerTest implements InitializingBean {
 	@Autowired
 	private DataSource m_dataSource;
 
@@ -99,13 +99,6 @@ public class NotificationManagerTest implements TemporaryDatabaseAware<Temporary
     private NotificationManagerImpl m_notificationManager;
     private NotifdConfigManager m_configManager;
 
-    private TemporaryDatabase m_database;
-
-    @Override
-    public void setTemporaryDatabase(TemporaryDatabase database) {
-        m_database = database;
-    }
-
     @Override
     public void afterPropertiesSet() throws Exception {
         BeanUtils.assertAutowiring(this);
@@ -116,7 +109,7 @@ public class NotificationManagerTest implements TemporaryDatabaseAware<Temporary
         // Initialize Filter DAO
         DatabaseSchemaConfigFactory.init();
         JdbcFilterDao jdbcFilterDao = new JdbcFilterDao();
-        jdbcFilterDao.setDataSource(m_database);
+        jdbcFilterDao.setDataSource(m_dataSource);
         jdbcFilterDao.setDatabaseSchemaConfigFactory(DatabaseSchemaConfigFactory.getInstance());
         jdbcFilterDao.afterPropertiesSet();
         FilterDaoFactory.setInstance(jdbcFilterDao);
@@ -149,7 +142,7 @@ public class NotificationManagerTest implements TemporaryDatabaseAware<Temporary
 		node.addCategory(category2);
 		node.addCategory(category3);
 		
-		ipInterface = new OnmsIpInterface("192.168.1.1", node);
+		ipInterface = new OnmsIpInterface(addr("192.168.1.1"), node);
         service = new OnmsMonitoredService(ipInterface, serviceType);
 		m_nodeDao.save(node);
 
@@ -160,19 +153,19 @@ public class NotificationManagerTest implements TemporaryDatabaseAware<Temporary
 		node.addCategory(category4);
 		m_nodeDao.save(node);
         
-        ipInterface = new OnmsIpInterface("192.168.1.1", node);
+        ipInterface = new OnmsIpInterface(addr("192.168.1.1"), node);
         m_ipInterfaceDao.save(ipInterface);
         service = new OnmsMonitoredService(ipInterface, serviceType);
         m_serviceDao.save(service);
         
-        ipInterface = new OnmsIpInterface("0.0.0.0", node);
+        ipInterface = new OnmsIpInterface(addr("0.0.0.0"), node);
         m_ipInterfaceDao.save(ipInterface);
         
         // node 3
         node = new OnmsNode(distPoller, "node 3");
         m_nodeDao.save(node);
         
-        ipInterface = new OnmsIpInterface("192.168.1.2", node);
+        ipInterface = new OnmsIpInterface(addr("192.168.1.2"), node);
         m_ipInterfaceDao.save(ipInterface);
         service = new OnmsMonitoredService(ipInterface, serviceType);
         m_serviceDao.save(service);
@@ -181,7 +174,7 @@ public class NotificationManagerTest implements TemporaryDatabaseAware<Temporary
         node = new OnmsNode(distPoller, "node 4");
         m_nodeDao.save(node);
 
-        ipInterface = new OnmsIpInterface("192.168.1.3", node);
+        ipInterface = new OnmsIpInterface(addr("192.168.1.3"), node);
         m_ipInterfaceDao.save(ipInterface);
         
         // node 5 has no interfaces

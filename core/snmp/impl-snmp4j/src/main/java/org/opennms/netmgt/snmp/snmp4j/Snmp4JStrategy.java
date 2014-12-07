@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2011-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2011-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -37,8 +37,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.opennms.core.utils.LogUtils;
-import org.opennms.core.utils.ThreadCategory;
 import org.opennms.netmgt.snmp.CollectionTracker;
 import org.opennms.netmgt.snmp.SnmpAgentConfig;
 import org.opennms.netmgt.snmp.SnmpConfiguration;
@@ -54,6 +52,8 @@ import org.opennms.netmgt.snmp.SnmpValueFactory;
 import org.opennms.netmgt.snmp.SnmpWalker;
 import org.opennms.netmgt.snmp.TrapNotificationListener;
 import org.opennms.netmgt.snmp.TrapProcessorFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.snmp4j.CommandResponderEvent;
 import org.snmp4j.MessageDispatcher;
 import org.snmp4j.PDU;
@@ -69,18 +69,18 @@ import org.snmp4j.mp.PduHandle;
 import org.snmp4j.security.SecurityLevel;
 import org.snmp4j.security.SecurityModel;
 import org.snmp4j.security.SecurityModels;
-import org.snmp4j.security.SecurityProtocols;
 import org.snmp4j.security.USM;
 import org.snmp4j.security.UsmUser;
 import org.snmp4j.smi.IpAddress;
 import org.snmp4j.smi.OID;
-import org.snmp4j.smi.OctetString;
 import org.snmp4j.smi.SMIConstants;
 import org.snmp4j.smi.UdpAddress;
 import org.snmp4j.smi.VariableBinding;
 import org.snmp4j.transport.DefaultUdpTransportMapping;
 
 public class Snmp4JStrategy implements SnmpStrategy {
+	
+	private static final transient Logger LOG = LoggerFactory.getLogger(Snmp4JStrategy.class);
 
     private static Map<TrapNotificationListener, RegistrationInfo> s_registrations = new HashMap<TrapNotificationListener, RegistrationInfo>();
     
@@ -96,10 +96,9 @@ public class Snmp4JStrategy implements SnmpStrategy {
             return;
         }
 
-//      LogFactory.setLogFactory(new Log4jLogFactory());
-            
-        MPv3.setEnterpriseID(5813);
-        USM usm = new USM(SecurityProtocols.getInstance(), new OctetString(MPv3.createLocalEngineID()), 0);
+        SNMP4JSettings.setEnterpriseID(5813);
+        //USM usm = new USM(SecurityProtocols.getInstance(), new OctetString(MPv3.createLocalEngineID()), 0);
+        USM usm = new USM();
         SecurityModels.getInstance().addSecurityModel(usm);
         
         // Enable extensibility in SNMP4J so that we can subclass some SMI classes to work around
@@ -111,6 +110,9 @@ public class Snmp4JStrategy implements SnmpStrategy {
         if (Boolean.getBoolean("org.opennms.snmp.snmp4j.forwardRuntimeExceptions")) {
         	SNMP4JSettings.setForwardRuntimeExceptions(true);
         }
+        
+        SNMP4JSettings.setAllowSNMPv2InV1(Boolean.getBoolean("org.opennms.snmp.snmp4j.allowSNMPv2InV1"));
+        SNMP4JSettings.setAllowSNMPv2InV1(Boolean.getBoolean("org.opennms.snmp.snmp4j.noGetBulk"));
         
         s_initialized = true;
     }
@@ -126,6 +128,7 @@ public class Snmp4JStrategy implements SnmpStrategy {
      * @param name
      * @param tracker
      */
+        @Override
     public SnmpWalker createWalker(SnmpAgentConfig snmpAgentConfig, String name, CollectionTracker tracker) {
         return new Snmp4JWalker(new Snmp4JAgentConfig(snmpAgentConfig), name, tracker);
     }
@@ -133,14 +136,14 @@ public class Snmp4JStrategy implements SnmpStrategy {
     /**
      * Not yet implemented.  Use a walker.
      */
+        @Override
     public SnmpValue[] getBulk(SnmpAgentConfig agentConfig, SnmpObjId[] oid) {
     	throw new UnsupportedOperationException("Snmp4JStrategy.getBulk not yet implemented.");
     }
 
+        @Override
     public SnmpValue set(final SnmpAgentConfig agentConfig, final SnmpObjId oid, final SnmpValue value) {
-        if (log().isDebugEnabled()) {
-            log().debug("set: OID: " + oid + " value: " + value.toString() + " for Agent: " + agentConfig);
-        }
+    	LOG.debug("set: OID: {} value: {} for Agent: {}", oid, value,  agentConfig);
         
         final SnmpObjId[] oids = { oid };
         final SnmpValue[] values = { value };
@@ -149,10 +152,9 @@ public class Snmp4JStrategy implements SnmpStrategy {
         return retvalues[0];
     }
 
+        @Override
     public SnmpValue[] set(final SnmpAgentConfig agentConfig, final SnmpObjId[] oids, final SnmpValue[] values) {
-        if (log().isDebugEnabled()) {
-            log().debug("set: OIDs: " + Arrays.toString(oids) + " values: " + Arrays.toString(values) + " for Agent: " + agentConfig);
-        }
+    	LOG.debug("set: OIDs: {} values: {} for Agent: {}", oids, values, agentConfig);
         
         return buildAndSendPdu(agentConfig, PDU.SET, oids, values);
     }
@@ -166,10 +168,9 @@ public class Snmp4JStrategy implements SnmpStrategy {
      * @param oid
      *
      */
+        @Override
     public SnmpValue get(SnmpAgentConfig agentConfig, SnmpObjId oid) {
-        if (log().isDebugEnabled()) {
-            log().debug("get: OID: "+oid+" for Agent:"+agentConfig);
-        }
+    	LOG.debug("get: OID: {} for Agent: {}", oid, agentConfig);
         
         SnmpObjId[] oids = { oid };
         SnmpValue[] retvalues = get(agentConfig, oids);
@@ -187,10 +188,9 @@ public class Snmp4JStrategy implements SnmpStrategy {
      *        get was unsuccessful, then the first elment
      *        of the array will be null and lenth of 1. 
      */
+        @Override
     public SnmpValue[] get(SnmpAgentConfig agentConfig, SnmpObjId[] oids) {
-        if (log().isDebugEnabled()) {
-            log().debug("get: OID: "+Arrays.toString(oids)+" for Agent:"+agentConfig);
-        }
+    	LOG.debug("get: OID: {} for Agent: {}", oids, agentConfig);
         
         return buildAndSendPdu(agentConfig, PDU.GET, oids, null);
     }
@@ -202,10 +202,9 @@ public class Snmp4JStrategy implements SnmpStrategy {
      * @param oid
      * 
      */
+        @Override
     public SnmpValue getNext(SnmpAgentConfig agentConfig, SnmpObjId oid) {
-        if (log().isDebugEnabled()) {
-            log().debug("getNext: OID: "+oid+" for Agent:"+agentConfig);
-        }
+    	LOG.debug("getNext: OID: {} for Agent: {}", oid, agentConfig);
         
         return getNext(agentConfig, new SnmpObjId[] { oid })[0];
     }
@@ -220,10 +219,9 @@ public class Snmp4JStrategy implements SnmpStrategy {
      *        getNext was unsuccessful, then the first element
      *        of the array will be null and length of 1. 
      */
+        @Override
     public SnmpValue[] getNext(SnmpAgentConfig agentConfig, SnmpObjId[] oids) {
-        if (log().isDebugEnabled()) {
-            log().debug("getNext: OID: "+Arrays.toString(oids)+" for Agent:"+agentConfig);
-        }
+    	LOG.debug("getNext: OID: {} for Agent: {}", oids, agentConfig);
         
         return buildAndSendPdu(agentConfig, PDU.GETNEXT, oids, null);
     }
@@ -240,14 +238,8 @@ public class Snmp4JStrategy implements SnmpStrategy {
     }
 
     /**
-     * Sends and SNMP4J request pdu.  The attributes in SnmpAgentConfig should have been
+     * Sends and SNMP4J request PDU.  The attributes in SnmpAgentConfig should have been
      * adapted from default SnmpAgentConfig values to those compatible with the SNMP4J library.
-     * 
-     * @param agentConfig
-     * @param pduType TODO
-     * @param oids
-     * @param values can be null
-     * @return
      */
     protected SnmpValue[] send(Snmp4JAgentConfig agentConfig, PDU pdu, boolean expectResponse) {
         Snmp session;
@@ -255,7 +247,7 @@ public class Snmp4JStrategy implements SnmpStrategy {
         try {
             session = agentConfig.createSnmpSession();
         } catch (IOException e) {
-            log().error("send: Could not create SNMP session for agent " + agentConfig + ": " + e, e);
+            LOG.error("send: Could not create SNMP session for agent {}", agentConfig, e);
             return new SnmpValue[] { null };
         }
 
@@ -264,30 +256,31 @@ public class Snmp4JStrategy implements SnmpStrategy {
                 try {
                     session.listen();
                 } catch (IOException e) {
-                    log().error("send: error setting up listener for SNMP responses: " + e, e);
+                    LOG.error("send: error setting up listener for SNMP responses", e);
                     return new SnmpValue[] { null };
                 }
             }
     
             try {
-                ResponseEvent responseEvent = session.send(pdu, agentConfig.getTarget());
+                final ResponseEvent responseEvent = session.send(pdu, agentConfig.getTarget());
 
                 if (expectResponse) {
                     return processResponse(agentConfig, responseEvent);
                 } else {
                     return null;
                 }
-            } catch (IOException e) {
-                log().error("send: error during SNMP operation: " + e, e);
+            } catch (final IOException e) {
+                LOG.error("send: error during SNMP operation", e);
                 return new SnmpValue[] { null };
-            } catch (Throwable e) {
-                log().error("send: unexpected error during SNMP operation: " + e, e);
+            } catch (final RuntimeException e) {
+                LOG.error("send: unexpected error during SNMP operation", e);
                 return new SnmpValue[] { null };
             }
         } finally {
             closeQuietly(session);
         }
     }
+    
 
     protected PDU buildPdu(Snmp4JAgentConfig agentConfig, int pduType, SnmpObjId[] oids, SnmpValue[] values) {
         PDU pdu = agentConfig.createPdu(pduType);
@@ -300,7 +293,7 @@ public class Snmp4JStrategy implements SnmpStrategy {
             // TODO should this throw an exception?  This situation is fairly bogus and probably signifies a coding error.
             if (oids.length != values.length) {
                 Exception e = new Exception("This is a bogus exception so we can get a stack backtrace");
-                log().error("PDU to prepare has object values but not the same number as there are OIDs.  There are " + oids.length + " OIDs and " + values.length + " object values.", e);
+                LOG.error("PDU to prepare has object values but not the same number as there are OIDs.  There are {} OIDs and {} object values.", oids.length, values.length, e);
                 return null;
             }
         
@@ -312,7 +305,7 @@ public class Snmp4JStrategy implements SnmpStrategy {
         // TODO should this throw an exception?  This situation is fairly bogus.
         if (pdu.getVariableBindings().size() != oids.length) {
             Exception e = new Exception("This is a bogus exception so we can get a stack backtrace");
-            log().error("Prepared PDU does not have as many variable bindings as there are OIDs.  There are " + oids.length + " OIDs and " + pdu.getVariableBindings() + " variable bindings.", e);
+            LOG.error("Prepared PDU does not have as many variable bindings as there are OIDs.  There are {} OIDs and {} variable bindings.", oids.length,pdu.getVariableBindings(), e);
             return null;
         }
         
@@ -320,27 +313,25 @@ public class Snmp4JStrategy implements SnmpStrategy {
     }
 
     /**
-     * TODO: Merge this logic with {@link Snmp4JWalker.Snmp4JResponseListener#processResponse(PDU response)}
+     * TODO: Merge this logic with {@link Snmp4JWalker.Snmp4JResponseListener} #processResponse(PDU response)
      */
     private static SnmpValue[] processResponse(Snmp4JAgentConfig agentConfig, ResponseEvent responseEvent) throws IOException {
         SnmpValue[] retvalues = { null };
 
         if (responseEvent.getResponse() == null) {
-            log().warn("processResponse: Timeout.  Agent: "+agentConfig);
+            LOG.warn("processResponse: Timeout.  Agent: {}, requestID={}", agentConfig, responseEvent.getRequest().getRequestID());
         } else if (responseEvent.getError() != null) {
-            log().warn("processResponse: Error during get operation.  Error: "+responseEvent.getError().getLocalizedMessage(), responseEvent.getError());
+            LOG.warn("processResponse: Error during get operation.  Error: {}, requestID={}", responseEvent.getError().getLocalizedMessage(), responseEvent.getError(), responseEvent.getRequest().getRequestID());
         } else if (responseEvent.getResponse().getType() == PDU.REPORT) {
-            log().warn("processResponse: Error during get operation.  Report returned with varbinds: "+responseEvent.getResponse().getVariableBindings());
+            LOG.warn("processResponse: Error during get operation.  Report returned with varbinds: {}, requestID={}", responseEvent.getResponse().getVariableBindings(), responseEvent.getRequest().getRequestID());
         } else if (responseEvent.getResponse().getVariableBindings().size() < 1) {
-            log().warn("processResponse: Received PDU with 0 varbinds.");
+            LOG.warn("processResponse: Received PDU with 0 varbinds. Agent: {}, requestID={}", agentConfig, responseEvent.getRequest().getRequestID());
         } else if (responseEvent.getResponse().get(0).getSyntax() == SMIConstants.SYNTAX_NULL) {
-            log().info("processResponse: Null value returned in varbind: " + responseEvent.getResponse().get(0));
+            LOG.info("processResponse: Null value returned in varbind: {}. Agent: {}, requestID={}", responseEvent.getResponse().get(0), agentConfig, responseEvent.getRequest().getRequestID());
         } else {
             retvalues = convertResponseToValues(responseEvent);
 
-            if (log().isDebugEnabled()) {
-                log().debug("processResponse: SNMP operation successful, value: "+Arrays.toString(retvalues));
-            }
+            LOG.debug("processResponse: SNMP operation successful, value: {}", (Object)retvalues);
         }
 
         return retvalues;
@@ -356,29 +347,26 @@ public class Snmp4JStrategy implements SnmpStrategy {
         return retvalues;
     }
 
-    private static ThreadCategory log() {
-        return ThreadCategory.getInstance(Snmp4JStrategy.class);
-    }
-    
+        @Override
     public SnmpValueFactory getValueFactory() {
         if (m_valueFactory == null) {
             m_valueFactory = new Snmp4JValueFactory();
         }
         return m_valueFactory;
     }
-
+    
     public static class RegistrationInfo {
         private TrapNotificationListener m_listener;
         
         Snmp m_trapSession;
         Snmp4JTrapNotifier m_trapHandler;
-        private TransportMapping m_transportMapping;
+        private TransportMapping<UdpAddress> m_transportMapping;
 		private InetAddress m_address;
 		private int m_port;
         
         RegistrationInfo(TrapNotificationListener listener, int trapPort) throws SocketException {
         	if (listener == null) throw new NullPointerException("You must specify a trap notification listener.");
-        	LogUtils.debugf(this, "trapPort = %d", trapPort);
+        	LOG.debug("trapPort = {}", trapPort);
     
             m_listener = listener;
             m_port = trapPort;
@@ -416,18 +404,20 @@ public class Snmp4JStrategy implements SnmpStrategy {
             return m_port;
         }
 
-        public void setTransportMapping(final TransportMapping transport) {
+        public void setTransportMapping(final TransportMapping<UdpAddress> transport) {
             m_transportMapping = transport;
         }
         
-        public TransportMapping getTransportMapping() {
+        public TransportMapping<UdpAddress> getTransportMapping() {
             return m_transportMapping;
         }
         
+        @Override
         public int hashCode() {
             return (m_listener.hashCode() + m_address.hashCode() ^ m_port);
         }
         
+        @Override
 		public boolean equals(final Object obj) {
             if (obj instanceof RegistrationInfo) {
             	final RegistrationInfo info = (RegistrationInfo) obj;
@@ -438,6 +428,7 @@ public class Snmp4JStrategy implements SnmpStrategy {
         
     }
 
+        @Override
     public void registerForTraps(final TrapNotificationListener listener, final TrapProcessorFactory processorFactory, InetAddress address, int snmpTrapPort, List<SnmpV3User> snmpUsers) throws IOException {
     	final RegistrationInfo info = new RegistrationInfo(listener, address, snmpTrapPort);
         
@@ -450,7 +441,7 @@ public class Snmp4JStrategy implements SnmpStrategy {
         } else {
         	udpAddress = new UdpAddress(address, snmpTrapPort);
         }
-        final TransportMapping transport = new DefaultUdpTransportMapping(udpAddress);
+        final TransportMapping<UdpAddress> transport = new DefaultUdpTransportMapping(udpAddress);
         info.setTransportMapping(transport);
         Snmp snmp = new Snmp(transport);
         snmp.addCommandResponder(m_trapHandler);
@@ -490,40 +481,49 @@ public class Snmp4JStrategy implements SnmpStrategy {
         snmp.listen();
     }
     
+        @Override
     public void registerForTraps(final TrapNotificationListener listener, final TrapProcessorFactory processorFactory, InetAddress address, int snmpTrapPort) throws IOException {
         registerForTraps(listener, processorFactory, address, snmpTrapPort, null);
     }
 
+        @Override
     public void registerForTraps(final TrapNotificationListener listener, final TrapProcessorFactory processorFactory, final int snmpTrapPort) throws IOException {
     	registerForTraps(listener, processorFactory, null, snmpTrapPort);
     }
 
+        @Override
     public void unregisterForTraps(final TrapNotificationListener listener, InetAddress address, int snmpTrapPort) throws IOException {
         RegistrationInfo info = s_registrations.remove(listener);
         closeQuietly(info.getSession());
     }
 
+        @Override
     public void unregisterForTraps(final TrapNotificationListener listener, final int snmpTrapPort) throws IOException {
         RegistrationInfo info = s_registrations.remove(listener);
         closeQuietly(info.getSession());
     }
 
+        @Override
     public SnmpV1TrapBuilder getV1TrapBuilder() {
         return new Snmp4JV1TrapBuilder(this);
     }
 
+        @Override
     public SnmpTrapBuilder getV2TrapBuilder() {
         return new Snmp4JV2TrapBuilder(this);
     }
 
+        @Override
     public SnmpV3TrapBuilder getV3TrapBuilder() {
         return new Snmp4JV3TrapBuilder(this);
     }
 
+        @Override
     public SnmpV2TrapBuilder getV2InformBuilder() {
         return new Snmp4JV2InformBuilder(this);
     }
 
+        @Override
     public SnmpV3TrapBuilder getV3InformBuilder() {
         return new Snmp4JV3InformBuilder(this);
     }
@@ -581,7 +581,7 @@ public class Snmp4JStrategy implements SnmpStrategy {
             if (port == info.getPort()) {
                 Snmp snmp = info.getSession();
                 MessageDispatcher dispatcher = snmp.getMessageDispatcher();
-                TransportMapping transport = info.getTransportMapping();
+                TransportMapping<UdpAddress> transport = info.getTransportMapping();
                 
                 int securityModel = (pdu instanceof PDUv1 ? SecurityModel.SECURITY_MODEL_SNMPv1 :SecurityModel.SECURITY_MODEL_SNMPv2c);
                 int messageModel = (pdu instanceof PDUv1 ? MessageProcessingModel.MPv1 : MessageProcessingModel.MPv2c);
@@ -603,10 +603,11 @@ public class Snmp4JStrategy implements SnmpStrategy {
         try {
             session.close();
         } catch (IOException e) {
-            ThreadCategory.getInstance(Snmp4JStrategy.class).error("error closing SNMP connection: " + e, e);
+            LOG.error("error closing SNMP connection", e);
         }
     }
 
+        @Override
 	public byte[] getLocalEngineID() {
 		return MPv3.createLocalEngineID();
 	}

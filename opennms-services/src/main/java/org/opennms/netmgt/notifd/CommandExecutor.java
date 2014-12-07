@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2002-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -34,8 +34,9 @@ import java.io.OutputStreamWriter;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.opennms.core.utils.Argument;
-import org.opennms.core.utils.ThreadCategory;
+import org.opennms.netmgt.model.notifd.Argument;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * This is a class to store and execute a console command
@@ -52,15 +53,16 @@ import org.opennms.core.utils.ThreadCategory;
  * @version $Id: $
  */
 public class CommandExecutor implements ExecutorStrategy {
+    private static final Logger LOG = LoggerFactory.getLogger(CommandExecutor.class);
     /**
      * {@inheritDoc}
      *
      * This method executes the command using a Process. The method will decide
      * if an input stream needs to be used.
      */
+    @Override
     public int execute(String commandLine, List<Argument> arguments) {
         int returnCode = 0;
-        ThreadCategory log = ThreadCategory.getInstance(getClass());
 
         List<String> commandList = new ArrayList<String>();
         commandList.add(commandLine);
@@ -80,25 +82,23 @@ public class CommandExecutor implements ExecutorStrategy {
                 }
             } else {
                 streamed = true;
-                log.debug("streamed argument found");
+                LOG.debug("streamed argument found");
 
                 if (curArg.getSubstitution() != null && !curArg.getSubstitution().trim().equals("")) {
                     streamBuffer.append(curArg.getSubstitution());
                 }
                 if (!curArg.getValue().trim().equals("")) {
                     streamBuffer.append(curArg.getValue());
-                    if (log.isDebugEnabled()) {
-                        log.debug("Streamed argument value: " + curArg.getValue());
-                    }
+                    LOG.debug("Streamed argument value: {}", curArg.getValue());
                 }
             }
         }
 
         try {
             // set up the process
-            String commandArray[] = new String[commandList.size()];
+            String[] commandArray = new String[commandList.size()];
             commandArray = commandList.toArray(commandArray);
-            if (log.isDebugEnabled()) {
+            if (LOG.isDebugEnabled()) {
                 StringBuffer list = new StringBuffer();
                 list.append("{ ");
                 for (int i = 0; i < commandArray.length; i++) {
@@ -108,7 +108,7 @@ public class CommandExecutor implements ExecutorStrategy {
                     list.append(commandArray[i]);
                 }
                 list.append(" }");
-                log.debug(list.toString());
+                LOG.debug(list.toString());
             }
 
             Process command = Runtime.getRuntime().exec(commandArray);
@@ -119,9 +119,7 @@ public class CommandExecutor implements ExecutorStrategy {
                 BufferedWriter processInput = new BufferedWriter(new OutputStreamWriter(command.getOutputStream(), "UTF-8"));
 
                 // put the streamed arguments into the stream
-                if (log.isDebugEnabled()) {
-                    log.debug("Streamed arguments: " + streamBuffer.toString());
-                }
+                LOG.debug("Streamed arguments: {}", streamBuffer);
 
                 processInput.write(streamBuffer.toString());
 
@@ -147,11 +145,11 @@ public class CommandExecutor implements ExecutorStrategy {
                 }
             }
 
-            log.debug(commandResult);
+            LOG.debug(commandResult);
         } catch (IOException e) {
-            log.error("Error executing command-line binary: " + commandLine, e);
+            LOG.error("Error executing command-line binary: {}", commandLine, e);
         } catch (InterruptedException e) {
-            log.error("Error executing command-line binary: " + commandLine, e);
+            LOG.error("Error executing command-line binary: {}", commandLine, e);
         }
 
         return returnCode;

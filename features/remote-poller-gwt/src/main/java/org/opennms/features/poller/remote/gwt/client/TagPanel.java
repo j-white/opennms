@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2010-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2010-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -106,7 +106,7 @@ public class TagPanel extends Composite implements Collection<String> {
 
     public static class TagSelectedEvent extends GwtEvent<TagSelectedEventHandler>
     {
-        public static Type<TagSelectedEventHandler> TYPE = new Type<TagSelectedEventHandler>();
+        public static final Type<TagSelectedEventHandler> TYPE = new Type<TagSelectedEventHandler>();
 
         private final String m_tagName;
 
@@ -114,10 +114,12 @@ public class TagPanel extends Composite implements Collection<String> {
             m_tagName = tagName;
         }
 
+        @Override
         protected void dispatch(TagSelectedEventHandler handler) {
             handler.onTagSelected(m_tagName);
         }
 
+        @Override
         public GwtEvent.Type<TagSelectedEventHandler> getAssociatedType() {
             return TYPE;
         }
@@ -125,14 +127,16 @@ public class TagPanel extends Composite implements Collection<String> {
 
     public static class TagClearedEvent extends GwtEvent<TagClearedEventHandler>
     {
-        public static Type<TagClearedEventHandler> TYPE = new Type<TagClearedEventHandler>();
+        public static final Type<TagClearedEventHandler> TYPE = new Type<TagClearedEventHandler>();
 
         public TagClearedEvent() {}
 
+        @Override
         protected void dispatch(TagClearedEventHandler handler) {
             handler.onTagCleared();
         }
 
+        @Override
         public GwtEvent.Type<TagClearedEventHandler> getAssociatedType() {
             return TYPE;
         }
@@ -140,7 +144,7 @@ public class TagPanel extends Composite implements Collection<String> {
     
     public static class TagResizeEvent extends GwtEvent<TagResizeEventHandler>{
 
-        public static Type<TagResizeEventHandler> TYPE = new Type<TagResizeEventHandler>();
+        public static final Type<TagResizeEventHandler> TYPE = new Type<TagResizeEventHandler>();
         @Override
         protected void dispatch(TagResizeEventHandler handler) {
             handler.onTagPanelResize();
@@ -190,6 +194,7 @@ public class TagPanel extends Composite implements Collection<String> {
      * @param e a {@link java.lang.String} object.
      * @return a boolean.
      */
+    @Override
     public boolean add(String e) {
         boolean retval = m_delegate.add(e);
         updatePanel();
@@ -197,6 +202,7 @@ public class TagPanel extends Composite implements Collection<String> {
     }
 
     /** {@inheritDoc} */
+    @Override
     public boolean addAll(Collection<? extends String> c) {
         boolean retval = m_delegate.addAll(c);
         updatePanel();
@@ -207,17 +213,20 @@ public class TagPanel extends Composite implements Collection<String> {
     /**
      * <p>clear</p>
      */
+    @Override
     public void clear() {
         m_delegate.clear();
         updatePanel();
     }
 
     /** {@inheritDoc} */
+    @Override
     public boolean contains(Object o) {
         return m_delegate.contains(o);
     }
 
     /** {@inheritDoc} */
+    @Override
     public boolean containsAll(Collection<?> c) {
         return m_delegate.containsAll(c);
     }
@@ -227,6 +236,7 @@ public class TagPanel extends Composite implements Collection<String> {
      *
      * @return a boolean.
      */
+    @Override
     public boolean isEmpty() {
         return m_delegate.isEmpty();
     }
@@ -236,11 +246,13 @@ public class TagPanel extends Composite implements Collection<String> {
      *
      * @return a {@link java.util.Iterator} object.
      */
+    @Override
     public Iterator<String> iterator() {
         return m_delegate.iterator();
     }
 
     /** {@inheritDoc} */
+    @Override
     public boolean remove(Object o) {
         boolean retval = m_delegate.remove(o);
         updatePanel();
@@ -248,6 +260,7 @@ public class TagPanel extends Composite implements Collection<String> {
     }
 
     /** {@inheritDoc} */
+    @Override
     public boolean removeAll(Collection<?> c) {
         boolean retval = m_delegate.removeAll(c);
         updatePanel();
@@ -255,6 +268,7 @@ public class TagPanel extends Composite implements Collection<String> {
     }
 
     /** {@inheritDoc} */
+    @Override
     public boolean retainAll(Collection<?> c) {
         boolean retval = m_delegate.retainAll(c);
         updatePanel();
@@ -266,6 +280,7 @@ public class TagPanel extends Composite implements Collection<String> {
      *
      * @return a int.
      */
+    @Override
     public int size() {
         return m_delegate.size();
     }
@@ -275,6 +290,7 @@ public class TagPanel extends Composite implements Collection<String> {
      *
      * @return an array of {@link java.lang.Object} objects.
      */
+    @Override
     public Object[] toArray() {
         return m_delegate.toArray();
     }
@@ -286,6 +302,7 @@ public class TagPanel extends Composite implements Collection<String> {
      * @param <T> a T object.
      * @return an array of T objects.
      */
+    @Override
     public <T> T[] toArray(T[] a) {
         return m_delegate.toArray(a);
     }
@@ -332,6 +349,7 @@ public class TagPanel extends Composite implements Collection<String> {
             double rawValue = (double)(entry.getValue() - minCount) * TagStyles.COUNT / (double)(maxCount - minCount);
             tagLabel.setHTML(tagText.replace(" ", "&nbsp;"));
             tagLabel.addClickHandler(new ClickHandler() {
+                @Override
                 public void onClick(ClickEvent event) {
                     selectTag(tagText);
                     m_eventBus.fireEvent(new TagSelectedEvent(tagText));

@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2011-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2011-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -87,6 +87,7 @@ public abstract class SnmpV2Error extends Object implements SnmpSyntax, Cloneabl
      * 
      * @return The ASN.1 type identifier
      */
+    @Override
     public abstract byte typeId();
 
     /**
@@ -103,6 +104,7 @@ public abstract class SnmpV2Error extends Object implements SnmpSyntax, Cloneabl
      * @return The index of the byte immedantly after the last encoded byte.
      * 
      */
+    @Override
     public int encodeASN(byte[] buf, int offset, AsnEncoder encoder) throws AsnEncodingException {
         return encoder.buildHeader(buf, offset, typeId(), 0);
     }
@@ -121,6 +123,7 @@ public abstract class SnmpV2Error extends Object implements SnmpSyntax, Cloneabl
      * 
      * @return The index of the byte immedantly after the last encoded byte.
      */
+    @Override
     public int decodeASN(byte[] buf, int offset, AsnEncoder encoder) throws AsnDecodingException {
         Object[] rVals = encoder.parseHeader(buf, offset);
 
@@ -140,6 +143,7 @@ public abstract class SnmpV2Error extends Object implements SnmpSyntax, Cloneabl
      * 
      * @return A newly created object that is a duplicate of self.
      */
+    @Override
     public abstract SnmpSyntax duplicate();
 
     /**
@@ -150,5 +154,6 @@ public abstract class SnmpV2Error extends Object implements SnmpSyntax, Cloneabl
      * @return A newly created object that is a duplicate of self
      * 
      */
+    @Override
     public abstract Object clone();
 }

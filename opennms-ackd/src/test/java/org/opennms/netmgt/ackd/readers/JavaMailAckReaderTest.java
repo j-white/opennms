@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2009-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2009-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -50,14 +50,14 @@ import javax.mail.internet.MimeBodyPart;
 import javax.mail.internet.MimeMessage;
 import javax.mail.internet.MimeMultipart;
 
-import junit.framework.Assert;
+import org.junit.Assert;
 
 import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.opennms.core.spring.BeanUtils;
 import org.opennms.core.test.OpenNMSJUnit4ClassRunner;
 import org.opennms.core.test.db.annotations.JUnitTemporaryDatabase;
-import org.opennms.core.utils.BeanUtils;
 import org.opennms.javamail.JavaMailerException;
 import org.opennms.javamail.JavaSendMailer;
 import org.opennms.netmgt.ackd.AckReader;
@@ -72,9 +72,9 @@ import org.opennms.netmgt.config.javamail.SendmailHost;
 import org.opennms.netmgt.config.javamail.SendmailMessage;
 import org.opennms.netmgt.config.javamail.SendmailProtocol;
 import org.opennms.netmgt.config.javamail.UserAuth;
-import org.opennms.netmgt.dao.AckdConfigurationDao;
-import org.opennms.netmgt.dao.JavaMailConfigurationDao;
-import org.opennms.netmgt.dao.castor.DefaultAckdConfigurationDao;
+import org.opennms.netmgt.dao.api.AckdConfigurationDao;
+import org.opennms.netmgt.dao.api.JavaMailConfigurationDao;
+import org.opennms.netmgt.dao.jaxb.DefaultAckdConfigurationDao;
 import org.opennms.netmgt.model.AckAction;
 import org.opennms.netmgt.model.AckType;
 import org.opennms.netmgt.model.OnmsAcknowledgment;
@@ -90,12 +90,14 @@ import org.springframework.test.context.ContextConfiguration;
 @RunWith(OpenNMSJUnit4ClassRunner.class)
 @ContextConfiguration(locations={
         "classpath:/META-INF/opennms/applicationContext-soa.xml",
+        "classpath:/META-INF/opennms/applicationContext-commonConfigs.xml",
         "classpath:/META-INF/opennms/applicationContext-dao.xml",
         "classpath*:/META-INF/opennms/component-dao.xml",
         "classpath:/META-INF/opennms/applicationContext-daemon.xml",
         "classpath*:/META-INF/opennms/component-service.xml",
         "classpath:/META-INF/opennms/mockEventIpcManager.xml",
-        "classpath:/META-INF/opennms/applicationContext-ackd.xml" 
+        "classpath:/META-INF/opennms/applicationContext-ackd.xml",
+        "classpath:/META-INF/opennms/applicationContext-minimal-conf.xml"
 })
 @JUnitConfigurationEnvironment
 @JUnitTemporaryDatabase
@@ -211,10 +213,8 @@ public class JavaMailAckReaderTest implements InitializingBean {
         Future<?> f = executor.schedule(m_processor, 5, TimeUnit.SECONDS);
         
         m_processor.setJmConfigDao(m_jmDao);
-        
-        m_processor.setJmConfigDao(new JmCnfDao());
-//        m_processor.setAckService(m_ackService);
         m_processor.setAckdConfigDao(createAckdConfigDao());
+        //m_processor.setAcknowledgmentDao(ackDao);
         //Thread.sleep(20000);
         while (!f.isDone()) {
             Thread.sleep(10);
@@ -227,6 +227,7 @@ public class JavaMailAckReaderTest implements InitializingBean {
         
         class AckdConfigDao extends DefaultAckdConfigurationDao {
 
+            @Override
             public AckdConfiguration getConfig() {
                 AckdConfiguration config = new AckdConfiguration();
                 config.setAckExpression("~(?i)^AcK$");
@@ -253,6 +254,7 @@ public class JavaMailAckReaderTest implements InitializingBean {
         End2endMailConfig m_e2eConfig = createE2Ec();
         
 
+        @Override
         public ReadmailConfig getDefaultReadmailConfig() {
             return m_readConfig;
         }
@@ -272,43 +274,52 @@ public class JavaMailAckReaderTest implements InitializingBean {
             return new SendmailConfig();
         }
 
+        @Override
         public SendmailConfig getDefaultSendmailConfig() {
             return m_sendConfig;
         }
 
+        @Override
         public End2endMailConfig getEnd2EndConfig(String name) {
             return m_e2eConfig;
         }
 
+        @Override
         public List<End2endMailConfig> getEnd2EndConfigs() {
             List<End2endMailConfig> list = new ArrayList<End2endMailConfig>();
             list.add(m_e2eConfig);
             return list;
         }
 
+        @Override
         public ReadmailConfig getReadMailConfig(String name) {
             return m_readConfig;
         }
 
+        @Override
         public List<ReadmailConfig> getReadmailConfigs() {
             List<ReadmailConfig> list = new ArrayList<ReadmailConfig>();
             list.add(m_readConfig);
             return list;
         }
 
+        @Override
         public SendmailConfig getSendMailConfig(String name) {
             return m_sendConfig;
         }
 
+        @Override
         public List<SendmailConfig> getSendmailConfigs() {
             List<SendmailConfig> list = new ArrayList<SendmailConfig>();
             list.add(m_sendConfig);
             return list;
         }
 
+        @Override
         public void verifyMarshaledConfiguration() throws IllegalStateException {
         }
 
+        @Override
         public void reloadConfiguration()
                 throws DataAccessResourceFailureException {
             

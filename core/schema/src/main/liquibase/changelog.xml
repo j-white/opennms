@@ -4,6 +4,7 @@
 	xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	xmlns:ext="http://www.liquibase.org/xml/ns/dbchangelog-ext"
+
 	xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-2.0.xsd
 		http://www.liquibase.org/xml/ns/dbchangelog-ext http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-ext.xsd">
 
@@ -61,7 +62,12 @@
 	<include file="1.12.2/changelog.xml"/>
 	<include file="1.12.5/changelog.xml"/>
 	<include file="1.12.6/changelog.xml"/>
-		
+	<include file="1.13.0/changelog.xml"/>
+	<include file="1.13.1/changelog.xml"/>
+	<include file="1.13.3/changelog.xml"/>
+	<include file="1.13.5/changelog.xml"/>
+	<include file="1.14.0/changelog.xml"/>
+
 	<include file="stored-procedures/getManagePercentAvailIntfWindow.xml" />
 	<include file="stored-procedures/getManagePercentAvailNodeWindow.xml" />
 	<include file="stored-procedures/getManagedOutageForIntfInWindow.xml" />

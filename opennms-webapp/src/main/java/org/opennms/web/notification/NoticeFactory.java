@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2002-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -38,12 +38,13 @@ import java.util.Vector;
 
 import javax.servlet.ServletContext;
 
-import org.opennms.core.resource.Vault;
+import org.opennms.core.db.DataSourceFactory;
 import org.opennms.core.utils.DBUtils;
-import org.opennms.core.utils.ThreadCategory;
 import org.opennms.web.element.NetworkElementFactory;
 import org.opennms.web.filter.Filter;
 import org.opennms.web.notification.filter.NodeFilter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Encapsulates all querying functionality for notices
@@ -51,6 +52,9 @@ import org.opennms.web.notification.filter.NodeFilter;
  * @author <A HREF="mailto:larry@opennms.org">Lawrence Karnowski </A>
  */
 public class NoticeFactory {
+	
+	private static final Logger LOG = LoggerFactory.getLogger(NoticeFactory.class);
+
 
     /** Private constructor so this class cannot be instantiated. */
     private NoticeFactory() {
@@ -73,7 +77,7 @@ public class NoticeFactory {
         final DBUtils d = new DBUtils(NoticeFactory.class);
 
         try {
-            Connection conn = Vault.getDbConnection();
+            Connection conn = DataSourceFactory.getInstance().getConnection();
             d.watch(conn);
 
             StringBuffer select = new StringBuffer("SELECT COUNT(NOTIFYID) AS NOTICECOUNT FROM NOTIFICATIONS WHERE");
@@ -118,7 +122,7 @@ public class NoticeFactory {
         DBUtils d = new DBUtils(NoticeFactory.class);
 
         try {
-            Connection conn = Vault.getDbConnection();
+            Connection conn = DataSourceFactory.getInstance().getConnection();
             d.watch(conn);
 
             PreparedStatement stmt = conn.prepareStatement("SELECT * FROM NOTIFICATION WHERE NOTIFYID=?");
@@ -154,7 +158,7 @@ public class NoticeFactory {
         final DBUtils d = new DBUtils(NoticeFactory.class);
 
         try {
-            Connection connection = Vault.getDbConnection();
+            Connection connection = DataSourceFactory.getInstance().getConnection();
             d.watch(connection);
 
             PreparedStatement statement = connection.prepareStatement("SELECT eventDisplay FROM events WHERE eventid=?");
@@ -171,7 +175,7 @@ public class NoticeFactory {
                 display = true;
             }
         } catch (SQLException e) {
-            ThreadCategory.getInstance(NoticeFactory.class.getName()).error("Error getting event display status: " + e.getMessage(), e);
+            LOG.error("Error getting event display status: {}", e.getMessage(), e);
         } finally {
             d.cleanUp();
         }
@@ -290,7 +294,7 @@ public class NoticeFactory {
         final DBUtils d = new DBUtils(NoticeFactory.class);
 
         try {
-            Connection conn = Vault.getDbConnection();
+            Connection conn = DataSourceFactory.getInstance().getConnection();
             d.watch(conn);
 
             StringBuffer select = new StringBuffer("SELECT * FROM NOTIFICATIONS WHERE");
@@ -412,7 +416,7 @@ public class NoticeFactory {
         final DBUtils d = new DBUtils(NoticeFactory.class);
 
         try {
-            Connection conn = Vault.getDbConnection();
+            Connection conn = DataSourceFactory.getInstance().getConnection();
             d.watch(conn);
 
             StringBuffer select = new StringBuffer("SELECT * FROM NOTIFICATIONS WHERE NODEID=? AND INTERFACEID=?");
@@ -469,7 +473,7 @@ public class NoticeFactory {
         DBUtils d = new DBUtils(NoticeFactory.class);
 
         try {
-            Connection conn = Vault.getDbConnection();
+            Connection conn = DataSourceFactory.getInstance().getConnection();
             d.watch(conn);
 
             StringBuffer select = new StringBuffer("SELECT * FROM NOTIFICATIONS WHERE INTERFACEID=?");
@@ -526,7 +530,7 @@ public class NoticeFactory {
         final DBUtils d = new DBUtils(NoticeFactory.class);
 
         try {
-            Connection conn = Vault.getDbConnection();
+            Connection conn = DataSourceFactory.getInstance().getConnection();
             d.watch(conn);
 
             StringBuffer select = new StringBuffer("SELECT * FROM NOTIFICATIONS WHERE NODEID=? AND INTERFACEID=? AND SERVICEID=?");
@@ -580,7 +584,7 @@ public class NoticeFactory {
         DBUtils d = new DBUtils(NoticeFactory.class);
 
         try {
-            Connection conn = Vault.getDbConnection();
+            Connection conn = DataSourceFactory.getInstance().getConnection();
             d.watch(conn);
 
             StringBuffer select = new StringBuffer("SELECT * FROM NOTIFICATION WHERE SERVICEID=?");
@@ -678,7 +682,7 @@ public class NoticeFactory {
 
             DBUtils d = new DBUtils(NoticeFactory.class);
             try {
-                Connection conn = Vault.getDbConnection();
+                Connection conn = DataSourceFactory.getInstance().getConnection();
                 d.watch(conn);
 
                 PreparedStatement stmt = conn.prepareStatement(update.toString());

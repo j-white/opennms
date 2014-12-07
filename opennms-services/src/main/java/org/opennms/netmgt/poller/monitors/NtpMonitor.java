@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2002-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -37,15 +37,15 @@ import java.net.InetAddress;
 import java.net.NoRouteToHostException;
 import java.util.Map;
 
-import org.apache.log4j.Level;
 import org.opennms.core.utils.ParameterMap;
-import org.opennms.core.utils.ThreadCategory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.opennms.core.utils.TimeoutTracker;
-import org.opennms.netmgt.model.PollStatus;
 import org.opennms.netmgt.poller.Distributable;
 import org.opennms.netmgt.poller.MonitoredService;
 import org.opennms.netmgt.poller.NetworkInterface;
 import org.opennms.netmgt.poller.NetworkInterfaceNotSupportedException;
+import org.opennms.netmgt.poller.PollStatus;
 import org.opennms.protocols.ntp.NtpMessage;
 
 /**
@@ -62,6 +62,7 @@ import org.opennms.protocols.ntp.NtpMessage;
 
 @Distributable
 final public class NtpMonitor extends AbstractServiceMonitor {
+    private static final Logger LOG = LoggerFactory.getLogger(NtpMonitor.class);
     /**
      * Default NTP port.
      */
@@ -93,6 +94,7 @@ final public class NtpMonitor extends AbstractServiceMonitor {
      * the method returns.
      * </P>
      */
+    @Override
     public PollStatus poll(MonitoredService svc, Map<String, Object> parameters) {
         NetworkInterface<InetAddress> iface = svc.getNetInterface();
 
@@ -104,7 +106,6 @@ final public class NtpMonitor extends AbstractServiceMonitor {
 
         // get the log
         //
-        ThreadCategory log = ThreadCategory.getInstance(getClass());
 
         // get the parameters
         //
@@ -148,9 +149,9 @@ final public class NtpMonitor extends AbstractServiceMonitor {
                     NtpMessage msg = new NtpMessage(incoming.getData());
                     double localClockOffset = ((msg.receiveTimestamp - msg.originateTimestamp) + (msg.transmitTimestamp - destinationTimestamp)) / 2;
 
-                    if (log.isDebugEnabled())
-                        log.debug("poll: valid NTP request received the local clock offset is " + localClockOffset + ", responseTime= " + responseTime + "ms");
-                    log.debug("poll: NTP message : " + msg.toString());
+
+                    LOG.debug("poll: valid NTP request received the local clock offset is {}, responseTime= {}ms", localClockOffset, responseTime);
+                    LOG.debug("poll: NTP message : {}", msg);
                     serviceStatus = PollStatus.available(responseTime);
                 } catch (InterruptedIOException ex) {
                     // Ignore, no response received.
@@ -158,15 +159,21 @@ final public class NtpMonitor extends AbstractServiceMonitor {
             }
         } catch (NoRouteToHostException e) {
         	
-        	serviceStatus = logDown(Level.DEBUG, "No route to host exception for address: " + ipv4Addr, e);
+        	String reason = "No route to host exception for address: " + ipv4Addr;
+            LOG.debug(reason, e);
+            serviceStatus = PollStatus.unavailable(reason);
         	
         } catch (ConnectException e) {
         	
-        	serviceStatus = logDown(Level.DEBUG, "Connection exception for address: " + ipv4Addr, e);
+        	String reason = "Connection exception for address: " + ipv4Addr;
+            LOG.debug(reason, e);
+            serviceStatus = PollStatus.unavailable(reason);
         	
         } catch (IOException ex) {
         	
-        	serviceStatus = logDown(Level.INFO, "IOException while polling address: " + ipv4Addr, ex);
+        	String reason = "IOException while polling address: " + ipv4Addr;
+            LOG.debug(reason, ex);
+            serviceStatus = PollStatus.unavailable(reason);
         	
         } finally {
             if (socket != null)

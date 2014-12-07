@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2005-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -39,19 +39,20 @@ import java.util.List;
 import java.util.Map;
 
 import org.opennms.core.utils.InetAddressUtils;
-import org.opennms.core.utils.ThreadCategory;
-import org.opennms.netmgt.EventConstants;
 import org.opennms.netmgt.capsd.plugins.IcmpPlugin;
 import org.opennms.netmgt.config.OpennmsServerConfigFactory;
 import org.opennms.netmgt.config.PollerConfig;
+import org.opennms.netmgt.events.api.EventConstants;
+import org.opennms.netmgt.events.api.EventIpcManager;
+import org.opennms.netmgt.events.api.EventListener;
 import org.opennms.netmgt.model.events.EventBuilder;
-import org.opennms.netmgt.model.events.EventIpcManager;
-import org.opennms.netmgt.model.events.EventListener;
 import org.opennms.netmgt.poller.pollables.PendingPollEvent;
 import org.opennms.netmgt.poller.pollables.PollContext;
 import org.opennms.netmgt.poller.pollables.PollEvent;
 import org.opennms.netmgt.poller.pollables.PollableService;
 import org.opennms.netmgt.xml.event.Event;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Represents a DefaultPollContext
@@ -61,6 +62,7 @@ import org.opennms.netmgt.xml.event.Event;
  */
 public class DefaultPollContext implements PollContext, EventListener {
     
+    private static final Logger LOG = LoggerFactory.getLogger(DefaultPollContext.class);
     private static final String[] UEIS = {
         // service events without node processing enable
         EventConstants.SERVICE_UNRESPONSIVE_EVENT_UEI,
@@ -90,7 +92,7 @@ public class DefaultPollContext implements PollContext, EventListener {
     /**
      * <p>getEventManager</p>
      *
-     * @return a {@link org.opennms.netmgt.model.events.EventIpcManager} object.
+     * @return a {@link org.opennms.netmgt.events.api.EventIpcManager} object.
      */
     public EventIpcManager getEventManager() {
         return m_eventManager;
@@ -99,7 +101,7 @@ public class DefaultPollContext implements PollContext, EventListener {
     /**
      * <p>setEventManager</p>
      *
-     * @param eventManager a {@link org.opennms.netmgt.model.events.EventIpcManager} object.
+     * @param eventManager a {@link org.opennms.netmgt.events.api.EventIpcManager} object.
      */
     public void setEventManager(EventIpcManager eventManager) {
         m_eventManager = eventManager;
@@ -128,6 +130,7 @@ public class DefaultPollContext implements PollContext, EventListener {
      *
      * @return a {@link java.lang.String} object.
      */
+    @Override
     public String getName() {
         return m_name;
     }
@@ -185,6 +188,7 @@ public class DefaultPollContext implements PollContext, EventListener {
      *
      * @return a {@link java.lang.String} object.
      */
+    @Override
     public String getCriticalServiceName() {
         return getPollerConfig().getCriticalService();
     }
@@ -197,6 +201,7 @@ public class DefaultPollContext implements PollContext, EventListener {
      *
      * @return a boolean.
      */
+    @Override
     public boolean isNodeProcessingEnabled() {
         return getPollerConfig().isNodeOutageProcessingEnabled();
     }
@@ -209,6 +214,7 @@ public class DefaultPollContext implements PollContext, EventListener {
      *
      * @return a boolean.
      */
+    @Override
     public boolean isPollingAllIfCritServiceUndefined() {
         return getPollerConfig().shouldPollAllIfNoCriticalServiceDefined();
     }
@@ -217,6 +223,7 @@ public class DefaultPollContext implements PollContext, EventListener {
      * @see org.opennms.netmgt.poller.pollables.PollContext#sendEvent(org.opennms.netmgt.xml.event.Event)
      */
     /** {@inheritDoc} */
+    @Override
     public PollEvent sendEvent(Event event) {
         if (!m_listenerAdded) {
             getEventManager().addEventListener(this, Arrays.asList(UEIS));
@@ -231,19 +238,13 @@ public class DefaultPollContext implements PollContext, EventListener {
         return pollEvent;
     }
 
-    ThreadCategory log() {
-        return ThreadCategory.getInstance(getClass());
-    }
-
     /* (non-Javadoc)
      * @see org.opennms.netmgt.poller.pollables.PollContext#createEvent(java.lang.String, int, java.net.InetAddress, java.lang.String, java.util.Date)
      */
     /** {@inheritDoc} */
+    @Override
     public Event createEvent(String uei, int nodeId, InetAddress address, String svcName, Date date, String reason) {
-        ThreadCategory log = ThreadCategory.getInstance(this.getClass());
-        
-        if (log.isDebugEnabled())
-            log.debug("createEvent: uei = " + uei + " nodeid = " + nodeId);
+        LOG.debug("createEvent: uei = {} nodeid = {}", uei, nodeId);
         
         EventBuilder bldr = new EventBuilder(uei, this.getName(), date);
         bldr.setNodeid(nodeId);
@@ -257,11 +258,11 @@ public class DefaultPollContext implements PollContext, EventListener {
         
         if (uei.equals(EventConstants.NODE_DOWN_EVENT_UEI)
                 && this.getPollerConfig().isPathOutageEnabled()) {
-            String[] criticalPath = this.getQueryManager().getCriticalPath(nodeId);
+            String[] criticalPath = PathOutageManagerJdbcImpl.getInstance().getCriticalPath(nodeId);
             
-            if (criticalPath[0] != null && !criticalPath[0].equals("")) {
+            if (criticalPath[0] != null && !"".equals(criticalPath[0].trim())) {
                 if (!this.testCriticalPath(criticalPath)) {
-                    log.debug("Critical path test failed for node " + nodeId);
+                    LOG.debug("Critical path test failed for node {}", nodeId);
                     
                     // add eventReason, criticalPathIp, criticalPathService
                     // parms
@@ -271,10 +272,10 @@ public class DefaultPollContext implements PollContext, EventListener {
                     bldr.addParam(EventConstants.PARM_CRITICAL_PATH_SVC, criticalPath[1]);
                     
                 } else {
-                    log.debug("Critical path test passed for node " + nodeId);
+                    LOG.debug("Critical path test passed for node {}", nodeId);
                 }
             } else {
-                log.debug("No Critical path to test for node " + nodeId);
+                LOG.debug("No Critical path to test for node {}", nodeId);
             }
         }
         
@@ -296,20 +297,22 @@ public class DefaultPollContext implements PollContext, EventListener {
     }
 
     /** {@inheritDoc} */
+    @Override
     public void openOutage(final PollableService svc, final PollEvent svcLostEvent) {
-        log().debug("openOutage: Opening outage for: "+svc+" with event:"+svcLostEvent);
+        LOG.debug("openOutage: Opening outage for: {} with event:{}", svc, svcLostEvent);
         final int nodeId = svc.getNodeId();
         final String ipAddr = svc.getIpAddr();
         final String svcName = svc.getSvcName();
         final Runnable r = new Runnable() {
+            @Override
             public void run() {
-                if (log().isDebugEnabled()) log().debug("run: Opening outage with query manager: "+svc+" with event:"+svcLostEvent);
+                LOG.debug("run: Opening outage with query manager: {} with event:{}", svc, svcLostEvent);
 
                 final int eventId = svcLostEvent.getEventId();
                 if (eventId > 0) {
-                    getQueryManager().openOutage(getPollerConfig().getNextOutageIdSql(), nodeId, ipAddr, svcName, eventId, EventConstants.formatToString(svcLostEvent.getDate()));
+                    getQueryManager().openOutage(getPollerConfig().getNextOutageIdSql(), nodeId, ipAddr, svcName, eventId, svcLostEvent.getDate());
                 } else {
-                    log().warn("run: Failed to determine an eventId for service outage for: " + svc + " with event: " + svcLostEvent);
+                    LOG.warn("run: Failed to determine an eventId for service outage for: {} with event: {}", svc, svcLostEvent);
                 }
             }
 
@@ -327,17 +330,19 @@ public class DefaultPollContext implements PollContext, EventListener {
      * @see org.opennms.netmgt.poller.pollables.PollContext#resolveOutage(org.opennms.netmgt.poller.pollables.PollableService, org.opennms.netmgt.xml.event.Event)
      */
     /** {@inheritDoc} */
+    @Override
     public void resolveOutage(final PollableService svc, final PollEvent svcRegainEvent) {
         final int nodeId = svc.getNodeId();
         final String ipAddr = svc.getIpAddr();
         final String svcName = svc.getSvcName();
         final Runnable r = new Runnable() {
+            @Override
             public void run() {
                 final int eventId = svcRegainEvent.getEventId();
                 if (eventId > 0) {
-                    getQueryManager().resolveOutage(nodeId, ipAddr, svcName, eventId, EventConstants.formatToString(svcRegainEvent.getDate()));
+                    getQueryManager().resolveOutage(nodeId, ipAddr, svcName, eventId, svcRegainEvent.getDate());
                 } else {
-                    log().warn("run: Failed to determine an eventId for service regained for: " + svc + " with event: " + svcRegainEvent);
+                    LOG.warn("run: Failed to determine an eventId for service regained for: {} with event: {}", svc, svcRegainEvent);
                 }
             }
         };
@@ -350,6 +355,7 @@ public class DefaultPollContext implements PollContext, EventListener {
     }
     
     /** {@inheritDoc} */
+    @Override
     public void reparentOutages(String ipAddr, int oldNodeId, int newNodeId) {
         getQueryManager().reparentOutages(ipAddr, oldNodeId, newNodeId);
     }
@@ -362,6 +368,7 @@ public class DefaultPollContext implements PollContext, EventListener {
      *
      * @return a boolean.
      */
+    @Override
     public boolean isServiceUnresponsiveEnabled() {
         return getPollerConfig().isServiceUnresponsiveEnabled();
     }
@@ -370,32 +377,32 @@ public class DefaultPollContext implements PollContext, EventListener {
      * @see org.opennms.netmgt.eventd.EventListener#onEvent(org.opennms.netmgt.xml.event.Event)
      */
     /** {@inheritDoc} */
+    @Override
     public void onEvent(final Event e) {
-        ThreadCategory log = log();
-        log.debug("onEvent: Waiting to process event: "+e+" uei: "+e.getUei()+", dbid: "+e.getDbid());
+        LOG.debug("onEvent: Waiting to process event: {} uei: {}, dbid: {}", e, e.getUei(), e.getDbid());
         synchronized (m_pendingPollEvents) {
-            log.debug("onEvent: Received event: "+e+" uei: "+e.getUei()+", dbid: "+e.getDbid()+" pendingEventCount: " + m_pendingPollEvents.size());
+            LOG.debug("onEvent: Received event: {} uei: {}, dbid: {}, pendingEventCount: {}", e, e.getUei(), e.getDbid(), m_pendingPollEvents.size());
             for (final Iterator<PendingPollEvent> it = m_pendingPollEvents.iterator(); it.hasNext();) {
                 final PendingPollEvent pollEvent = it.next();
-                log.trace("onEvent: comparing events to poll event: "+pollEvent);
+                LOG.trace("onEvent: comparing events to poll event: {}", pollEvent);
                 if (e.equals(pollEvent.getEvent())) {
-                    log.trace("onEvent: completing pollevent: "+pollEvent);
+                    LOG.trace("onEvent: completing pollevent: {}", pollEvent);
                     pollEvent.complete(e);
                 }
             }
             
             for (Iterator<PendingPollEvent> it = m_pendingPollEvents.iterator(); it.hasNext(); ) {
                 PendingPollEvent pollEvent = it.next();
-                log.trace("onEvent: determining if pollEvent is pending: "+pollEvent);
+                LOG.trace("onEvent: determining if pollEvent is pending: {}", pollEvent);
                 if (pollEvent.isPending()) continue;
                 
-                log.trace("onEvent: processing pending pollEvent...: "+pollEvent);
+                LOG.trace("onEvent: processing pending pollEvent...: {}", pollEvent);
                 pollEvent.processPending();
                 it.remove();
-                log.trace("onEvent: processing of pollEvent completed.: "+pollEvent);
+                LOG.trace("onEvent: processing of pollEvent completed.: {}", pollEvent);
             }
         }
-        log.debug("onEvent: Finished processing event: "+e+" uei: "+e.getUei()+", dbid: "+e.getDbid());
+        LOG.debug("onEvent: Finished processing event: {} uei: {}, dbid: {}", e, e.getUei(), e.getDbid());
         
     }
 
@@ -404,11 +411,10 @@ public class DefaultPollContext implements PollContext, EventListener {
         InetAddress addr = null;
         boolean result = true;
     
-        ThreadCategory log = log();
-        log.debug("Test critical path IP " + criticalPath[0]);
+        LOG.debug("Test critical path IP {}", criticalPath[0]);
         addr = InetAddressUtils.addr(criticalPath[0]);
         if (addr == null) {
-            log.error("failed to convert string address to InetAddress " + criticalPath[0]);
+            LOG.error("failed to convert string address to InetAddress {}", criticalPath[0]);
             return true;
         }
         IcmpPlugin p = new IcmpPlugin();
@@ -432,8 +438,7 @@ public class DefaultPollContext implements PollContext, EventListener {
             nodeLabel = getQueryManager().getNodeLabel(nodeId);
         } catch (SQLException sqlE) {
             // Log a warning
-            log().warn("Failed to retrieve node label for nodeid " + nodeId,
-                     sqlE);
+            LOG.warn("Failed to retrieve node label for nodeid {}", nodeId, sqlE);
         }
     
         if (nodeLabel == null) {

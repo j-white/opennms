@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2011-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2011-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -28,9 +28,12 @@
 
 package org.opennms.netmgt.snmp;
 
-import org.opennms.core.utils.ThreadCategory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class SingleInstanceTracker extends CollectionTracker {
+	
+	private static final transient Logger LOG = LoggerFactory.getLogger(SingleInstanceTracker.class);
 
     private SnmpObjId m_base;
     private SnmpInstId m_inst;
@@ -56,21 +59,23 @@ public class SingleInstanceTracker extends CollectionTracker {
         // do nothing since we are not a repeater
     }
 
+        @Override
     public ResponseProcessor buildNextPdu(PduBuilder pduBuilder) {
         if (pduBuilder.getMaxVarsPerPdu() < 1) {
             throw new IllegalArgumentException("maxVarsPerPdu < 1");
         }
         
         SnmpObjId requestOid = m_oid.decrement();
-        log().debug("Requesting oid following: "+requestOid);
+        LOG.debug("Requesting oid following: {}", requestOid);
         pduBuilder.addOid(requestOid);
         pduBuilder.setNonRepeaters(1);
         pduBuilder.setMaxRepetitions(1);
         
         ResponseProcessor rp = new ResponseProcessor() {
 
+            @Override
             public void processResponse(SnmpObjId responseObjId, SnmpValue val) {
-                log().debug("Processing varBind: "+responseObjId+" = "+val);
+                LOG.debug("Processing varBind: {} = {}", responseObjId, val);
                 
                 if (val.isEndOfMib()) {
                     receivedEndOfMib();
@@ -83,6 +88,7 @@ public class SingleInstanceTracker extends CollectionTracker {
                 setFinished(true);
             }
 
+            @Override
             public boolean processErrors(int errorStatus, int errorIndex) {
                 if (errorStatus == NO_ERR) {
                     return false;
@@ -104,10 +110,6 @@ public class SingleInstanceTracker extends CollectionTracker {
         
         return rp;
 
-    }
-
-    protected ThreadCategory log() {
-        return ThreadCategory.getInstance(getClass());
     }
 
     protected void errorOccurred() {

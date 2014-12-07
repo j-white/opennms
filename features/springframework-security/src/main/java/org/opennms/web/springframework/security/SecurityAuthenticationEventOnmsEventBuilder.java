@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2010-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2008-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -32,11 +32,12 @@ import java.net.ConnectException;
 import java.util.Date;
 
 import org.apache.commons.lang.exception.ExceptionUtils;
-import org.opennms.core.utils.ThreadCategory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.opennms.core.utils.WebSecurityUtils;
+import org.opennms.netmgt.events.api.EventProxy;
+import org.opennms.netmgt.events.api.EventProxyException;
 import org.opennms.netmgt.model.events.EventBuilder;
-import org.opennms.netmgt.model.events.EventProxy;
-import org.opennms.netmgt.model.events.EventProxyException;
 import org.opennms.netmgt.xml.event.Event;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.context.ApplicationEvent;
@@ -55,6 +56,7 @@ import org.springframework.web.context.support.ServletRequestHandledEvent;
  * <p>SecurityAuthenticationEventOnmsEventBuilder class.</p>
  */
 public class SecurityAuthenticationEventOnmsEventBuilder implements ApplicationListener<ApplicationEvent>, InitializingBean {
+    private static final Logger LOG = LoggerFactory.getLogger(SecurityAuthenticationEventOnmsEventBuilder.class);
     /** Constant <code>SUCCESS_UEI="uei.opennms.org/internal/authentication"{trunked}</code> */
     public static final String SUCCESS_UEI = "uei.opennms.org/internal/authentication/successfulLogin";
     /** Constant <code>FAILURE_UEI="uei.opennms.org/internal/authentication"{trunked}</code> */
@@ -63,12 +65,15 @@ public class SecurityAuthenticationEventOnmsEventBuilder implements ApplicationL
     private EventProxy m_eventProxy;
     
     /** {@inheritDoc} */
+    @Override
     public void onApplicationEvent(ApplicationEvent event) {
-        log().debug("Received ApplicationEvent " + event.getClass().toString());
+        LOG.debug("Received ApplicationEvent {}", event.getClass());
         if (event instanceof AuthenticationSuccessEvent) {
             AuthenticationSuccessEvent authEvent = (AuthenticationSuccessEvent) event;
 
             EventBuilder builder = createEvent(SUCCESS_UEI, authEvent);
+            // Sync the timestamp
+            builder.setTime(new Date(event.getTimestamp()));
             if (!"true".equalsIgnoreCase(System.getProperty("org.opennms.security.disableLoginSuccessEvent"))) {
                 sendEvent(builder.getEvent());
             }
@@ -77,8 +82,10 @@ public class SecurityAuthenticationEventOnmsEventBuilder implements ApplicationL
         if (event instanceof AbstractAuthenticationFailureEvent) {
             AbstractAuthenticationFailureEvent authEvent = (AbstractAuthenticationFailureEvent) event;
             
-            log().debug("AbstractAuthenticationFailureEvent was received, exception message - " + authEvent.getException().getMessage());
+            LOG.debug("AbstractAuthenticationFailureEvent was received, exception message - {}", authEvent.getException().getMessage());
             EventBuilder builder = createEvent(FAILURE_UEI, authEvent);
+            // Sync the timestamp
+            builder.setTime(new Date(event.getTimestamp()));
             builder.addParam("exceptionName", authEvent.getException().getClass().getSimpleName());
             builder.addParam("exceptionMessage", authEvent.getException().getMessage());
             sendEvent(builder.getEvent());
@@ -86,25 +93,21 @@ public class SecurityAuthenticationEventOnmsEventBuilder implements ApplicationL
         
         if (event instanceof AuthorizedEvent) {
             AuthorizedEvent authEvent = (AuthorizedEvent) event;
-            log().debug("AuthorizedEvent received - \n  Details - " + authEvent.getAuthentication().getDetails() + "\n  Principal - " + 
-                        authEvent.getAuthentication().getPrincipal());
+            LOG.debug("AuthorizedEvent received - \n  Details - {}\n  Principal - {}", authEvent.getAuthentication().getDetails(), authEvent.getAuthentication().getPrincipal());
         }
         if (event instanceof AuthorizationFailureEvent) {
             AuthorizationFailureEvent authEvent = (AuthorizationFailureEvent) event;
-            log().debug("AuthorizationFailureEvent received  -\n   Details - " + authEvent.getAuthentication().getDetails() + "\n  Principal - " + 
-                        authEvent.getAuthentication().getPrincipal());
+            LOG.debug("AuthorizationFailureEvent received  -\n   Details - {}\n  Principal - {}", authEvent.getAuthentication().getDetails(), authEvent.getAuthentication().getPrincipal());
         }
         if (event instanceof InteractiveAuthenticationSuccessEvent) {
             InteractiveAuthenticationSuccessEvent authEvent = (InteractiveAuthenticationSuccessEvent) event;
-            log().debug("InteractiveAuthenticationSuccessEvent received - \n  Details - " + authEvent.getAuthentication().getDetails() + 
-                        "\n  Principal -  " + authEvent.getAuthentication().getPrincipal());
+            LOG.debug("InteractiveAuthenticationSuccessEvent received - \n  Details - {}\n  Principal - {}", authEvent.getAuthentication().getDetails(), authEvent.getAuthentication().getPrincipal());
             
         }
         if (event instanceof ServletRequestHandledEvent) {
             ServletRequestHandledEvent authEvent = (ServletRequestHandledEvent) event;
-            log().debug("ServletRequestHandledEvent received - " + authEvent.getDescription() + "\n  Servlet - " + authEvent.getServletName() +
-                        "\n  URL - " + authEvent.getRequestUrl());
-            log().info(authEvent.getRequestUrl() + " requested from " + authEvent.getClientAddress() + " by user " + authEvent.getUserName());
+            LOG.debug("ServletRequestHandledEvent received - {}\n  Servlet - {}\n  URL - {}", authEvent.getDescription(), authEvent.getServletName(), authEvent.getRequestUrl());
+            LOG.info("{} requested from {} by user {}", authEvent.getRequestUrl(), authEvent.getClientAddress(), authEvent.getUserName());
         }
         
     }
@@ -130,9 +133,9 @@ public class SecurityAuthenticationEventOnmsEventBuilder implements ApplicationL
             m_eventProxy.send(onmsEvent);
         } catch (EventProxyException e) {
             if (ExceptionUtils.getRootCause(e) instanceof ConnectException) {
-                log().error("Failed to send OpenNMS event to event proxy (" + m_eventProxy + "): " + e);
+                LOG.error("Failed to send OpenNMS event to event proxy ( {} )", m_eventProxy, e);
             } else {
-                log().error("Failed to send OpenNMS event to event proxy (" + m_eventProxy + "): " + e, e);
+                LOG.error("Failed to send OpenNMS event to event proxy ( {} )", m_eventProxy, e);
             }
         }
     }
@@ -140,7 +143,7 @@ public class SecurityAuthenticationEventOnmsEventBuilder implements ApplicationL
     /**
      * <p>setEventProxy</p>
      *
-     * @param eventProxy a {@link org.opennms.netmgt.model.events.EventProxy} object.
+     * @param eventProxy a {@link org.opennms.netmgt.events.api.EventProxy} object.
      */
     public void setEventProxy(EventProxy eventProxy) {
         m_eventProxy = eventProxy;
@@ -153,9 +156,4 @@ public class SecurityAuthenticationEventOnmsEventBuilder implements ApplicationL
     public void afterPropertiesSet() {
         Assert.notNull(m_eventProxy, "property eventProxy must be set");
     }
-
-    private ThreadCategory log() {
-        return ThreadCategory.getInstance(getClass());
-    }
-
 }

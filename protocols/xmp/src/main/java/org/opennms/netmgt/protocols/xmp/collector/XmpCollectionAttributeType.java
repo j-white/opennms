@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2011-2013 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2013 The OpenNMS Group, Inc.
+ * Copyright (C) 2009-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -59,47 +59,40 @@ package org.opennms.netmgt.protocols.xmp.collector;
 
 import org.krupczak.xmp.Xmp;
 import org.krupczak.xmp.XmpVar;
-import org.opennms.core.utils.ThreadCategory;
-import org.opennms.netmgt.config.collector.AttributeGroupType;
-import org.opennms.netmgt.config.collector.CollectionAttribute;
-import org.opennms.netmgt.config.collector.CollectionAttributeType;
-import org.opennms.netmgt.config.collector.Persister;
+import org.opennms.netmgt.collection.api.AttributeGroupType;
+import org.opennms.netmgt.collection.api.CollectionAttribute;
+import org.opennms.netmgt.collection.api.Persister;
+import org.opennms.netmgt.collection.support.AbstractCollectionAttributeType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
-class XmpCollectionAttributeType implements CollectionAttributeType {
+class XmpCollectionAttributeType extends AbstractCollectionAttributeType {
     /* class variables and methods *********************** */
+	private static final Logger LOG = LoggerFactory.getLogger(XmpCollectionAttributeType.class);
+
 
     /* instance variables ******************************** */
     //MibObj mibObj; // this might need to be MibObj
     XmpVar aVar;
-    AttributeGroupType groupType;
 
     /* constructors  ************************************* */
     XmpCollectionAttributeType(XmpVar aVar, AttributeGroupType groupType)
-    { 
+    {
+        super(groupType);
         this.aVar = aVar;
-        this.groupType = groupType;
     }
 
     /* private methods *********************************** */
-    private ThreadCategory log() {
-        return ThreadCategory.getInstance(getClass());
-    }
+   
 
     /* public methods ************************************ */
-    /**
-     * <p>Getter for the field <code>groupType</code>.</p>
-     *
-     * @return a {@link org.opennms.netmgt.config.collector.AttributeGroupType} object.
-     */
-    @Override
-    public AttributeGroupType getGroupType() { return groupType; }
 
     /** {@inheritDoc} */
     @Override
     public void storeAttribute(CollectionAttribute attrib, Persister persister)
     {
-        log().debug("XmpCollectionAttributeType: store "+attrib);
+        LOG.debug("XmpCollectionAttributeType: store {}", attrib);
 
         // persist as either string or numeric based on our
         // XMP type

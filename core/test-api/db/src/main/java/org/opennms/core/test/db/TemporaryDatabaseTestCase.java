@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2006-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -39,8 +39,9 @@ import javax.sql.DataSource;
 import junit.framework.AssertionFailedError;
 import junit.framework.TestCase;
 
+import org.opennms.core.db.DataSourceFactory;
 import org.opennms.core.db.install.SimpleDataSource;
-import org.springframework.jdbc.core.simple.SimpleJdbcTemplate;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 /**
  * <p>For each unit test method, creates a temporary database before the unit
@@ -57,7 +58,7 @@ import org.springframework.jdbc.core.simple.SimpleJdbcTemplate;
  */
 public class TemporaryDatabaseTestCase extends TestCase {
     
-    protected SimpleJdbcTemplate jdbcTemplate;
+    protected JdbcTemplate jdbcTemplate;
 
     private static final String TEST_DB_NAME_PREFIX = "opennms_test_";
     
@@ -203,7 +204,8 @@ public class TemporaryDatabaseTestCase extends TestCase {
     
     public void setDataSource(DataSource dataSource) {
         m_dataSource = dataSource;
-        jdbcTemplate = new SimpleJdbcTemplate(dataSource);
+        jdbcTemplate = new JdbcTemplate(dataSource);
+        DataSourceFactory.setInstance(dataSource);
     }
     
     public DataSource getDataSource() {
@@ -315,7 +317,8 @@ public class TemporaryDatabaseTestCase extends TestCase {
          */
         Thread.sleep(100);
 
-        Connection adminConnection = getAdminDataSource().getConnection();
+        final DataSource dataSource = getAdminDataSource();
+        Connection adminConnection = dataSource.getConnection();
 
         try {
             for (int dropAttempt = 0; dropAttempt < MAX_DATABASE_DROP_ATTEMPTS; dropAttempt++) {
@@ -329,7 +332,9 @@ public class TemporaryDatabaseTestCase extends TestCase {
                     if ((dropAttempt + 1) >= MAX_DATABASE_DROP_ATTEMPTS) {
                         final String message = "Failed to drop test database on last attempt " + (dropAttempt + 1) + ": " + e;
                         System.err.println(new Date().toString() + ": " + message);
-                        TemporaryDatabase.dumpThreads();
+                        if (dataSource instanceof TemporaryDatabasePostgreSQL) {
+                            TemporaryDatabasePostgreSQL.dumpThreads();
+                        }
 
                         SQLException newException = new SQLException(message);
                         newException.initCause(e);
@@ -436,7 +441,7 @@ public class TemporaryDatabaseTestCase extends TestCase {
      * 
      * @author djgregor
      */
-    public class TestFailureAndTearDownErrorException extends Exception {
+    public static class TestFailureAndTearDownErrorException extends Exception {
         private static final long serialVersionUID = -5664844942506660064L;
         private Throwable m_tearDownError;
         
@@ -446,6 +451,7 @@ public class TemporaryDatabaseTestCase extends TestCase {
             m_tearDownError = tearDownError;
         }
         
+        @Override
         public String toString() {
             return super.toString()
                 + "\nAlso received error on tearDown: "
@@ -453,7 +459,7 @@ public class TemporaryDatabaseTestCase extends TestCase {
         }
     }
     
-    public SimpleJdbcTemplate getJdbcTemplate() {
+    public JdbcTemplate getJdbcTemplate() {
     	return jdbcTemplate;
     }
     

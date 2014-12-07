@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2009-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2009-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -38,6 +38,8 @@ import org.opennms.netmgt.snmp.SnmpInstId;
 import org.opennms.netmgt.snmp.SnmpObjId;
 import org.opennms.netmgt.snmp.SnmpUtils;
 import org.opennms.netmgt.snmp.SnmpValue;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
@@ -52,7 +54,9 @@ import antlr.StringUtils;
  */
 @Scope("prototype")
 public class HostResourceSWRunDetector extends SnmpDetector {
-    
+
+    private static final Logger LOG = LoggerFactory.getLogger(HostResourceSWRunDetector.class);
+
     /**
      * The protocol supported by this detector
      */
@@ -109,18 +113,16 @@ public class HostResourceSWRunDetector extends SnmpDetector {
         //
         configureAgentPTR(agentConfig);
 
-        if (log().isDebugEnabled()) log().debug("capsd: service= SNMP address= " + agentConfig);
+        LOG.debug("capsd: service= SNMP address={}", agentConfig);
 
         // Establish SNMP session with interface
         //
         final String hostAddress = InetAddressUtils.str(address);
 		try {
-            if (log().isDebugEnabled()) {
-                log().debug("HostResourceSwRunMonitor.poll: SnmpAgentConfig address: " +agentConfig);
-            }
+            LOG.debug("HostResourceSwRunMonitor.poll: SnmpAgentConfig address: {}", agentConfig);
 
             if (serviceName == null) {
-                log().warn("HostResourceSwRunMonitor.poll: No Service Name Defined! ");
+                LOG.warn("HostResourceSwRunMonitor.poll: No Service Name Defined! ");
                 return status;
             }
 
@@ -133,18 +135,18 @@ public class HostResourceSWRunDetector extends SnmpDetector {
 
                 // See if the service name is in the list of running services
                 if (match(serviceName, stripExtraQuotes(value.toString())) && !status) {
-                    log().debug("poll: HostResourceSwRunMonitor poll succeeded, addr=" + hostAddress + " service name=" + serviceName + " value=" + value);
+                    LOG.debug("poll: HostResourceSwRunMonitor poll succeeded, addr={} service name={} value={}", hostAddress, serviceName, value);
                     status = true;
                     break;
                 }
             }
 
         } catch (NumberFormatException e) {
-            log().warn("Number operator used on a non-number " + e.getMessage());
+            LOG.warn("Number operator used on a non-number {}", e.getMessage());
         } catch (IllegalArgumentException e) {
-            log().warn("Invalid SNMP Criteria: " + e.getMessage());
+            LOG.warn("Invalid SNMP Criteria: {}", e.getMessage());
         } catch (Throwable t) {
-            log().warn("Unexpected exception during SNMP poll of interface " + hostAddress, t);
+            LOG.warn("Unexpected exception during SNMP poll of interface {}", hostAddress, t);
         }
 
         return status;

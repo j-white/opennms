@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2002-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -36,9 +36,9 @@ import java.io.StringWriter;
 import java.io.Writer;
 
 import org.exolab.castor.xml.MarshalException;
-import org.exolab.castor.xml.Marshaller;
 import org.exolab.castor.xml.ValidationException;
 import org.opennms.core.utils.ConfigFileConstants;
+import org.opennms.core.xml.JaxbUtils;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 
@@ -51,9 +51,6 @@ import org.springframework.core.io.Resource;
  * 
  * @author <a href="mailto:sowmya@opennms.org">Sowmya Nataraj </a>
  * @author <a href="http://www.opennms.org/">OpenNMS </a>
- * @author <a href="mailto:sowmya@opennms.org">Sowmya Nataraj </a>
- * @author <a href="http://www.opennms.org/">OpenNMS </a>
- * @version $Id: $
  */
 public final class PollOutagesConfigFactory extends PollOutagesConfigManager {
     /**
@@ -182,13 +179,12 @@ public final class PollOutagesConfigFactory extends PollOutagesConfigManager {
 
         try {
             // Marshal to a string first, then write the string to the file.
-            // This
-            // way the original configuration isn't lost if the XML from the
+            // This way the original configuration isn't lost if the XML from the
             // marshal is hosed.
-            StringWriter stringWriter = new StringWriter();
-            Marshaller.marshal(getConfig(), stringWriter);
+            final StringWriter stringWriter = new StringWriter();
+            JaxbUtils.marshal(getConfig(), stringWriter);
 
-            String xmlString = stringWriter.toString();
+            final String xmlString = stringWriter.toString();
             if (xmlString != null) {
                 saveXML(xmlString);
             }
@@ -205,7 +201,7 @@ public final class PollOutagesConfigFactory extends PollOutagesConfigManager {
 
         try {
             File cfgFile = ConfigFileConstants.getFile(ConfigFileConstants.POLL_OUTAGES_CONFIG_FILE_NAME);
-    
+
             Writer fileWriter = new OutputStreamWriter(new FileOutputStream(cfgFile), "UTF-8");
             fileWriter.write(xmlString);
             fileWriter.flush();
@@ -227,6 +223,7 @@ public final class PollOutagesConfigFactory extends PollOutagesConfigManager {
      * @throws org.exolab.castor.xml.ValidationException
      *             if any.
      */
+    @Override
     public void update() throws IOException, MarshalException, ValidationException {
         getReadLock().lock();
         try {

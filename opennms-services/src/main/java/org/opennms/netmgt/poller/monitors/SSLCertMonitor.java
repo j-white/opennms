@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2012-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -41,17 +41,18 @@ import java.util.Calendar;
 import java.util.GregorianCalendar;
 import java.util.Map;
 import javax.net.ssl.SSLSocket;
-import org.apache.log4j.Level;
 import org.opennms.core.utils.InetAddressUtils;
 import org.opennms.core.utils.ParameterMap;
 import org.opennms.core.utils.SocketWrapper;
 import org.opennms.core.utils.SslSocketWrapper;
 import org.opennms.core.utils.TimeoutTracker;
-import org.opennms.netmgt.model.PollStatus;
 import org.opennms.netmgt.poller.Distributable;
 import org.opennms.netmgt.poller.MonitoredService;
 import org.opennms.netmgt.poller.NetworkInterface;
 import org.opennms.netmgt.poller.NetworkInterfaceNotSupportedException;
+import org.opennms.netmgt.poller.PollStatus;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * This class is designed to be used by the service poller framework to test the
@@ -63,6 +64,9 @@ import org.opennms.netmgt.poller.NetworkInterfaceNotSupportedException;
  */
 @Distributable
 final public class SSLCertMonitor extends AbstractServiceMonitor {
+    
+    
+    public static final Logger LOG = LoggerFactory.getLogger(SSLCertMonitor.class);
 
     /**
      * Default port to test for a valid SSL certificate.
@@ -136,7 +140,7 @@ final public class SSLCertMonitor extends AbstractServiceMonitor {
         InetAddress ipv4Addr = (InetAddress) iface.getAddress();
 
         final String hostAddress = InetAddressUtils.str(ipv4Addr);
-        log().debug("poll: address=" + hostAddress + ", port=" + port + ", " + tracker);
+        LOG.debug("poll: address={}, port={}, {}", hostAddress, port, tracker);
 
         // Give it a whirl
         //
@@ -150,7 +154,7 @@ final public class SSLCertMonitor extends AbstractServiceMonitor {
                 socket = new Socket();
                 socket.connect(new InetSocketAddress(ipv4Addr, port), tracker.getConnectionTimeout());
                 socket.setSoTimeout(tracker.getSoTimeout());
-                log().debug("Connected to host: " + ipv4Addr + " on port: " + port);
+                LOG.debug("Connected to host: {} on port: {}", ipv4Addr, port);
                 SSLSocket sslSocket = (SSLSocket) getSocketWrapper().wrapSocket(socket);
 
                 // We're connected, so upgrade status to unresponsive
@@ -160,38 +164,49 @@ final public class SSLCertMonitor extends AbstractServiceMonitor {
                 for (int i = 0; i < certs.length && !serviceStatus.isAvailable(); i++) {
                     if (certs[i] instanceof X509Certificate) {
                         X509Certificate certx = (X509Certificate) certs[i];
-                        log().debug("Checking validity against dates: [current: " + calCurrent.getTime() +
-                                    ", valid: " + calValid.getTime() +"], NotBefore: " + certx.getNotBefore() +
-                                    ", NotAfter: " + certx.getNotAfter());
+                        LOG.debug("Checking validity against dates: [current: {}, valid: {}], NotBefore: {}, NotAfter: {}", calCurrent.getTime(), calValid.getTime(), certx.getNotBefore(), certx.getNotAfter());
                         calBefore.setTime(certx.getNotBefore());
                         calAfter.setTime(certx.getNotAfter());
                         if (calCurrent.before(calBefore)) {
-                            serviceStatus = logDown(Level.WARN, "Certificate is invalid, current time is before start time");
+                            LOG.debug("Certificate is invalid, current time is before start time");
+                            serviceStatus = PollStatus.unavailable("Certificate is invalid, current time is before start time");
                             break;
                         } else if (calCurrent.before(calAfter)) {
                             if (calValid.before(calAfter)) {
-                                serviceStatus = logUp(Level.DEBUG, tracker.elapsedTimeInMillis(), "Certificate is valid, and does not expire before validity check date");
+                                LOG.debug("Certificate is valid, and does not expire before validity check date");
+                                serviceStatus = PollStatus.available(tracker.elapsedTimeInMillis());
                                 break;
                             } else {
-                                serviceStatus = logDown(Level.ERROR, "Certificate is valid, but will expire in " + validityDays + " days.");
+                                String reason = "Certificate is valid, but will expire in " + validityDays + " days.";
+                                LOG.debug(reason);
+                                serviceStatus = PollStatus.unavailable(reason);
                                 break;
                             }
                         } else {
-                            serviceStatus = logDown(Level.ERROR, "Certificate has expired.");
+                            LOG.debug("Certificate has expired.");
+                            serviceStatus = PollStatus.unavailable("Certificate has expired.");
                             break;
                         }
                     }
                 }
 
             } catch (NoRouteToHostException e) {
-                serviceStatus = logDown(Level.WARN, "No route to host exception for address " + hostAddress, e);
+                String reason = "No route to host exception for address " + hostAddress;
+                LOG.debug(reason, e);
+                serviceStatus = PollStatus.unavailable(reason);
                 break; // Break out of for(;;)
             } catch (InterruptedIOException e) {
-                serviceStatus = logDown(Level.DEBUG, "did not connect to host with " + tracker);
+                String reason = "did not connect to host with " + tracker;
+                LOG.debug(reason);
+                serviceStatus = PollStatus.unavailable(reason);
             } catch (ConnectException e) {
-                serviceStatus = logDown(Level.DEBUG, "Connection exception for address: " + ipv4Addr, e);
+                String reason = "Connection exception for address: " + ipv4Addr;
+                LOG.debug(reason, e);
+                serviceStatus = PollStatus.unavailable(reason);
             } catch (IOException e) {
-                serviceStatus = logDown(Level.DEBUG, "IOException while polling address: " + ipv4Addr, e);
+                String reason = "IOException while polling address: " + ipv4Addr;
+                LOG.debug(reason, e);
+                serviceStatus = PollStatus.unavailable(reason);
             } finally {
                 try {
                     // Close the socket
@@ -200,7 +215,7 @@ final public class SSLCertMonitor extends AbstractServiceMonitor {
                     }
                 } catch (IOException e) {
                     e.fillInStackTrace();
-                    log().debug("poll: Error closing socket." + e);
+                    LOG.debug("poll: Error closing socket.", e);
                 }
             }
         }

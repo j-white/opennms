@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2012-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -130,6 +130,18 @@ public class D3 extends JavaScriptObject {
         return this.attr("transform", transform(start)).transition().duration(i.duration * 2).attrTween(string, function(){ function(t){ return transform(i(t))} });
     }-*/;
     
+    public final native void html(Func<?, ?> func) /*-{
+        var f = function(d, i){
+            return func.@org.opennms.features.topology.app.internal.gwt.client.d3.Func::call(Ljava/lang/Object;I)(d,i);
+        }
+        return this.html(f);
+        
+    }-*/;
+    
+    public final native void html(String html) /*-{
+        this.html(html);
+    }-*/;
+    
     public final native void zoomTransition(D3 selection, int width, int height, JsArrayInteger p0, JsArrayInteger p1) /*-{
 		transition(p0, p1);
 		
@@ -162,6 +174,9 @@ public class D3 extends JavaScriptObject {
 		  function transform(p) {
 		    var k = width / p[2];
 		    var retVal = "translate(" + (center[0] - p[0] * k) + "," + (center[1] - p[1] * k) + ")scale(" + k + ")";
+		    if (retVal.indexOf('NaN') > 0) {
+		      return "translate(0,0)scale(1)";
+		    }
 		    return retVal;
 		  }
 		}
@@ -261,8 +276,16 @@ public class D3 extends JavaScriptObject {
 		
     }-*/;
 
+    public final native <T extends JavaScriptObject> D3 data() /*-{
+        return this.data();
+    }-*/;
+
     public final native D3 text(JavaScriptObject textFunc) /*-{
         return this.text(textFunc);
+    }-*/;
+    
+    public final native D3 text(String t) /*-{
+        return this.text(t);
     }-*/;
 
 	public final native D3 text(Func<String, ?> func) /*-{
@@ -421,5 +444,13 @@ public class D3 extends JavaScriptObject {
         return this.style(style);
     }-*/;
 
+    public final native void injectSVGDef(String file) /*-{
+         $wnd.d3.xml(file, function(svg){
 
+            var newSVG = $wnd.document.importNode(svg.documentElement, true);
+            var defsTag = $wnd.document.getElementsByTagName("defs")[0];
+            defsTag.appendChild(newSVG);
+
+        });
+    }-*/;
 }

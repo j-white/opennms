@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2009-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2009-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -28,6 +28,7 @@
 
 package org.opennms.core.soa.support;
 
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashSet;
@@ -42,6 +43,8 @@ import org.opennms.core.soa.RegistrationHook;
 import org.opennms.core.soa.RegistrationListener;
 import org.opennms.core.soa.ServiceRegistry;
 import org.opennms.core.soa.filter.FilterParser;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * DefaultServiceRegistry
@@ -50,14 +53,17 @@ import org.opennms.core.soa.filter.FilterParser;
  * @version $Id: $
  */
 public class DefaultServiceRegistry implements ServiceRegistry {
-    
+
+    private static Logger LOG = LoggerFactory.getLogger(DefaultServiceRegistry.class);
+
     /**
      * AnyFilter
      *
      * @author brozow
      */
-    public class AnyFilter implements Filter {
+    public static class AnyFilter implements Filter {
 
+        @Override
         public boolean match(Map<String, String> properties) {
             return true;
         }
@@ -77,18 +83,21 @@ public class DefaultServiceRegistry implements ServiceRegistry {
         public ServiceRegistration(Object provider, Map<String, String> properties, Class<?>[] serviceInterfaces) {
             m_provider = provider;
             m_properties = properties;
-            m_serviceInterfaces = serviceInterfaces;
+            m_serviceInterfaces = Arrays.copyOf(serviceInterfaces, serviceInterfaces.length);
         }
         
 
+        @Override
         public Map<String, String> getProperties() {
             return m_properties == null ? null : Collections.unmodifiableMap(m_properties);
         }
 
+        @Override
         public Class<?>[] getProvidedInterfaces() {
             return m_serviceInterfaces;
         }
 
+        @Override
         public <T> T getProvider(Class<T> serviceInterface) {
 
             if (serviceInterface == null) throw new NullPointerException("serviceInterface may not be null");
@@ -102,18 +111,22 @@ public class DefaultServiceRegistry implements ServiceRegistry {
             throw new IllegalArgumentException("Provider not registered with interface " + serviceInterface);
         }
         
+        @Override
         public Object getProvider() {
         	return m_provider;
         }
 
+        @Override
         public ServiceRegistry getRegistry() {
             return DefaultServiceRegistry.this;
         }
 
+        @Override
         public boolean isUnregistered() {
             return m_unregistered;
         }
         
+        @Override
         public void unregister() {
             m_unregistered = true;
             DefaultServiceRegistry.this.unregister(this);
@@ -127,11 +140,13 @@ public class DefaultServiceRegistry implements ServiceRegistry {
     private List<RegistrationHook> m_hooks = new CopyOnWriteArrayList<RegistrationHook>();
     
     /** {@inheritDoc} */
+    @Override
     public <T> T findProvider(Class<T> serviceInterface) {
         return findProvider(serviceInterface, null);
     }
     
     /** {@inheritDoc} */
+    @Override
     public <T> T findProvider(Class<T> serviceInterface, String filter) {
         Collection<T> providers = findProviders(serviceInterface, filter);
         for(T provider : providers) {
@@ -141,11 +156,13 @@ public class DefaultServiceRegistry implements ServiceRegistry {
     }
     
     /** {@inheritDoc} */
+    @Override
     public <T> Collection<T> findProviders(Class<T> serviceInterface) {
         return findProviders(serviceInterface, null);
     }
 
     /** {@inheritDoc} */
+    @Override
     public <T> Collection<T> findProviders(Class<T> serviceInterface, String filter) {
         
         Filter f = filter == null ? new AnyFilter() : new FilterParser().parse(filter);
@@ -167,6 +184,7 @@ public class DefaultServiceRegistry implements ServiceRegistry {
      * @param services a {@link java.lang.Class} object.
      * @return a {@link org.opennms.core.soa.Registration} object.
      */
+    @Override
     public Registration register(Object serviceProvider, Class<?>... services) {
         return register(serviceProvider, (Map<String, String>)null, services);
     }
@@ -179,6 +197,7 @@ public class DefaultServiceRegistry implements ServiceRegistry {
      * @param services a {@link java.lang.Class} object.
      * @return a {@link org.opennms.core.soa.Registration} object.
      */
+    @Override
     public Registration register(Object serviceProvider, Map<String, String> properties, Class<?>... services) {
         
         ServiceRegistration registration = new ServiceRegistration(serviceProvider, properties, services);
@@ -193,7 +212,8 @@ public class DefaultServiceRegistry implements ServiceRegistry {
             fireProviderRegistered(serviceInterface, registration);
         }
 
-        
+        LOG.debug("Registered {} as instance of {}", serviceProvider, services);
+
         return registration;
 
     }
@@ -229,11 +249,13 @@ public class DefaultServiceRegistry implements ServiceRegistry {
     }
 
     /** {@inheritDoc} */
+    @Override
     public <T> void addListener(Class<T> service,  RegistrationListener<T> listener) {
         m_listenerMap.add(service, listener);
     }
 
     /** {@inheritDoc} */
+    @Override
     public <T> void addListener(Class<T> service,  RegistrationListener<T> listener, boolean notifyForExistingProviders) {
 
         if (notifyForExistingProviders) {
@@ -257,6 +279,7 @@ public class DefaultServiceRegistry implements ServiceRegistry {
     }
 
     /** {@inheritDoc} */
+    @Override
     public <T> void removeListener(Class<T> service, RegistrationListener<T> listener) {
         m_listenerMap.remove(service, listener);
     }
@@ -308,7 +331,14 @@ public class DefaultServiceRegistry implements ServiceRegistry {
 	public void removeRegistrationHook(RegistrationHook hook) {
 		m_hooks.remove(hook);
 	}
-	
+
+	@Override
+	public void unregisterAll(Class<?> clazz) {
+		for (ServiceRegistration registration : getRegistrations(clazz)) {
+			unregister(registration);
+		}
+	}
+
 	private Set<ServiceRegistration> getAllRegistrations() {
 		Set<ServiceRegistration> registrations = new LinkedHashSet<ServiceRegistration>();
 		

@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2008-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -28,14 +28,8 @@
 
 package org.opennms.core.utils;
 
-import java.beans.PropertyDescriptor;
-import java.lang.reflect.InvocationTargetException;
-import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
-import org.springframework.beans.BeanWrapper;
-import org.springframework.beans.BeanWrapperImpl;
 
 /**
  * <p>WebSecurityUtils class.</p>
@@ -45,13 +39,13 @@ import org.springframework.beans.BeanWrapperImpl;
  */
 public abstract class WebSecurityUtils {
 	
-	private final static Pattern ILLEGAL_IN_INTEGER = Pattern.compile("[^0-9+-]");
+	private static final Pattern ILLEGAL_IN_INTEGER = Pattern.compile("[^0-9+-]");
 	
-	private final static Pattern ILLEGAL_IN_FLOAT = Pattern.compile("[^0-9.Ee+-]");
+	private static final Pattern ILLEGAL_IN_FLOAT = Pattern.compile("[^0-9.Ee+-]");
 	
-	private final static Pattern ILLEGAL_IN_COLUMN_NAME_PATTERN = Pattern.compile("[^A-Za-z0-9_]");
+	private static final Pattern ILLEGAL_IN_COLUMN_NAME_PATTERN = Pattern.compile("[^A-Za-z0-9_]");
 	
-    private final static Pattern scriptPattern = Pattern.compile("script", Pattern.CASE_INSENSITIVE);
+    private static final Pattern scriptPattern = Pattern.compile("script", Pattern.CASE_INSENSITIVE);
 
     /**
      * <p>sanitizeString</p>
@@ -172,41 +166,4 @@ public abstract class WebSecurityUtils {
         return ILLEGAL_IN_COLUMN_NAME_PATTERN.matcher(dirty).replaceAll("");
     }
 
-    /**
-     * <p>sanitizeBeanStringProperties</p>
-     * This is a simple method is used to sanitize all bean string properties. 
-     * 
-     * @param bean a {@link java.lang.Object} object. 
-     * @param Set of fieldnames as Strings that are allowed for html content. All fieldnames in lowercase. null -> no html
-     * @return a {@link java.lang.Object} object.
-     */
-    public static <T> T sanitizeBeanStringProperties(T bean, Set<String> allowHtmlFields) {
-    	BeanWrapper beanWrapper = new BeanWrapperImpl(bean.getClass());
-    	
-    	// get all bean property descriptors
-    	PropertyDescriptor[] descriptions = beanWrapper.getPropertyDescriptors();
-    	
-    	// Iterate over all properties
-    	for (PropertyDescriptor description : descriptions) {
-    		
-    		// If we have a property with type of java.lang.String, then sanitize string and write back
-    		if (description.getReadMethod().getReturnType().equals(java.lang.String.class)) {
-    			try {
-    				boolean allowHTML = false;
-	    	        if (allowHtmlFields != null && allowHtmlFields.contains(description.getName().toLowerCase())) {
-	    	            allowHTML = true;
-	    	        }
-    				LogUtils.debugf(WebSecurityUtils.class, "Try to sanitize string %s in %s with html %b", description.getName(), bean.getClass(), allowHTML);
-    				description.getWriteMethod().invoke(bean, WebSecurityUtils.sanitizeString((String)description.getReadMethod().invoke(bean), allowHTML));
-    			}catch (IllegalArgumentException e) {
-					LogUtils.errorf(WebSecurityUtils.class, "Illegal argument by sanitize object %s on property %s. Error %s", description.getName(), bean.getClass(), e.getMessage());
-				} catch (IllegalAccessException e) {
-					LogUtils.errorf(WebSecurityUtils.class, "Illegal access by sanitize object %s on property %s. Error %s", description.getName(), bean.getClass(), e.getMessage());
-				} catch (InvocationTargetException e) {
-					LogUtils.errorf(WebSecurityUtils.class, "Invocation target exception by sanitize object %s on property %s. Error %s", description.getName(), bean.getClass(), e.getMessage());
-				}
-    		}
-    	}
-    	return bean;
-    }
 }

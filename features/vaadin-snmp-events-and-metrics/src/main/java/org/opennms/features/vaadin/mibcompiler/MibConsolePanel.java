@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2012-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -25,20 +25,21 @@
  *     http://www.opennms.org/
  *     http://www.opennms.com/
  *******************************************************************************/
+
 package org.opennms.features.vaadin.mibcompiler;
 
 import java.util.Date;
 
-import org.opennms.core.utils.LogUtils;
+import org.slf4j.LoggerFactory;
 import org.opennms.features.vaadin.api.Logger;
 
+import com.vaadin.shared.ui.label.ContentMode;
 import com.vaadin.ui.Alignment;
 import com.vaadin.ui.Button;
-import com.vaadin.ui.Button.ClickEvent;
 import com.vaadin.ui.Label;
 import com.vaadin.ui.Panel;
 import com.vaadin.ui.VerticalLayout;
-import com.vaadin.ui.themes.Runo;
+import com.vaadin.ui.Button.ClickEvent;
 
 /**
  * The Class MIB Console Panel.
@@ -47,6 +48,9 @@ import com.vaadin.ui.themes.Runo;
  */
 @SuppressWarnings("serial")
 public class MibConsolePanel extends Panel implements Logger {
+
+    /** The Constant LOG. */
+    private static final org.slf4j.Logger LOG = LoggerFactory.getLogger(MibConsolePanel.class);
 
     /** The Constant ERROR. */
     private static final String ERROR = "<b><font color='red'>&nbsp;[ERROR]&nbsp;</font></b>";
@@ -63,30 +67,31 @@ public class MibConsolePanel extends Panel implements Logger {
     /** The log content. */
     private final VerticalLayout logContent;
 
-    /** The clear button. */
-    private final Button clearButton;
-
     /**
      * Instantiates a new MIB Console Panel.
      */
     public MibConsolePanel() {
         super("MIB Console");
-        addStyleName(Runo.PANEL_LIGHT);
+        addStyleName("light");
 
-        clearButton = new Button("Clear Log");
-        clearButton.addListener(new Button.ClickListener() {
+        Button clearButton = new Button("Clear Log");
+        clearButton.addClickListener(new Button.ClickListener() {
             @Override
             public void buttonClick(ClickEvent event) {
                 logContent.removeAllComponents();
             }
         });
-        addComponent(clearButton);
-        ((VerticalLayout) getContent()).setComponentAlignment(clearButton, Alignment.TOP_RIGHT);
+
+        VerticalLayout layout = new VerticalLayout();
+        layout.addComponent(clearButton);
+        layout.setComponentAlignment(clearButton, Alignment.TOP_RIGHT);
 
         logContent = new VerticalLayout();
-        addComponent(logContent);
+        layout.addComponent(logContent);
 
         setSizeFull();
+
+        setContent(layout);
     }
 
     /**
@@ -97,10 +102,10 @@ public class MibConsolePanel extends Panel implements Logger {
      */
     private void logMsg(String level, String message) {
         String msg = new Date().toString() + level + message;
-        Label error = new Label(msg, Label.CONTENT_XHTML);
+        Label error = new Label(msg, ContentMode.HTML);
         logContent.addComponent(error);
         scrollIntoView();
-        LogUtils.infof(this, message);
+        LOG.info(message);
     }
 
     /**
@@ -108,13 +113,14 @@ public class MibConsolePanel extends Panel implements Logger {
      */
     private void scrollIntoView() {
         final VerticalLayout layout = (VerticalLayout) getContent();
-        if (getApplication() != null && layout.getComponentCount() > 0)
-            getApplication().getMainWindow().scrollIntoView(layout.getComponent(layout.getComponentCount() - 1));
+        if (getUI() != null && layout.getComponentCount() > 0)
+            getUI().scrollIntoView(layout.getComponent(layout.getComponentCount() - 1));
     }
 
     /* (non-Javadoc)
      * @see org.opennms.features.vaadin.mibcompiler.services.Logger#error(java.lang.String)
      */
+    @Override
     public void error(String message) {
         logMsg(ERROR, message);
     }
@@ -122,6 +128,7 @@ public class MibConsolePanel extends Panel implements Logger {
     /* (non-Javadoc)
      * @see org.opennms.features.vaadin.mibcompiler.services.Logger#warn(java.lang.String)
      */
+    @Override
     public void warn(String message) {
         logMsg(WARN, message);
     }
@@ -129,6 +136,7 @@ public class MibConsolePanel extends Panel implements Logger {
     /* (non-Javadoc)
      * @see org.opennms.features.vaadin.mibcompiler.services.Logger#info(java.lang.String)
      */
+    @Override
     public void info(String message) {
         logMsg(INFO, message);
     }
@@ -136,6 +144,7 @@ public class MibConsolePanel extends Panel implements Logger {
     /* (non-Javadoc)
      * @see org.opennms.features.vaadin.mibcompiler.services.Logger#debug(java.lang.String)
      */
+    @Override
     public void debug(String message) {
         logMsg(DEBUG, message);
     }

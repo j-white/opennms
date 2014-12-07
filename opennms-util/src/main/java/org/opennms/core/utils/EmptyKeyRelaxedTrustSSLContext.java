@@ -15,27 +15,28 @@ import javax.net.ssl.SSLSessionContext;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
 
-import org.opennms.core.utils.ThreadCategory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2011-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2011-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -46,9 +47,12 @@ import org.opennms.core.utils.ThreadCategory;
  *******************************************************************************/
 
 /**
- * @author <a mailto:seth@opennms.org>Seth Leger</a>
+ * @author <a href="mailto:seth@opennms.org">Seth Leger</a>
  */
 public final class EmptyKeyRelaxedTrustSSLContext extends SSLContextSpi {
+	
+	private static final Logger LOG = LoggerFactory.getLogger(EmptyKeyRelaxedTrustSSLContext.class);
+	
     public static final String ALGORITHM = "EmptyKeyRelaxedTrust";
 
     private final SSLContext m_delegate;
@@ -61,16 +65,19 @@ public final class EmptyKeyRelaxedTrustSSLContext extends SSLContextSpi {
             KeyManager[] keyManager = null;
             TrustManager[] trustManagers = { new X509TrustManager() {
 
+                @Override
                 public void checkClientTrusted(X509Certificate[] chain,
                         String authType) throws CertificateException {
                     // Perform no checks
                 }
 
+                @Override
                 public void checkServerTrusted(X509Certificate[] chain,
                         String authType) throws CertificateException {
                     // Perform no checks
                 }
 
+                @Override
                 public X509Certificate[] getAcceptedIssuers() {
                     return null;
                 }}
@@ -79,10 +86,10 @@ public final class EmptyKeyRelaxedTrustSSLContext extends SSLContextSpi {
             customContext.init(keyManager, trustManagers, new java.security.SecureRandom());
         } catch (NoSuchAlgorithmException e) {
             // Should never happen
-            ThreadCategory.getInstance(this.getClass()).error("Could not find SSL algorithm in JVM", e);
+        	LOG.error("Could not find SSL algorithm in JVM", e);
         } catch (KeyManagementException e) {
             // Should never happen
-            ThreadCategory.getInstance(this.getClass()).error("Could not find SSL algorithm in JVM", e);
+        	LOG.error("Could not find SSL algorithm in JVM", e);
         }
         m_delegate = customContext;
     }

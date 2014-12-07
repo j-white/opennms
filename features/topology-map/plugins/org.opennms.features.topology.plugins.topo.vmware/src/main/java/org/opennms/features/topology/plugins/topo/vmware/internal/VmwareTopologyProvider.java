@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2013-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -31,30 +31,40 @@ package org.opennms.features.topology.plugins.topo.vmware.internal;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Set;
 
+import org.opennms.features.topology.api.GraphContainer;
+import org.opennms.features.topology.api.OperationContext;
+import org.opennms.features.topology.api.support.VertexHopGraphProvider;
 import org.opennms.features.topology.api.topo.AbstractVertex;
 import org.opennms.features.topology.api.topo.Edge;
 import org.opennms.features.topology.api.topo.EdgeRef;
 import org.opennms.features.topology.api.topo.GraphProvider;
+import org.opennms.features.topology.api.topo.SearchProvider;
+import org.opennms.features.topology.api.topo.SearchQuery;
+import org.opennms.features.topology.api.topo.SearchResult;
 import org.opennms.features.topology.api.topo.Vertex;
 import org.opennms.features.topology.api.topo.VertexRef;
 import org.opennms.features.topology.plugins.topo.simple.SimpleGraphProvider;
-import org.opennms.netmgt.dao.IpInterfaceDao;
-import org.opennms.netmgt.dao.NodeDao;
+import org.opennms.netmgt.dao.api.IpInterfaceDao;
+import org.opennms.netmgt.dao.api.NodeDao;
 import org.opennms.netmgt.model.OnmsIpInterface;
 import org.opennms.netmgt.model.OnmsNode;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-public class VmwareTopologyProvider extends SimpleGraphProvider implements GraphProvider {
+import com.google.common.collect.Lists;
 
+public class VmwareTopologyProvider extends SimpleGraphProvider implements GraphProvider, SearchProvider {
     public static final String TOPOLOGY_NAMESPACE_VMWARE = "vmware";
+    private static final Logger LOG = LoggerFactory.getLogger(VmwareTopologyProvider.class);
 
-    private final String SPLIT_REGEXP = " *, *";
-
+    private static final String SPLIT_REGEXP = " *, *";
     private NodeDao m_nodeDao;
     private IpInterfaceDao m_ipInterfaceDao;
-
     private boolean m_generated = false;
 
     public VmwareTopologyProvider() {
@@ -82,12 +92,12 @@ public class VmwareTopologyProvider extends SimpleGraphProvider implements Graph
     }
 
     public void debug(Vertex vmwareVertex) {
-        System.err.println("-+- id: " + vmwareVertex.getId());
-        System.err.println(" |- hashCode: " + vmwareVertex.hashCode());
-        System.err.println(" |- label: " + vmwareVertex.getLabel());
-        System.err.println(" |- ip: " + vmwareVertex.getIpAddress());
-        System.err.println(" |- iconKey: " + vmwareVertex.getIconKey());
-        System.err.println(" |- nodeId: " + vmwareVertex.getNodeID());
+        LOG.debug("-+- id: {}", vmwareVertex.getId());
+        LOG.debug(" |- hashCode: {}", vmwareVertex.hashCode());
+        LOG.debug(" |- label: {}", vmwareVertex.getLabel());
+        LOG.debug(" |- ip: {}", vmwareVertex.getIpAddress());
+        LOG.debug(" |- iconKey: {}", vmwareVertex.getIconKey());
+        LOG.debug(" |- nodeId: {}", vmwareVertex.getNodeID());
 
         for (EdgeRef edge : getEdgeIdsForVertex(vmwareVertex)) {
             Edge vmwareEdge = getEdge(edge);
@@ -95,9 +105,9 @@ public class VmwareTopologyProvider extends SimpleGraphProvider implements Graph
             if (vmwareVertex.equals(edgeTo)) {
                 edgeTo = vmwareEdge.getSource().getVertex();
             }
-            System.err.println(" |- edgeTo: " + edgeTo);
+            LOG.debug(" |- edgeTo: {}", edgeTo);
         }
-        System.err.println(" '- parent: " + (vmwareVertex.getParent() == null ? null : vmwareVertex.getParent().getId()));
+        LOG.debug(" '- parent: {}", (vmwareVertex.getParent() == null ? null : vmwareVertex.getParent().getId()));
     }
 
     public void debugAll() {
@@ -196,10 +206,10 @@ public class VmwareTopologyProvider extends SimpleGraphProvider implements Graph
 
         HashMap<String, String> moIdToName = new HashMap<String, String>();
 
-        String entities[] = vmwareTopologyInfo.split(SPLIT_REGEXP);
+        String[] entities = vmwareTopologyInfo.split(SPLIT_REGEXP);
 
         for (String entityAndName : entities) {
-            String splitBySlash[] = entityAndName.split("/");
+            String[] splitBySlash = entityAndName.split("/");
             String entityId = splitBySlash[0];
 
             String entityName = "unknown";
@@ -208,7 +218,7 @@ public class VmwareTopologyProvider extends SimpleGraphProvider implements Graph
                 try {
                     entityName = new String(URLDecoder.decode(splitBySlash[1], "UTF-8"));
                 } catch (UnsupportedEncodingException e) {
-                    e.printStackTrace();
+                    LOG.error(e.getMessage(), e);
                 }
             }
 
@@ -254,13 +264,13 @@ public class VmwareTopologyProvider extends SimpleGraphProvider implements Graph
             AbstractVertex networkVertex = addNetworkVertex(vmwareManagementServer + "/" + network, moIdToName.get(network));
             // networkVertex.setParent(datacenterVertex);
             if (!networkVertex.equals(datacenterVertex)) setParent(networkVertex, datacenterVertex);
-            connectVertices(vmwareManagementServer + "/" + vmwareManagedObjectId + "->" + network, hostSystemVertex, networkVertex);
+            connectVertices(vmwareManagementServer + "/" + vmwareManagedObjectId + "->" + network, hostSystemVertex, networkVertex, getEdgeNamespace());
         }
         for (String datastore : datastores) {
             AbstractVertex datastoreVertex = addDatastoreVertex(vmwareManagementServer + "/" + datastore, moIdToName.get(datastore));
             // datastoreVertex.setParent(datacenterVertex);
             if (!datastoreVertex.equals(datacenterVertex)) setParent(datastoreVertex, datacenterVertex);
-            connectVertices(vmwareManagementServer + "/" + vmwareManagedObjectId + "->" + datastore, hostSystemVertex, datastoreVertex);
+            connectVertices(vmwareManagementServer + "/" + vmwareManagedObjectId + "->" + datastore, hostSystemVertex, datastoreVertex, getEdgeNamespace());
         }
     }
 
@@ -282,10 +292,10 @@ public class VmwareTopologyProvider extends SimpleGraphProvider implements Graph
 
         HashMap<String, String> moIdToName = new HashMap<String, String>();
 
-        String entities[] = vmwareTopologyInfo.split(SPLIT_REGEXP);
+        String[] entities = vmwareTopologyInfo.split(SPLIT_REGEXP);
 
         for (String entityAndName : entities) {
-            String splitBySlash[] = entityAndName.split("/");
+            String[] splitBySlash = entityAndName.split("/");
             String entityId = splitBySlash[0];
 
             String entityName = "unknown";
@@ -294,7 +304,7 @@ public class VmwareTopologyProvider extends SimpleGraphProvider implements Graph
                 try {
                     entityName = new String(URLDecoder.decode(splitBySlash[1], "UTF-8"));
                 } catch (UnsupportedEncodingException e) {
-                    e.printStackTrace();
+                    LOG.error(e.getMessage(), e);
                 }
             }
 
@@ -324,7 +334,7 @@ public class VmwareTopologyProvider extends SimpleGraphProvider implements Graph
         }
 
         if (vmwareHostSystemId == null) {
-            System.err.println("Cannot find host system id for virtual machine " + vmwareManagementServer + "/" + vmwareManagedObjectId);
+            LOG.warn("Cannot find host system id for virtual machine {}/{}", vmwareManagementServer, vmwareManagedObjectId);
         }
 
         AbstractVertex datacenterVertex = addDatacenterGroup(vmwareManagementServer, datacenterName);
@@ -351,20 +361,18 @@ public class VmwareTopologyProvider extends SimpleGraphProvider implements Graph
         }
 
         // connect the virtual machine to the host system
-        connectVertices(vmwareManagementServer + "/" + vmwareManagedObjectId + "->" + vmwareManagementServer + "/" + vmwareHostSystemId, virtualMachineVertex, getVertex(getVertexNamespace(), vmwareManagementServer + "/" + vmwareHostSystemId));
+        connectVertices(vmwareManagementServer + "/" + vmwareManagedObjectId + "->" + vmwareManagementServer + "/" + vmwareHostSystemId, virtualMachineVertex, getVertex(getVertexNamespace(), vmwareManagementServer + "/" + vmwareHostSystemId), getEdgeNamespace());
     }
 
+    @Override
     public void refresh() {
         m_generated = true;
-
-        // reset container
         resetContainer();
 
         // get all host systems
         List<OnmsNode> hostSystems = m_nodeDao.findAllByVarCharAssetColumn("vmwareManagedEntityType", "HostSystem");
-
-        if (hostSystems.size() == 0) {
-            System.err.println("No host systems with defined VMware assets fields found!");
+        if (hostSystems.isEmpty()) {
+            LOG.info("refresh: No host systems with defined VMware assets fields found!");
         } else {
             for (OnmsNode hostSystem : hostSystems) {
                 addHostSystem(hostSystem);
@@ -373,15 +381,79 @@ public class VmwareTopologyProvider extends SimpleGraphProvider implements Graph
 
         // get all virtual machines
         List<OnmsNode> virtualMachines = m_nodeDao.findAllByVarCharAssetColumn("vmwareManagedEntityType", "VirtualMachine");
-
-        if (virtualMachines.size() == 0) {
-            System.err.println("No virtual machines with defined VMware assets fields found!");
+        if (virtualMachines.isEmpty()) {
+            LOG.info("refresh: No virtual machines with defined VMware assets fields found!");
         } else {
             for (OnmsNode virtualMachine : virtualMachines) {
                 addVirtualMachine(virtualMachine);
             }
         }
-
         debugAll();
+    }
+
+    @Override
+    public void onFocusSearchResult(SearchResult searchResult, OperationContext operationContext) {
+        GraphContainer m_graphContainer = operationContext.getGraphContainer();
+        VertexRef vertexRef = getVertex(searchResult.getNamespace(), searchResult.getId());
+        m_graphContainer.getSelectionManager().setSelectedVertexRefs(Lists.newArrayList(vertexRef));
+    }
+
+    @Override
+    public void onDefocusSearchResult(SearchResult searchResult, OperationContext operationContext) {
+        GraphContainer graphContainer = operationContext.getGraphContainer();
+        VertexRef vertexRef = getVertex(searchResult.getNamespace(), searchResult.getId());
+        graphContainer.getSelectionManager().deselectVertexRefs(Lists.newArrayList(vertexRef));
+    }
+
+    @Override
+    public void onCenterSearchResult(final SearchResult searchResult, final GraphContainer graphContainer) {
+        // TODO: implement?
+    }
+
+    @Override
+    public void onToggleCollapse(final SearchResult searchResult, final GraphContainer graphContainer) {
+        // TODO: implement?
+    }
+
+    @Override
+    public String getSearchProviderNamespace() {
+        return "vmware";
+    }
+
+    @Override
+    public boolean supportsPrefix(String searchPrefix) {
+        return searchPrefix.contains("nodes=");
+    }
+
+    //FIXME: This should return the list of vertexrefs for the "zoom to focus" operation
+    @Override
+    public Set<VertexRef> getVertexRefsBy(SearchResult searchResult, GraphContainer container) {
+        return Collections.emptySet();
+    }
+
+    @Override
+    public void addVertexHopCriteria(SearchResult searchResult, GraphContainer container) {
+        VertexHopGraphProvider.FocusNodeHopCriteria criteria = VertexHopGraphProvider.getFocusNodeHopCriteriaForContainer(container);
+        criteria.add(getVertex(searchResult.getNamespace(), searchResult.getId()));
+    }
+
+    @Override
+    public void removeVertexHopCriteria(SearchResult searchResult, GraphContainer container) {
+        VertexHopGraphProvider.FocusNodeHopCriteria criteria = VertexHopGraphProvider.getFocusNodeHopCriteriaForContainer(container);
+        criteria.remove(getVertex(searchResult.getNamespace(), searchResult.getLabel()));
+    }
+
+    @Override
+    public List<SearchResult> query(SearchQuery searchQuery, GraphContainer graphContainer) {
+        List<Vertex> vertices = m_vertexProvider.getVertices();
+        List<SearchResult> searchResults = Lists.newArrayList();
+
+        for(Vertex vertex : vertices){
+            if(searchQuery.matches(vertex.getLabel())) {
+                searchResults.add(new SearchResult(vertex));
+            }
+        }
+
+        return searchResults;
     }
 }

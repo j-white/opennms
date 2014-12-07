@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2005-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -34,8 +34,8 @@ import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.List;
 
-import junit.framework.TestCase;
-
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 import org.opennms.core.db.DataSourceFactory;
 import org.opennms.core.test.ConfigurationTestUtils;
@@ -43,14 +43,14 @@ import org.opennms.core.test.MockLogAppender;
 import org.opennms.core.test.db.MockDatabase;
 import org.opennms.core.utils.InetAddressUtils;
 import org.opennms.netmgt.config.DefaultEventConfDao;
-import org.opennms.netmgt.config.EventExpander;
 import org.opennms.netmgt.config.SnmpPeerFactory;
+import org.opennms.netmgt.dao.mock.JdbcEventdServiceManager;
+import org.opennms.netmgt.eventd.AbstractEventUtil;
 import org.opennms.netmgt.eventd.BroadcastEventProcessor;
 import org.opennms.netmgt.eventd.DefaultEventHandlerImpl;
+import org.opennms.netmgt.eventd.EventExpander;
 import org.opennms.netmgt.eventd.EventIpcManagerDefaultImpl;
-import org.opennms.netmgt.eventd.EventIpcManagerFactory;
 import org.opennms.netmgt.eventd.Eventd;
-import org.opennms.netmgt.eventd.JdbcEventdServiceManager;
 import org.opennms.netmgt.eventd.adaptors.EventHandler;
 import org.opennms.netmgt.eventd.adaptors.EventIpcManagerEventHandlerProxy;
 import org.opennms.netmgt.eventd.adaptors.EventReceiver;
@@ -58,19 +58,24 @@ import org.opennms.netmgt.eventd.adaptors.tcp.TcpEventReceiver;
 import org.opennms.netmgt.eventd.adaptors.udp.UdpEventReceiver;
 import org.opennms.netmgt.eventd.processor.EventIpcBroadcastProcessor;
 import org.opennms.netmgt.eventd.processor.JdbcEventWriter;
-import org.opennms.netmgt.model.events.EventIpcManager;
-import org.opennms.netmgt.model.events.EventProcessor;
-import org.opennms.netmgt.model.events.EventProxy;
+import org.opennms.netmgt.events.api.EventIpcManager;
+import org.opennms.netmgt.events.api.EventIpcManagerFactory;
+import org.opennms.netmgt.events.api.EventProcessor;
+import org.opennms.netmgt.events.api.EventProxy;
 import org.opennms.netmgt.snmp.SnmpAgentConfig;
 import org.opennms.netmgt.snmp.SnmpUtils;
 import org.opennms.test.mock.MockUtil;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.FileSystemResource;
-import org.springframework.jdbc.core.simple.SimpleJdbcTemplate;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.transaction.PlatformTransactionManager;
 
-public class OpenNMSTestCase extends TestCase {
+/**
+ * @deprecated Please develop new unit tests by using the Spring unit test
+ * framework instead of this base class.
+ */
+public class OpenNMSTestCase {
     protected static MockDatabase m_db;
     protected static MockNetwork m_network;
     protected static Eventd m_eventd;
@@ -135,8 +140,8 @@ public class OpenNMSTestCase extends TestCase {
         m_version = version;
     }
 
-    protected void setUp() throws Exception {
-        super.setUp();
+    @Before
+    public void setUp() throws Exception {
         MockUtil.println("------------ Begin Test "+this+" --------------------------");
         MockLogAppender.setupLogging();
         
@@ -152,6 +157,8 @@ public class OpenNMSTestCase extends TestCase {
             
             if (isStartEventd()) {
                 m_eventdIpcMgr = new EventIpcManagerDefaultImpl();
+
+                AbstractEventUtil.setInstance(new EventUtilJdbcImpl());
 
                 JdbcEventdServiceManager eventdServiceManager = new JdbcEventdServiceManager();
                 eventdServiceManager.setDataSource(m_db);
@@ -172,6 +179,7 @@ public class OpenNMSTestCase extends TestCase {
 
                 JdbcEventWriter jdbcEventWriter = new JdbcEventWriter();
                 jdbcEventWriter.setEventdServiceManager(eventdServiceManager);
+                jdbcEventWriter.setEventUtil(new EventUtilJdbcImpl());
                 jdbcEventWriter.setDataSource(m_db);
                 jdbcEventWriter.setGetNextIdString("select nextVal('eventsNxtId')"); // for HSQL: "SELECT max(eventId)+1 from events"
                 jdbcEventWriter.afterPropertiesSet();
@@ -240,10 +248,9 @@ public class OpenNMSTestCase extends TestCase {
         m_network.createStandardNetwork();
     }
     
-    @Override
+    @After
     public void runTest() throws Throwable {
         try {
-            super.runTest();
             if (!m_allowWarnings) {
                 MockLogAppender.assertNoWarningsOrGreater();
             }
@@ -252,12 +259,11 @@ public class OpenNMSTestCase extends TestCase {
         }
     }
 
-    protected void tearDown() throws Exception {
+    @After
+    public void tearDown() throws Exception {
         if(m_runSupers) {
             if (isStartEventd()) m_eventd.stop();
         }
-
-        super.tearDown();
     }
 
     protected void setStartEventd(boolean startEventd) {
@@ -286,10 +292,11 @@ public class OpenNMSTestCase extends TestCase {
         m_eventProxy = eventProxy;
     }
 
-    public SimpleJdbcTemplate getJdbcTemplate() {
+    public JdbcTemplate getJdbcTemplate() {
         return m_db.getJdbcTemplate();
     }
 
+    @Override
     public String toString() {
         return super.toString() + " - " + getSnmpImplementation() + " " + myVersion();
     }

@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2010-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2002-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -28,8 +28,6 @@
 
 package org.opennms.reporting.datablock;
 
-//import org.apache.log4j.Category;
-//import org.opennms.core.utils.ThreadCategory;
 
 /**
  * This class holds the service information and list of outages for the service.
@@ -242,11 +240,6 @@ public class Service extends StandardNamedObject {
         double outage = 1.0 * m_downTime;
         double denom = 1.0 * rollingWindow;
         double percent = 100.0 * (1.0 - outage / denom);
-        /*
-         * ThreadCategory.setPrefix(LOG4J_CATEGORY); Category log =
-         * ThreadCategory.getInstance(this.getClass()); if(log.isInfoEnabled())
-         * log.info("Outage -->> " + outage + " DENOM -->> " + denom);
-         */
         m_percentAvail = percent;
         m_monitoredTime = rollingWindow;
         return percent;
@@ -257,6 +250,7 @@ public class Service extends StandardNamedObject {
      *
      * Equals method.
      */
+    @Override
     public boolean equals(Object obj) {
         if (obj != null) {
             if (obj instanceof String)

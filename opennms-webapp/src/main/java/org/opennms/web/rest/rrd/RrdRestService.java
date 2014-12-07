@@ -6,7 +6,7 @@ import org.exolab.castor.xml.Unmarshaller;
 import org.jrobin.core.RrdException;
 import org.jrobin.data.DataProcessor;
 import org.opennms.core.utils.StringUtils;
-import org.opennms.netmgt.dao.ResourceDao;
+import org.opennms.netmgt.dao.api.ResourceDao;
 import org.opennms.netmgt.model.OnmsAttribute;
 import org.opennms.netmgt.model.OnmsResource;
 import org.opennms.netmgt.model.RrdGraphAttribute;
@@ -117,7 +117,7 @@ public class RrdRestService extends OnmsRestService {
 
             String result = "";
 
-            RrdStrategy rrdStrategy = findStrategy(RrdUtils.getStrategy());
+            RrdStrategy<?, ?> rrdStrategy = findStrategy(RrdUtils.getStrategy());
 
             result += "<h1>" + rrdStrategy.getClass().getSimpleName() + "</h1>";
 
@@ -291,11 +291,11 @@ public class RrdRestService extends OnmsRestService {
         return results;
     }
 
-    private static RrdStrategy findStrategy() {
+    private static RrdStrategy<?, ?> findStrategy() {
         return findStrategy(RrdUtils.getStrategy());
     }
 
-    private static RrdStrategy findStrategy(final RrdStrategy rrdStrategy) {
+    private static RrdStrategy<?, ?> findStrategy(final RrdStrategy<?, ?> rrdStrategy) {
         if (rrdStrategy instanceof JniRrdStrategy || rrdStrategy instanceof JRobinRrdStrategy) {
             return rrdStrategy;
         }
@@ -306,7 +306,7 @@ public class RrdRestService extends OnmsRestService {
 
         if (rrdStrategy instanceof MultiOutputRrdStrategy) {
             for (final RrdStrategy delegate : ((MultiOutputRrdStrategy) rrdStrategy).getDelegates()) {
-                RrdStrategy x = findStrategy(delegate);
+                RrdStrategy<?, ?> x = findStrategy(delegate);
 
                 if (x instanceof JniRrdStrategy || x instanceof JRobinRrdStrategy) {
                     return x;

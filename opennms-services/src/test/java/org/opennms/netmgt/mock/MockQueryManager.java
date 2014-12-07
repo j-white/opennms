@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2004-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -35,20 +35,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import javax.sql.DataSource;
-
-import org.opennms.netmgt.poller.IfKey;
 import org.opennms.netmgt.poller.QueryManager;
 
 public class MockQueryManager implements QueryManager {
-
-    public void setDataSource(DataSource dataSource) {
-        // Don't do anything because this one doesn't use the database.
-    }
-    
-    public DataSource getDataSource() {
-        return null;
-    }
 
     /**
      * Comment for <code>m_network</code>
@@ -62,15 +51,16 @@ public class MockQueryManager implements QueryManager {
         this.m_network = network;
     }
 
-    public boolean activeServiceExists(String whichEvent, int nodeId, String ipAddr, String serviceName) {
+    boolean activeServiceExists(String whichEvent, int nodeId, String ipAddr, String serviceName) {
         return m_network.getService(nodeId, ipAddr, serviceName) != null;
     }
 
-    public List<Integer> getActiveServiceIdsForInterface(final String ipaddr) throws SQLException {
+    List<Integer> getActiveServiceIdsForInterface(final String ipaddr) throws SQLException {
         final Set<Integer> serviceIds = new HashSet<Integer>();
 
         MockVisitor gatherServices = new MockVisitorAdapter() {
 
+            @Override
             public void visitService(MockService s) {
                 if (ipaddr.equals(s.getInterface().getIpAddr())) {
                     serviceIds.add(Integer.valueOf(s.getId()));
@@ -83,11 +73,12 @@ public class MockQueryManager implements QueryManager {
         return new ArrayList<Integer>(serviceIds);
     }
 
-    public List<IfKey> getInterfacesWithService(final String svcName) throws SQLException {
+    List<IfKey> getInterfacesWithService(final String svcName) throws SQLException {
         final List<IfKey> ifKeys = new ArrayList<IfKey>();
 
         MockVisitor gatherInterfaces = new MockVisitorAdapter() {
 
+            @Override
             public void visitService(MockService s) {
 
                 if (s.getSvcName().equals(svcName)) {
@@ -103,45 +94,75 @@ public class MockQueryManager implements QueryManager {
         return ifKeys;
     }
 
-    public int getNodeIDForInterface(final String ipaddr) throws SQLException {
+    int getNodeIDForInterface(final String ipaddr) throws SQLException {
         return m_network.getNodeIdForInterface(ipaddr);
-
     }
 
+    @Override
     public String getNodeLabel(int nodeId) throws SQLException {
         MockNode node = m_network.getNode(nodeId);
         return (node == null ? null : node.getLabel());
     }
 
-    public int getServiceCountForInterface(String ipaddr) throws SQLException {
+    int getServiceCountForInterface(String ipaddr) throws SQLException {
         return getActiveServiceIdsForInterface(ipaddr).size();
     }
 
-    public Date getServiceLostDate(int nodeId, String ipAddr, String svcName, int serviceId) {
-        return null;
-    }
-    public void openOutage(String outageIdSQL, int nodeId, String ipAddr, String svcName, int dbid, String time) {
+    @Override
+    public void openOutage(String outageIdSQL, int nodeId, String ipAddr, String svcName, int dbid, Date time) {
         // TODO Auto-generated method stub
 
     }
     
     
-    public void resolveOutage(int nodeId, String ipAddr, String svcName, int dbid, String time) {
+    @Override
+    public void resolveOutage(int nodeId, String ipAddr, String svcName, int dbid, Date time) {
         // TODO Auto-generated method stub
 
     }
     
     
+    @Override
     public void reparentOutages(String ipAddr, int oldNodeId, int newNodeId) {
         // TODO Auto-generated method stub
 
     }
 
-    public String[] getCriticalPath(int nodeId) {
-        throw new UnsupportedOperationException("MockQueryManager.getCriticalPath is not yet implemented");
-    }
-
+    @Override
     public List<java.lang.String[]> getNodeServices(int nodeId) {
         return null;
     }
+
+	@Override
+	public void closeOutagesForUnmanagedServices() {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void closeOutagesForNode(Date closeDate, int eventId, int nodeId) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void closeOutagesForInterface(Date closeDate, int eventId,
+			int nodeId, String ipAddr) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void closeOutagesForService(Date closeDate, int eventId, int nodeId,
+			String ipAddr, String serviceName) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void updateServiceStatus(int nodeId, String ipAddr,
+			String serviceName, String status) {
+		// TODO Auto-generated method stub
+		
+	}
 }

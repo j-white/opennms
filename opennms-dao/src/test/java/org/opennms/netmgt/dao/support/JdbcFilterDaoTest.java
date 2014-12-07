@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2007-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2007-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -40,20 +40,20 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import javax.sql.DataSource;
+
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.opennms.core.spring.BeanUtils;
 import org.opennms.core.test.ConfigurationTestUtils;
 import org.opennms.core.test.OpenNMSJUnit4ClassRunner;
-import org.opennms.core.test.db.TemporaryDatabase;
-import org.opennms.core.test.db.TemporaryDatabaseAware;
 import org.opennms.core.test.db.annotations.JUnitTemporaryDatabase;
-import org.opennms.core.utils.BeanUtils;
 import org.opennms.netmgt.config.DatabaseSchemaConfigFactory;
 import org.opennms.netmgt.dao.DatabasePopulator;
-import org.opennms.netmgt.dao.IpInterfaceDao;
-import org.opennms.netmgt.dao.NodeDao;
-import org.opennms.netmgt.dao.ServiceTypeDao;
+import org.opennms.netmgt.dao.api.IpInterfaceDao;
+import org.opennms.netmgt.dao.api.NodeDao;
+import org.opennms.netmgt.dao.api.ServiceTypeDao;
 import org.opennms.netmgt.filter.FilterDaoFactory;
 import org.opennms.netmgt.filter.JdbcFilterDao;
 import org.opennms.netmgt.model.AbstractEntityVisitor;
@@ -68,7 +68,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionCallback;
+import org.springframework.transaction.support.TransactionCallbackWithoutResult;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
@@ -81,11 +81,13 @@ import org.springframework.transaction.support.TransactionTemplate;
         "classpath:/META-INF/opennms/applicationContext-dao.xml",
         "classpath:/META-INF/opennms/applicationContext-databasePopulator.xml",
         "classpath:/META-INF/opennms/applicationContext-setupIpLike-enabled.xml",
-        "classpath*:/META-INF/opennms/component-dao.xml"
+        "classpath*:/META-INF/opennms/component-dao.xml",
+        "classpath:/META-INF/opennms/applicationContext-minimal-conf.xml",
+        "classpath:/META-INF/opennms/applicationContext-commonConfigs.xml"
 })
 @JUnitConfigurationEnvironment
 @JUnitTemporaryDatabase
-public class JdbcFilterDaoTest implements InitializingBean, TemporaryDatabaseAware<TemporaryDatabase> {
+public class JdbcFilterDaoTest implements InitializingBean {
     @Autowired
     NodeDao m_nodeDao;
     
@@ -103,11 +105,8 @@ public class JdbcFilterDaoTest implements InitializingBean, TemporaryDatabaseAwa
     @Autowired
     TransactionTemplate m_transTemplate;
 
-    private TemporaryDatabase m_database;
-
-    public void setTemporaryDatabase(TemporaryDatabase database) {
-        m_database = database;
-    }
+    @Autowired
+    DataSource m_dataSource;
 
     @Override
     public void afterPropertiesSet() throws Exception {
@@ -128,7 +127,7 @@ public class JdbcFilterDaoTest implements InitializingBean, TemporaryDatabaseAwa
         System.setProperty("opennms.home", "src/test/resources");
         DatabaseSchemaConfigFactory.init();
         m_dao = new JdbcFilterDao();
-        m_dao.setDataSource(m_database);
+        m_dao.setDataSource(m_dataSource);
         m_dao.setDatabaseSchemaConfigFactory(DatabaseSchemaConfigFactory.getInstance());
         m_dao.afterPropertiesSet();
         FilterDaoFactory.setInstance(m_dao);
@@ -144,7 +143,7 @@ public class JdbcFilterDaoTest implements InitializingBean, TemporaryDatabaseAwa
     @Transactional
     public void testAfterPropertiesSetValid() throws Exception {
         JdbcFilterDao dao = new JdbcFilterDao();
-        dao.setDataSource(m_database);
+        dao.setDataSource(m_dataSource);
         InputStream is = ConfigurationTestUtils.getInputStreamForConfigFile("database-schema.xml");
         dao.setDatabaseSchemaConfigFactory(new DatabaseSchemaConfigFactory(is));
         is.close();
@@ -155,7 +154,7 @@ public class JdbcFilterDaoTest implements InitializingBean, TemporaryDatabaseAwa
     @Transactional
     public void testAfterPropertiesSetNoNodeDao() throws Exception {
         JdbcFilterDao dao = new JdbcFilterDao();
-        dao.setDataSource(m_database);
+        dao.setDataSource(m_dataSource);
         InputStream is = ConfigurationTestUtils.getInputStreamForConfigFile("database-schema.xml");
         dao.setDatabaseSchemaConfigFactory(new DatabaseSchemaConfigFactory(is));
         is.close();
@@ -206,7 +205,7 @@ public class JdbcFilterDaoTest implements InitializingBean, TemporaryDatabaseAwa
         ThrowableAnticipator ta = new ThrowableAnticipator();
 
         JdbcFilterDao dao = new JdbcFilterDao();
-        dao.setDataSource(m_database);
+        dao.setDataSource(m_dataSource);
 
         ta.anticipate(new IllegalStateException("property databaseSchemaConfigFactory cannot be null"));
         try {
@@ -244,8 +243,9 @@ public class JdbcFilterDaoTest implements InitializingBean, TemporaryDatabaseAwa
     @Test
     @JUnitTemporaryDatabase // This test manages its own transactions so use a fresh database
     public void testGetActiveIPListWithDeletedNode() throws Exception {
-        m_transTemplate.execute(new TransactionCallback<Object>() {
-            public Object doInTransaction(TransactionStatus status) {
+        m_transTemplate.execute(new TransactionCallbackWithoutResult() {
+            @Override
+            public void doInTransactionWithoutResult(TransactionStatus status) {
                 final List<OnmsIpInterface> ifaces = m_interfaceDao.findByIpAddress("192.168.1.1");
                 
                 assertEquals("should be 1 interface", 1, ifaces.size());
@@ -254,7 +254,6 @@ public class JdbcFilterDaoTest implements InitializingBean, TemporaryDatabaseAwa
                 iface.setIsManaged("D");
                 m_interfaceDao.save(iface);
                 m_interfaceDao.flush();
-                return null;
             }
         });
 
@@ -264,12 +263,12 @@ public class JdbcFilterDaoTest implements InitializingBean, TemporaryDatabaseAwa
          * otherwise.
          */
 
-        m_transTemplate.execute(new TransactionCallback<Object>() {
-            public Object doInTransaction(TransactionStatus status) {
+        m_transTemplate.execute(new TransactionCallbackWithoutResult() {
+            @Override
+            public void doInTransactionWithoutResult(TransactionStatus status) {
                 List<InetAddress> list = m_dao.getActiveIPAddressList("ipaddr == '192.168.1.1'");
                 assertNotNull("returned list should not be null", list);
                 assertEquals("no nodes should be returned, since the only one has been deleted", 0, list.size());
-                return null;
             }
         });
     }
@@ -303,6 +302,7 @@ public class JdbcFilterDaoTest implements InitializingBean, TemporaryDatabaseAwa
     public void testWalkNodes() throws Exception {
         final List<OnmsNode> nodes = new ArrayList<OnmsNode>();
         EntityVisitor visitor = new AbstractEntityVisitor() {
+            @Override
             public void visitNode(OnmsNode node) {
                 nodes.add(node);
             }

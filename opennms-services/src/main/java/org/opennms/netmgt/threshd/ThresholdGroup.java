@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2006-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -31,9 +31,8 @@ package org.opennms.netmgt.threshd;
 import java.io.File;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
-
-import org.opennms.core.utils.ThreadCategory;
 
 /**
  * <p>ThresholdGroup class.</p>
@@ -42,7 +41,7 @@ import org.opennms.core.utils.ThreadCategory;
  * @version $Id: $
  */
 public class ThresholdGroup {
-
+    
 	private String m_name;
 	private File m_rrdRepository;
 	private ThresholdResourceType m_nodeResourceType;
@@ -113,10 +112,6 @@ public class ThresholdGroup {
 		return m_rrdRepository;
 	}
 
-	ThreadCategory log() {
-		return ThreadCategory.getInstance(getClass());
-	}
-
 	/**
 	 * <p>setNodeResourceType</p>
 	 *
@@ -162,6 +157,7 @@ public class ThresholdGroup {
 	 *
 	 * @return a {@link java.lang.String} object.
 	 */
+        @Override
 	public String toString() {
 	    StringBuilder buf = new StringBuilder();
 	    buf.append(getName() + "={node:{");
@@ -173,15 +169,16 @@ public class ThresholdGroup {
 	        buf.append(getIfResourceType().getThresholdMap().values());
 	    }
 	    if (getGenericResourceTypeMap() != null) {
-	        for (String rType : getGenericResourceTypeMap().keySet()) {
+	        for (final Entry<String, ThresholdResourceType> entry : getGenericResourceTypeMap().entrySet()) {
+	            final String rType = entry.getKey();
 	            buf.append("}; " + rType + ":{");
-	            buf.append(getGenericResourceTypeMap().get(rType).getThresholdMap().values());
+	            final ThresholdResourceType value = entry.getValue();
+                    buf.append(value.getThresholdMap().values());
 	            buf.append("}");
 	        }
 	    }
 	    buf.append("}");
-	    String toString = buf.toString();
-	    return toString;
+	    return buf.toString();
 	}
 	
 	/**
@@ -190,15 +187,19 @@ public class ThresholdGroup {
 	public void delete() {
 	    delete(getNodeResourceType());
 	    delete(getIfResourceType());
-	    for (String type : getGenericResourceTypeMap().keySet())
-	        delete(getGenericResourceTypeMap().get(type));
+	    for (final Entry<String, ThresholdResourceType> entry : getGenericResourceTypeMap().entrySet()) {
+	        final ThresholdResourceType value = entry.getValue();
+	        delete(value);
+	    }
 	}
 
 	private void delete(ThresholdResourceType type) {
-	    Map<String,Set<ThresholdEntity>> entityMap = type.getThresholdMap();
-	    for (String key : entityMap.keySet()) 
-	        for (ThresholdEntity e : entityMap.get(key))
+	    final Map<String,Set<ThresholdEntity>> entityMap = type.getThresholdMap();
+	    for (final Entry<String, Set<ThresholdEntity>> entry : entityMap.entrySet()) {
+	        for (final ThresholdEntity e : entry.getValue()) {
 	            e.delete();
+	        }
+	    }
 	}
 	
 }

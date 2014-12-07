@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2007-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2002-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -31,13 +31,15 @@ package org.opennms.netmgt.model.discovery;
 import java.math.BigInteger;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.Arrays;
 import java.util.Enumeration;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
 import org.opennms.core.utils.ByteArrayComparator;
 import org.opennms.core.utils.InetAddressUtils;
-import org.opennms.core.utils.ThreadCategory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * <P>
@@ -51,6 +53,9 @@ import org.opennms.core.utils.ThreadCategory;
  * @author <A HREF="mailto:weave@oculan.com">Brian Weaver </A>
  */
 public final class IPAddrRange implements Iterable<InetAddress> {
+	
+	private static final Logger LOG = LoggerFactory.getLogger(IPAddrRange.class);
+
     /**
      * The starting address for the object.
      */
@@ -122,8 +127,8 @@ public final class IPAddrRange implements Iterable<InetAddress> {
             if (new ByteArrayComparator().compare(start, end) > 0)
                 throw new IllegalArgumentException("start must be less than or equal to end");
 
-            m_next = new BigInteger(1, start);
-            m_end = new BigInteger(1, end);
+            m_next = new BigInteger(1, Arrays.copyOf(start, start.length));
+            m_end = new BigInteger(1, Arrays.copyOf(end, end.length));
         }
 
         /**
@@ -131,6 +136,7 @@ public final class IPAddrRange implements Iterable<InetAddress> {
          * Returns true if the enumeration object has more elements remaining.
          * </P>
          */
+        @Override
         public boolean hasMoreElements() {
             return (m_next.compareTo(m_end) <= 0);
         }
@@ -144,12 +150,13 @@ public final class IPAddrRange implements Iterable<InetAddress> {
          * @exception java.util.NoSuchElementException
          *                Thrown if the collection is exhausted.
          */
+        @Override
         public InetAddress nextElement() {
             if (!hasMoreElements())
                 throw new NoSuchElementException("End of Range");
 
             InetAddress element = make(m_next);
-            m_next = m_next.add(new BigInteger("1"));
+            m_next = m_next.add(BigInteger.ONE);
             return element;
         }
 
@@ -158,6 +165,7 @@ public final class IPAddrRange implements Iterable<InetAddress> {
          * Returns true if there are more elements in the iteration.
          * </P>
          */
+        @Override
         public boolean hasNext() {
             return hasMoreElements();
         }
@@ -171,6 +179,7 @@ public final class IPAddrRange implements Iterable<InetAddress> {
          * @exception java.util.NoSuchElementException
          *                Thrown if the collection is exhausted.
          */
+        @Override
         public InetAddress next() {
             return nextElement();
         }
@@ -186,6 +195,7 @@ public final class IPAddrRange implements Iterable<InetAddress> {
          *                Always thrown by the remove method.
          * 
          */
+        @Override
         public void remove() {
             throw new UnsupportedOperationException("The remove operation is not supported by the iterator");
         }
@@ -247,7 +257,7 @@ public final class IPAddrRange implements Iterable<InetAddress> {
         byte[] to = end.getAddress();
 
         if (new ByteArrayComparator().compare(from, to) > 0) {
-            ThreadCategory.getInstance(this.getClass()).warn("The beginning of the address range is greater than the end of the address range (" +  InetAddressUtils.str(start) + " - " + InetAddressUtils.str(end) + "), swapping values to create a valid IP address range");
+            LOG.warn("The beginning of the address range is greater than the end of the address range ({} - {}), swapping values to create a valid IP address range", InetAddressUtils.str(start), InetAddressUtils.str(end));
             m_end = from;
             m_begin = to;
         } else {
@@ -299,6 +309,7 @@ public final class IPAddrRange implements Iterable<InetAddress> {
      * @see java.net.InetAddress
      * @return a {@link java.util.Iterator} object.
      */
+    @Override
     public Iterator<InetAddress> iterator() {
         return new IPAddressRangeGenerator(m_begin, m_end);
     }

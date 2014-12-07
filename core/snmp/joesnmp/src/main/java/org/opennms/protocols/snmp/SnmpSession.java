@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2011-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2011-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -140,22 +140,11 @@ public class SnmpSession extends Object {
     private SnmpPortal m_portal;
 
     /**
-     * If this boolean value is set then the receiver thread is terminated due
-     * to an exception that was generated in either a handler or a socket error.
-     * This is considered a fatal exception.
-     */
-    private boolean m_threadException;
-
-    /**
-     * This is the saved fatal excetion that can be rethrown by the application
-     */
-    private Throwable m_why;
-
-    /**
      * Inner class SessionHandler implements the interface SnmpPacketHandler to
      * handle callbacks from the SnmpPortal
      */
     private class SessionHandler implements SnmpPacketHandler {
+        @Override
         public void processSnmpMessage(InetAddress agent, int port, SnmpInt32 version, SnmpOctetString community, int pduType, SnmpPduPacket pdu) throws SnmpPduEncodingException {
             //
             // now find the request and
@@ -219,14 +208,17 @@ public class SnmpSession extends Object {
             }
         }
 
+        @Override
         public void processSnmpTrap(InetAddress agent, int port, SnmpOctetString community, SnmpPduTrap pdu) throws SnmpPduEncodingException {
             throw new SnmpPduEncodingException("Invalid PDU Type for session");
         }
 
+        @Override
         public void processBadDatagram(DatagramPacket p) {
             // do nothing - discard?
         }
 
+        @Override
         public void processException(Exception e) {
             // do nothing - discard?
         }
@@ -246,6 +238,7 @@ public class SnmpSession extends Object {
          * @see SnmpRequest
          * 
          */
+        @Override
         public void run() {
             synchronized (m_requests) {
                 if (m_requests.size() > 0) {
@@ -261,7 +254,7 @@ public class SnmpSession extends Object {
             //
             // reschedule
             //
-            if (!m_stopRun && !m_threadException)
+            if (!m_stopRun)
                 m_timer.schedule(this, 1000);
         }
     }
@@ -294,8 +287,8 @@ public class SnmpSession extends Object {
          * @param length
          *            The valid length of the buffer.
          */
-        public ByteArrayInfo(byte[] buf, int length) {
-            m_buf = buf;
+        public ByteArrayInfo(final byte[] buf, final int length) {
+            m_buf = buf == null? null : buf.clone();
             m_length = length;
         }
 
@@ -620,9 +613,6 @@ public class SnmpSession extends Object {
         m_encoder = (new SnmpParameters()).getEncoder();
         m_portal = new SnmpPortal(new SessionHandler(), m_encoder, 0);
 
-        m_threadException = false;
-        m_why = null;
-
         m_timer.schedule(new CleanupRequest(), 1000);
     }
 
@@ -648,9 +638,6 @@ public class SnmpSession extends Object {
 
         m_encoder = peer.getParameters().getEncoder();
         m_portal = new SnmpPortal(new SessionHandler(), m_encoder,  peer.getServerPort());
-
-        m_threadException = false;
-        m_why = null;
 
         m_peer = peer;
 
@@ -957,20 +944,6 @@ public class SnmpSession extends Object {
     }
 
     /**
-     * If an exception occurs in the SNMP receiver thread then raise() will
-     * rethrow the exception.
-     * 
-     * @exception java.lang.Throwable
-     *                The base for thrown exceptions.
-     */
-    public void raise() throws Throwable {
-        synchronized (m_sync) {
-            if (m_threadException)
-                throw m_why;
-        }
-    }
-
-    /**
      * Sets the default encoder.
      * 
      * @param encoder
@@ -1097,8 +1070,7 @@ public class SnmpSession extends Object {
                 Thread.currentThread().interrupt();
             }
         }
-        SnmpPduPacket response = handler.getResponse();
-        return response;
+        return handler.getResponse();
     }
 
 

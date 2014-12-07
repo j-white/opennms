@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2005-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -35,12 +35,14 @@ import java.util.Date;
 import java.util.Map;
 
 import org.opennms.core.utils.InetAddressUtils;
-import org.opennms.core.utils.ThreadCategory;
 import org.opennms.netmgt.config.threshd.Threshold;
-import org.opennms.netmgt.dao.support.RrdFileConstants;
 import org.opennms.netmgt.model.events.EventBuilder;
 import org.opennms.netmgt.poller.NetworkInterface;
+import org.opennms.netmgt.rrd.RrdFileConstants;
+import org.opennms.netmgt.threshd.ThresholdingVisitor.ThresholdingResult;
 import org.opennms.netmgt.xml.event.Event;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * <p>LatencyInterface class.</p>
@@ -50,8 +52,26 @@ import org.opennms.netmgt.xml.event.Event;
  */
 public class LatencyInterface {
 
-	private NetworkInterface<InetAddress> m_iface;
-	private String m_serviceName;
+    /**
+     * Interface attribute key used to store the interface's node id
+     */
+    private static final String RRD_REPOSITORY_KEY = "org.opennms.netmgt.collectd.LatencyThresholder.RrdRepository";
+
+    /**
+     * Interface attribute key used to store configured thresholds
+     */
+    private static final String THRESHOLD_MAP_KEY = "org.opennms.netmgt.collectd.LatencyThresholder.ThresholdMap";
+
+    /**
+     * Interface attribute key used to store the interface's node id
+     */
+    private static final String NODE_ID_KEY = "org.opennms.netmgt.collectd.SnmpThresholder.NodeId";
+
+    private static final Logger LOG = LoggerFactory.getLogger(LatencyInterface.class);
+
+    private NetworkInterface<InetAddress> m_iface;
+
+    private String m_serviceName;
 
 	/**
 	 * <p>Constructor for LatencyInterface.</p>
@@ -77,7 +97,7 @@ public class LatencyInterface {
 	    NetworkInterface<InetAddress> iface = getNetworkInterface();
 		// ThresholdEntity map attributes
 	    //
-	    Map<String, ThresholdEntity> thresholdMap = iface.getAttribute(LatencyThresholder.THRESHOLD_MAP_KEY);
+	    Map<String, ThresholdEntity> thresholdMap = iface.getAttribute(THRESHOLD_MAP_KEY);
 	    return Collections.unmodifiableMap(thresholdMap);
 	}
 
@@ -99,11 +119,11 @@ public class LatencyInterface {
 	    NetworkInterface<InetAddress> iface = getNetworkInterface();
 	
 		int nodeId = -1;
-	    Integer tmp = iface.getAttribute(LatencyThresholder.NODE_ID_KEY);
+	    Integer tmp = iface.getAttribute(NODE_ID_KEY);
 	    if (tmp != null)
 	        nodeId = tmp.intValue();
 	    if (nodeId == -1) {
-	        throw new ThresholdingException("Threshold checking failed for " + getServiceName() + "/" + getHostAddress() + ", missing nodeId.", LatencyThresholder.THRESHOLDING_FAILED);
+	        throw new ThresholdingException("Threshold checking failed for " + getServiceName() + "/" + getHostAddress() + ", missing nodeId.", ThresholdingResult.THRESHOLDING_FAILED);
 	    }
 	    return nodeId;
 	}
@@ -118,24 +138,19 @@ public class LatencyInterface {
 	}
 
 	File getLatencyDir() throws ThresholdingException {
-		String repository = getNetworkInterface().getAttribute(LatencyThresholder.RRD_REPOSITORY_KEY);
-	    if (log().isDebugEnabled())
-	        log().debug("check: rrd repository=" + repository);
+		String repository = getNetworkInterface().getAttribute(RRD_REPOSITORY_KEY);
+	    LOG.debug("check: rrd repository=", repository);
 	    // Get File object representing the
 	    // '/opt/OpenNMS/share/rrd/<svc_name>/<ipAddress>/' directory
 	    File latencyDir = new File(repository + File.separator + getHostAddress());
 	    if (!latencyDir.exists()) {
-	        throw new ThresholdingException("Latency directory for " + getServiceName() + "/" + getHostAddress() + " does not exist. Threshold checking failed for " + getHostAddress(), LatencyThresholder.THRESHOLDING_FAILED);
+	        throw new ThresholdingException("Latency directory for " + getServiceName() + "/" + getHostAddress() + " does not exist. Threshold checking failed for " + getHostAddress(), ThresholdingResult.THRESHOLDING_FAILED);
 	    } else if (!RrdFileConstants.isValidRRDLatencyDir(latencyDir)) {
-	        throw new ThresholdingException("Latency directory for " + getServiceName() + "/" + getHostAddress() + " is not a valid RRD latency directory. Threshold checking failed for " + getHostAddress(), LatencyThresholder.THRESHOLDING_FAILED);
+	        throw new ThresholdingException("Latency directory for " + getServiceName() + "/" + getHostAddress() + " is not a valid RRD latency directory. Threshold checking failed for " + getHostAddress(), ThresholdingResult.THRESHOLDING_FAILED);
 	    }
 	    return latencyDir;
 	}
 	
-	private final ThreadCategory log() {
-		return ThreadCategory.getInstance(LatencyInterface.class);
-	}
-
 	/**
 	 * Creates a new threshold event from the specified parms.
 	 * @param dsValue
@@ -158,14 +173,10 @@ public class LatencyInterface {
 		int nodeId = getNodeId();
 		InetAddress ipAddr = getInetAddress();
 		
-		ThreadCategory log = ThreadCategory.getInstance(LatencyInterface.class);
-	
-	    if (threshold == null)
+		if (threshold == null)
 	        throw new IllegalArgumentException("threshold cannot be null.");
 	
-	    if (log.isDebugEnabled()) {
-	        log.debug("createEvent: ds=" + threshold.getDsName() + " uei=" + uei);
-	    }
+	    LOG.debug("createEvent: ds={} uei={}", threshold.getDsName(), uei);
 	
 	    // create the event to be sent
 	    EventBuilder bldr = new EventBuilder(uei, "OpenNMS.Threshd:" + threshold.getDsName(), date);

@@ -7,16 +7,16 @@
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -35,8 +35,8 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.log4j.Logger;
-import org.opennms.core.utils.LogUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.opennms.netmgt.alarmd.api.Preservable;
 
 /**
@@ -50,9 +50,8 @@ import org.opennms.netmgt.alarmd.api.Preservable;
  * @author <a mailto:david@opennms.org>David Hustace</a>
  */
 class AlarmQueue<T extends Preservable> {
-    
-    private static Logger log = Logger.getLogger(AlarmQueue.class);
-    
+    private static final Logger LOG = LoggerFactory.getLogger(AlarmQueue.class);
+
     public abstract class State {
         abstract List<T> getAlarmsToForward() throws InterruptedException;
         abstract void forwardSuccessful(List<T> alarms);
@@ -91,6 +90,7 @@ class AlarmQueue<T extends Preservable> {
     
     private final State FORWARDING = new State() {
 
+        @Override
         public List<T> getAlarmsToForward() throws InterruptedException {
             List<T> alarms = new ArrayList<T>(m_maxBatchSize);
             
@@ -121,10 +121,12 @@ class AlarmQueue<T extends Preservable> {
             
         }
         
+        @Override
         public void forwardSuccessful(List<T> alarms) {
             // no need to do anything here
         }
 
+        @Override
         public void forwardFailed(List<T> alarms) {
             
             addPreservedToPreservedQueue(alarms);
@@ -134,12 +136,14 @@ class AlarmQueue<T extends Preservable> {
             }
         }
         
+        @Override
         public String toString() { return "FORWARDING"; }
 
     };
     
     private final State FAILING = new State() {
 
+        @Override
         public List<T> getAlarmsToForward() {
             discardNonPreservedAlarms();
 
@@ -150,10 +154,12 @@ class AlarmQueue<T extends Preservable> {
             return m_nextBatch;
         }
 
+        @Override
         public void forwardFailed(List<T> alarms) {
             // do nothing we are already failing
         }
 
+        @Override
         public void forwardSuccessful(List<T> alarms) {
             m_nextBatch.clear();
             if (m_preservedQueue.isEmpty()) {
@@ -163,21 +169,25 @@ class AlarmQueue<T extends Preservable> {
             }
         }
 
+        @Override
         public String toString() { return "FAILING"; }
         
     };
     
     private final State RECOVERING = new State() {
 
+        @Override
         public List<T> getAlarmsToForward() {
             loadNextBatch();
             return m_nextBatch;
         }
         
+        @Override
         public void forwardFailed(List<T> alarms) {
             setState(FAILING);
         }
 
+        @Override
         public void forwardSuccessful(List<T> alarms) {
             m_nextBatch.clear();
             if (m_preservedQueue.isEmpty()) {
@@ -185,6 +195,7 @@ class AlarmQueue<T extends Preservable> {
             }
         }
 
+        @Override
         public String toString() {
             return "RECOVERING"; 
         }
@@ -220,7 +231,7 @@ class AlarmQueue<T extends Preservable> {
     
     private void setState(State state) {
         m_state = state;
-        log.debug("Setting state of AlarmQueue to "+m_state);
+        LOG.debug("Setting state of AlarmQueue to {}", m_state);
     }
     
     public long getNaglesDelay() {
@@ -257,13 +268,13 @@ class AlarmQueue<T extends Preservable> {
     
     public void accept(T a) {
         boolean result = m_queue.offer(a);
-        LogUtils.debugf(this, "Alarm %s accepted, offered to blocking-queue. Actually queued? %s", a, result);
+        LOG.debug("Alarm {} accepted, offered to blocking-queue. Actually queued? {}", a, result);
     }
     
     public void preserve(T a) {
         a.setPreserved(true);
         boolean result = m_queue.offer(a);
-        LogUtils.debugf(this,  "Alarm %s preserved, offered to blocking-queue. Actually queued? %s", a, result);
+        LOG.debug("Alarm {} preserved, offered to blocking-queue. Actually queued? {}", a, result);
     }
     
     public List<T> getAlarmsToForward() throws InterruptedException {

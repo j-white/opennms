@@ -2,22 +2,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2011-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2002-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -42,8 +42,7 @@
         org.opennms.netmgt.config.poller.Service,
         org.opennms.netmgt.config.poller.Parameter,
         org.opennms.netmgt.model.OnmsMonitoredService,
-        org.opennms.netmgt.poller.ServiceMonitor,
-        org.opennms.web.springframework.security.Authentication
+        org.opennms.netmgt.poller.ServiceMonitor
 	"
 %>
 <%@taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c" %>
@@ -66,9 +65,9 @@
     while (en.hasMoreElements()) {
         Package pkg = en.nextElement();
         if (!pkg.getRemote() &&
-            pollerCfgFactory.isServiceInPackageAndEnabled(serviceName, pkg) &&
-            pollerCfgFactory.isInterfaceInPackage(ipAddr, pkg)) {
-            lastPkg = pkg;
+    pollerCfgFactory.isServiceInPackageAndEnabled(serviceName, pkg) &&
+    pollerCfgFactory.isInterfaceInPackage(ipAddr, pkg)) {
+    lastPkg = pkg;
         }
     }
     pageContext.setAttribute("packageName", lastPkg == null ? "N/A" : lastPkg.getName());
@@ -79,14 +78,16 @@
     Map<String,String> parameters = new TreeMap<String,String>();
     Map<String,String> xmlParams  = new TreeMap<String,String>();
     if (lastPkg != null) {
-        for (Service s : lastPkg.getServiceCollection()) {
+        for (Service s : lastPkg.getServices()) {
             if (s.getName().equalsIgnoreCase(serviceName)) {
-                for (Parameter p : s.getParameterCollection()) {
+                for (Parameter p : s.getParameters()) {
                     if (p.getKey().toLowerCase().contains("password")) {
                         continue; // Hide passwords for security reasons
                     }
                     if (p.getValue() == null) {
-                        xmlParams.put(p.getKey(), p.getAnyObject().toString().replaceAll("<","&lt;").replaceAll(">", "&gt;").replaceAll("[\\r\\n]+", "<br/>").replaceAll(" ","&nbsp;").replaceAll("(password|user-info)=\"[^\"]+\"", "$1=\"XXXX\"").replaceAll("key=\"([^\"]*pass(word|wd)[^\"]*)\"(\\s|&nbsp;)+value=\"[^\"]+\"", "key=\"$1\" value=\"XXXX\""));
+                        String xmlData  = org.opennms.core.xml.JaxbUtils.marshal(p.getAnyObject());
+                        String xmlFixed = xmlData.replaceAll("<","&lt;").replaceAll(">", "&gt;").replaceAll("[\\r\\n]+", "<br/>").replaceAll(" ","&nbsp;").replaceAll("(password|user-info)=\"[^\"]+\"", "$1=\"XXXX\"").replaceAll("key=\"([^\"]*pass(word|wd)[^\"]*)\"(\\s|&nbsp;)+value=\"[^\"]+\"", "key=\"$1\" value=\"XXXX\"");
+                        xmlParams.put(p.getKey(), xmlFixed);
                     } else {
                         parameters.put(p.getKey(), p.getValue());
                     }

@@ -7,16 +7,16 @@
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -35,16 +35,18 @@ import java.io.OutputStream;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import org.apache.log4j.lf5.util.StreamUtils;
 import org.opennms.api.reporting.ReportFormat;
-import org.opennms.core.utils.BeanUtils;
-import org.opennms.core.utils.LogUtils;
+import org.opennms.core.utils.StreamUtils;
+import org.opennms.core.spring.BeanUtils;
 import org.opennms.core.utils.WebSecurityUtils;
-import org.opennms.netmgt.dao.ReportdConfigurationDao;
+import org.opennms.netmgt.dao.api.ReportdConfigurationDao;
 import org.opennms.reporting.core.svclayer.ReportStoreService;
 import org.opennms.web.servlet.MissingParameterException;
 import org.springframework.web.servlet.ModelAndView;
 import org.springframework.web.servlet.mvc.AbstractController;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * <p>DownloadReportController class.</p>
@@ -54,6 +56,7 @@ import org.springframework.web.servlet.mvc.AbstractController;
  * @since 1.8.1
  */
 public class DownloadReportController extends AbstractController {
+    private static Logger LOG = LoggerFactory.getLogger(DownloadReportController.class);
 
     private ReportStoreService m_reportStoreService;
     private ReportdConfigurationDao m_reportdConfigurationDao;
@@ -65,17 +68,17 @@ public class DownloadReportController extends AbstractController {
             HttpServletResponse response) throws Exception {
                 
         String fileName = request.getParameter("fileName");
-        final File requestedFile = new File(fileName);
 
         m_reportdConfigurationDao = BeanUtils.getBean("reportdContext", "reportdConfigDao", ReportdConfigurationDao.class);
         final File storageDirectory = new File(m_reportdConfigurationDao.getStorageDirectory());
         
-        if (!requestedFile.getParentFile().getCanonicalFile().equals(storageDirectory.getCanonicalFile())) {
-            LogUtils.warnf(this, "User attempted to retrieve file %s but was restricted to %s", requestedFile, storageDirectory);
-            throw new IllegalArgumentException("Cannot retrieve reports from outside Reportd storage directory");
-        }
-        
         if (fileName != null) {
+            final File requestedFile = new File(fileName);
+            if (!requestedFile.getParentFile().getCanonicalFile().equals(storageDirectory.getCanonicalFile())) {
+                LOG.warn("User attempted to retrieve file {} but was restricted to {}", requestedFile, storageDirectory);
+                throw new IllegalArgumentException("Cannot retrieve reports from outside Reportd storage directory");
+            }
+
             if (fileName.toLowerCase().endsWith(".pdf")) {
                 response.setContentType("application/pdf;charset=UTF-8");
 
@@ -87,7 +90,7 @@ public class DownloadReportController extends AbstractController {
             response.setHeader("Pragma", "public");
             response.setHeader("Cache-Control", "cache");
             response.setHeader("Cache-Control", "must-revalidate");
-            StreamUtils.copy(new FileInputStream(new File(fileName)), response.getOutputStream());
+            StreamUtils.streamToStream(new FileInputStream(new File(fileName)), response.getOutputStream());
             return null;
         }
 

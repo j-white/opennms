@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2009-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2009-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -48,8 +48,10 @@ import javax.mail.event.TransportEvent;
 import javax.mail.event.TransportListener;
 import javax.mail.internet.MimeBodyPart;
 
-import org.opennms.core.utils.ThreadCategory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.util.StringUtils;
+
 
 /**
  * Sends an email message using the Java Mail API
@@ -58,6 +60,9 @@ import org.springframework.util.StringUtils;
  * @version $Id: $
  */
 public abstract class JavaMailer2 {
+	
+	private static final Logger LOG = LoggerFactory.getLogger(JavaMailer2.class);
+
 
     private Session m_session = null;
     private Properties m_mailProps;
@@ -93,6 +98,7 @@ public abstract class JavaMailer2 {
     public Authenticator createAuthenticator(final String user, final String password) {
         Authenticator auth;
         auth = new Authenticator() {
+            @Override
             protected PasswordAuthentication getPasswordAuthentication() {
                 return new PasswordAuthentication(user, password);
             }
@@ -150,11 +156,11 @@ public abstract class JavaMailer2 {
      */
     public MimeBodyPart createFileAttachment(final File file) throws MessagingException, JavaMailerException {
         if (!file.exists()) {
-            log().error("File attachment '" + file.getAbsolutePath() + "' does not exist.");
+            LOG.error("File attachment '{}' does not exist.", file.getAbsolutePath());
             throw new JavaMailerException("File attachment '" + file.getAbsolutePath() + "' does not exist.");
         }
         if (!file.canRead()) {
-            log().error("File attachment '" + file.getAbsolutePath() + "' is not readable.");
+            LOG.error("File attachment '{}' is not readable.", file.getAbsolutePath());
             throw new JavaMailerException("File attachment '" + file.getAbsolutePath() + "' is not readable.");
         }
 
@@ -173,7 +179,7 @@ public abstract class JavaMailer2 {
      */
     public void setDebug(boolean debug) {
         if (debug) {
-            m_session.setDebugOut(new PrintStream(new LoggingByteArrayOutputStream(log()), true));
+            m_session.setDebugOut(new PrintStream(new LoggingByteArrayOutputStream()));
         }
         m_session.setDebug(debug);
     }
@@ -183,16 +189,12 @@ public abstract class JavaMailer2 {
      *
      * @return log4j Category
      */
-    protected static ThreadCategory log() {
-        return ThreadCategory.getInstance();
-    }
 
     public static class LoggingByteArrayOutputStream extends ByteArrayOutputStream {
-        private ThreadCategory m_category;
+    	private static final Logger LOG = LoggerFactory.getLogger(LoggingByteArrayOutputStream.class);
 
-        public LoggingByteArrayOutputStream(ThreadCategory threadCategory) {
-            m_category = threadCategory;
-        }
+
+       
 
         @Override
         public void flush() throws IOException {
@@ -200,7 +202,7 @@ public abstract class JavaMailer2 {
 
             String buffer = toString().replaceAll("\n", "");
             if (buffer.length() > 0) {
-                m_category.debug(buffer);   
+                LOG.debug(buffer);   
             }
 
             reset();
@@ -208,23 +210,26 @@ public abstract class JavaMailer2 {
     }
 
     public static class LoggingTransportListener implements TransportListener {
-        private ThreadCategory m_category;
+    	
+    	private static final Logger LOG = LoggerFactory.getLogger(LoggingTransportListener.class);
+
         private List<Address> m_invalidAddresses = new ArrayList<Address>();
         private List<Address> m_validSentAddresses = new ArrayList<Address>();
         private List<Address> m_validUnsentAddresses = new ArrayList<Address>();
 
-        public LoggingTransportListener(ThreadCategory threadCategory) {
-            m_category = threadCategory;
-        }
+        
 
+        @Override
         public void messageDelivered(TransportEvent event) {
             logEvent("message delivered", event);
         }
 
+        @Override
         public void messageNotDelivered(TransportEvent event) {
             logEvent("message not delivered", event);
         }
 
+        @Override
         public void messagePartiallyDelivered(TransportEvent event) {
             logEvent("message partially delivered", event);
         }
@@ -232,15 +237,15 @@ public abstract class JavaMailer2 {
         private void logEvent(String message, TransportEvent event) {
             if (event.getInvalidAddresses() != null && event.getInvalidAddresses().length > 0) {
                 m_invalidAddresses.addAll(Arrays.asList(event.getInvalidAddresses()));
-                m_category.error(message + ": invalid addresses: " + StringUtils.arrayToDelimitedString(event.getInvalidAddresses(), ", "));
+                LOG.error("{}: invalid addresses: {}", message, StringUtils.arrayToDelimitedString(event.getInvalidAddresses(), ", "));
             }
             if (event.getValidSentAddresses() != null && event.getValidSentAddresses().length > 0) {
                 m_validSentAddresses.addAll(Arrays.asList(event.getValidSentAddresses()));
-                m_category.debug(message + ": valid sent addresses: " + StringUtils.arrayToDelimitedString(event.getValidSentAddresses(), ", "));
+                LOG.debug("{}: valid sent addresses: {}", message, StringUtils.arrayToDelimitedString(event.getValidSentAddresses(), ", "));
             }
             if (event.getValidUnsentAddresses() != null && event.getValidUnsentAddresses().length > 0) {
                 m_validUnsentAddresses.addAll(Arrays.asList(event.getValidUnsentAddresses()));
-                m_category.error(message + ": valid unsent addresses: " + StringUtils.arrayToDelimitedString(event.getValidUnsentAddresses(), ", "));
+                LOG.error("{}: valid unsent addresses: {}", message, StringUtils.arrayToDelimitedString(event.getValidUnsentAddresses(), ", "));
             }
         }
 

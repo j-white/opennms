@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2009-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2009-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -43,26 +43,26 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import org.apache.commons.io.IOUtils;
-import org.opennms.core.utils.LogUtils;
 import org.opennms.core.xml.JaxbUtils;
 import org.opennms.netmgt.provision.persist.foreignsource.ForeignSource;
 import org.opennms.netmgt.provision.persist.requisition.Requisition;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.util.Assert;
 
 /**
  * <p>FilesystemForeignSourceRepository class.</p>
- *
- * @author ranger
- * @version $Id: $
  */
 public class FilesystemForeignSourceRepository extends AbstractForeignSourceRepository implements InitializingBean {
-    private String m_requisitionPath;
-    private String m_foreignSourcePath;
     
-    private final ReadWriteLock m_globalLock = new ReentrantReadWriteLock();
-    private final Lock m_readLock = m_globalLock.readLock();
-    private final Lock m_writeLock = m_globalLock.writeLock();
+    private static final Logger LOG = LoggerFactory.getLogger(FilesystemForeignSourceRepository.class);
+    protected String m_requisitionPath;
+    protected String m_foreignSourcePath;
+    
+    protected final ReadWriteLock m_globalLock = new ReentrantReadWriteLock();
+    protected final Lock m_readLock = m_globalLock.readLock();
+    protected final Lock m_writeLock = m_globalLock.writeLock();
 
     /**
      * <p>Constructor for FilesystemForeignSourceRepository.</p>
@@ -84,6 +84,7 @@ public class FilesystemForeignSourceRepository extends AbstractForeignSourceRepo
      *
      * @return a {@link java.util.Set} object.
      */
+    @Override
     public Set<String> getActiveForeignSourceNames() {
         m_readLock.lock();
         try {
@@ -116,6 +117,7 @@ public class FilesystemForeignSourceRepository extends AbstractForeignSourceRepo
      * @return a int.
      * @throws org.opennms.netmgt.provision.persist.ForeignSourceRepositoryException if any.
      */
+    @Override
     public int getForeignSourceCount() throws ForeignSourceRepositoryException {
         m_readLock.lock();
         try {
@@ -131,6 +133,7 @@ public class FilesystemForeignSourceRepository extends AbstractForeignSourceRepo
      * @return a {@link java.util.Set} object.
      * @throws org.opennms.netmgt.provision.persist.ForeignSourceRepositoryException if any.
      */
+    @Override
     public Set<ForeignSource> getForeignSources() throws ForeignSourceRepositoryException {
         m_readLock.lock();
         try {
@@ -150,6 +153,7 @@ public class FilesystemForeignSourceRepository extends AbstractForeignSourceRepo
     }
 
     /** {@inheritDoc} */
+    @Override
     public ForeignSource getForeignSource(final String foreignSourceName) throws ForeignSourceRepositoryException {
         if (foreignSourceName == null) {
             throw new ForeignSourceRepositoryException("can't get a foreign source with a null name!");
@@ -170,12 +174,13 @@ public class FilesystemForeignSourceRepository extends AbstractForeignSourceRepo
     }
 
     /** {@inheritDoc} */
-    public void save(final ForeignSource foreignSource) throws ForeignSourceRepositoryException {
+    @Override
+    public final void save(final ForeignSource foreignSource) throws ForeignSourceRepositoryException {
     	if (foreignSource == null) {
             throw new ForeignSourceRepositoryException("can't save a null foreign source!");
         }
 
-    	LogUtils.debugf(this, "Writing foreign source %s to %s", foreignSource.getName(), m_foreignSourcePath);
+    	LOG.debug("Writing foreign source {} to {}", foreignSource.getName(), m_foreignSourcePath);
     	validate(foreignSource);
 
         m_writeLock.lock();
@@ -203,14 +208,15 @@ public class FilesystemForeignSourceRepository extends AbstractForeignSourceRepo
     }
 
     /** {@inheritDoc} */
-    public void delete(final ForeignSource foreignSource) throws ForeignSourceRepositoryException {
+    @Override
+    public final void delete(final ForeignSource foreignSource) throws ForeignSourceRepositoryException {
         m_writeLock.lock();
         try {
-            LogUtils.debugf(this, "Deleting foreign source %s from %s (if necessary)", foreignSource.getName(), m_foreignSourcePath);
-            final File deleteFile = RequisitionFileUtils.getOutputFileForForeignSource(m_foreignSourcePath, foreignSource);
-            if (deleteFile.exists()) {
-                if (!deleteFile.delete()) {
-                    throw new ForeignSourceRepositoryException("unable to delete foreign source file " + deleteFile);
+            LOG.debug("Deleting foreign source {} from {} (if necessary)", foreignSource.getName(), m_foreignSourcePath);
+            final File fileToDelete = RequisitionFileUtils.getOutputFileForForeignSource(m_foreignSourcePath, foreignSource);
+            if (fileToDelete.exists()) {
+                if (!fileToDelete.delete()) {
+                    throw new ForeignSourceRepositoryException("unable to delete foreign source file " + fileToDelete);
                 }
             }
         } finally {
@@ -224,6 +230,7 @@ public class FilesystemForeignSourceRepository extends AbstractForeignSourceRepo
      * @return a {@link java.util.Set} object.
      * @throws org.opennms.netmgt.provision.persist.ForeignSourceRepositoryException if any.
      */
+    @Override
     public Set<Requisition> getRequisitions() throws ForeignSourceRepositoryException {
         m_readLock.lock();
         try {
@@ -248,6 +255,7 @@ public class FilesystemForeignSourceRepository extends AbstractForeignSourceRepo
     }
     
     /** {@inheritDoc} */
+    @Override
     public Requisition getRequisition(final String foreignSourceName) throws ForeignSourceRepositoryException {
         if (foreignSourceName == null) {
             throw new ForeignSourceRepositoryException("can't get a requisition with a null foreign source name!");
@@ -271,7 +279,8 @@ public class FilesystemForeignSourceRepository extends AbstractForeignSourceRepo
      * @return a {@link org.opennms.netmgt.provision.persist.requisition.Requisition} object.
      * @throws org.opennms.netmgt.provision.persist.ForeignSourceRepositoryException if any.
      */
-    public Requisition getRequisition(final ForeignSource foreignSource) throws ForeignSourceRepositoryException {
+    @Override
+    public final Requisition getRequisition(final ForeignSource foreignSource) throws ForeignSourceRepositoryException {
         if (foreignSource == null) {
             throw new ForeignSourceRepositoryException("can't get a requisition with a null foreign source name!");
         }
@@ -289,12 +298,13 @@ public class FilesystemForeignSourceRepository extends AbstractForeignSourceRepo
      * @param requisition a {@link org.opennms.netmgt.provision.persist.requisition.Requisition} object.
      * @throws org.opennms.netmgt.provision.persist.ForeignSourceRepositoryException if any.
      */
-    public void save(final Requisition requisition) throws ForeignSourceRepositoryException {
+    @Override
+    public final void save(final Requisition requisition) throws ForeignSourceRepositoryException {
         if (requisition == null) {
             throw new ForeignSourceRepositoryException("can't save a null requisition!");
         }
         
-        LogUtils.debugf(this, "Writing requisition %s to %s", requisition.getForeignSource(), m_requisitionPath);
+        LOG.debug("Writing requisition {} to {}", requisition.getForeignSource(), m_requisitionPath);
         validate(requisition);
 
         m_writeLock.lock();
@@ -323,20 +333,21 @@ public class FilesystemForeignSourceRepository extends AbstractForeignSourceRepo
      * @param requisition a {@link org.opennms.netmgt.provision.persist.requisition.Requisition} object.
      * @throws org.opennms.netmgt.provision.persist.ForeignSourceRepositoryException if any.
      */
-    public void delete(final Requisition requisition) throws ForeignSourceRepositoryException {
+    @Override
+    public final void delete(final Requisition requisition) throws ForeignSourceRepositoryException {
         if (requisition == null) {
             throw new ForeignSourceRepositoryException("can't delete a null requisition!");
         }
         m_writeLock.lock();
         try {
-            LogUtils.debugf(this, "Deleting requisition %s from %s (if necessary)", requisition.getForeignSource(), m_requisitionPath);
+            LOG.debug("Deleting requisition {} from {} (if necessary)", requisition.getForeignSource(), m_requisitionPath);
             final File fileToDelete = RequisitionFileUtils.getOutputFileForRequisition(m_requisitionPath, requisition);
             if (fileToDelete.exists()) {
                 if (!fileToDelete.delete()) {
                     throw new ForeignSourceRepositoryException("Unable to delete requisition file " + fileToDelete);
                 }
             } else {
-                LogUtils.debugf(this, "File %s does not exist.", fileToDelete);
+                LOG.debug("File {} does not exist.", fileToDelete);
             }
         } finally {
             m_writeLock.unlock();
@@ -348,7 +359,7 @@ public class FilesystemForeignSourceRepository extends AbstractForeignSourceRepo
      *
      * @param path a {@link java.lang.String} object.
      */
-    public void setRequisitionPath(final String path) {
+    public final void setRequisitionPath(final String path) {
         m_writeLock.lock();
         try {
             m_requisitionPath = path;
@@ -361,7 +372,7 @@ public class FilesystemForeignSourceRepository extends AbstractForeignSourceRepo
      *
      * @param path a {@link java.lang.String} object.
      */
-    public void setForeignSourcePath(final String path) {
+    public final void setForeignSourcePath(final String path) {
         m_writeLock.lock();
         try {
             m_foreignSourcePath = path;
@@ -372,7 +383,7 @@ public class FilesystemForeignSourceRepository extends AbstractForeignSourceRepo
 
     /** {@inheritDoc} */
     @Override
-    public Date getRequisitionDate(final String foreignSource) throws ForeignSourceRepositoryException {
+    public final Date getRequisitionDate(final String foreignSource) throws ForeignSourceRepositoryException {
         m_readLock.lock();
         try {
             final Requisition requisition = getRequisition(foreignSource);
@@ -386,6 +397,7 @@ public class FilesystemForeignSourceRepository extends AbstractForeignSourceRepo
     }
 
     /** {@inheritDoc} */
+    @Override
     public URL getRequisitionURL(final String foreignSource) throws ForeignSourceRepositoryException {
         m_readLock.lock();
         try {
@@ -398,8 +410,8 @@ public class FilesystemForeignSourceRepository extends AbstractForeignSourceRepo
     }
 
     @Override
-    public void flush() throws ForeignSourceRepositoryException {
+    public final void flush() throws ForeignSourceRepositoryException {
         // Unnecessary, there is no caching/delayed writes in FilesystemForeignSourceRepository
-        LogUtils.debugf(this, "flush() called");
+        LOG.debug("flush() called");
     }
 }

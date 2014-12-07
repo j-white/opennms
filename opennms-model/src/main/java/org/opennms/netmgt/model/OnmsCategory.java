@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2006-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -33,6 +33,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 import javax.persistence.Column;
+import javax.persistence.ElementCollection;
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
 import javax.persistence.Id;
@@ -44,7 +45,8 @@ import javax.xml.bind.annotation.XmlAttribute;
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
 
-import org.hibernate.annotations.CollectionOfElements;
+import org.codehaus.jackson.annotate.JsonIgnoreProperties;
+import org.hibernate.annotations.Filter;
 import org.springframework.core.style.ToStringCreator;
 
 /**
@@ -53,6 +55,8 @@ import org.springframework.core.style.ToStringCreator;
 @XmlRootElement(name = "category")
 @Entity
 @Table(name="categories")
+@Filter(name=FilterManager.AUTH_FILTER_NAME, condition="categoryid in (select distinct cn.categoryId from category_node cn join category_node cn2 on cn.nodeid = cn2.nodeid join category_group cg on cn2.categoryId = cg.categoryId where cg.groupId in (:userGroups))")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class OnmsCategory implements Serializable, Comparable<OnmsCategory> {
 
     private static final long serialVersionUID = 4694348093332239377L;
@@ -163,7 +167,7 @@ public class OnmsCategory implements Serializable, Comparable<OnmsCategory> {
 	 *
 	 * @return a {@link java.util.Set} object.
 	 */
-	@CollectionOfElements
+	@ElementCollection
 	@JoinTable(name="category_group", joinColumns=@JoinColumn(name="categoryId"))
 	@Column(name="groupId", nullable=false, length=64)
 	public Set<String> getAuthorizedGroups() {
@@ -195,6 +199,7 @@ public class OnmsCategory implements Serializable, Comparable<OnmsCategory> {
      *
      * @return a {@link java.lang.String} object.
      */
+    @Override
     public String toString() {
         return new ToStringCreator(this)
             .append("id", getId())
@@ -205,6 +210,7 @@ public class OnmsCategory implements Serializable, Comparable<OnmsCategory> {
     }
 
     /** {@inheritDoc} */
+    @Override
     public boolean equals(Object obj) {
         if (obj instanceof OnmsCategory) {
             OnmsCategory t = (OnmsCategory)obj;
@@ -218,6 +224,7 @@ public class OnmsCategory implements Serializable, Comparable<OnmsCategory> {
      *
      * @return a int.
      */
+    @Override
     public int hashCode() {
         return m_name.hashCode();
     }
@@ -228,6 +235,7 @@ public class OnmsCategory implements Serializable, Comparable<OnmsCategory> {
      * @param o a {@link org.opennms.netmgt.model.OnmsCategory} object.
      * @return a int.
      */
+    @Override
     public int compareTo(OnmsCategory o) {
         return m_name.compareToIgnoreCase(o.m_name);
     }

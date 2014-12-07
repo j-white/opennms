@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2002-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -39,13 +39,14 @@ import java.net.NoRouteToHostException;
 import java.net.Socket;
 import java.util.Map;
 
-import org.apache.log4j.Level;
 import org.opennms.core.utils.InetAddressUtils;
 import org.opennms.core.utils.ParameterMap;
 import org.opennms.core.utils.TimeoutTracker;
-import org.opennms.netmgt.model.PollStatus;
 import org.opennms.netmgt.poller.Distributable;
 import org.opennms.netmgt.poller.MonitoredService;
+import org.opennms.netmgt.poller.PollStatus;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * This class is designed to be used by the service poller framework to test the
@@ -58,6 +59,9 @@ import org.opennms.netmgt.poller.MonitoredService;
  */
 @Distributable
 final public class CitrixMonitor extends AbstractServiceMonitor {
+    
+    
+    public static final Logger LOG = LoggerFactory.getLogger(CitrixMonitor.class);
 
     /**
      * Default FTP port.
@@ -87,6 +91,7 @@ final public class CitrixMonitor extends AbstractServiceMonitor {
      * code indicates that we are talking to an Citrix server ('ICA' appears in
      * the response) we set the service status to SERVICE_AVAILABLE and return.
      */
+    @Override
     public PollStatus poll(MonitoredService svc, Map<String, Object> parameters) {
 
         // Get the category logger
@@ -103,8 +108,7 @@ final public class CitrixMonitor extends AbstractServiceMonitor {
         InetAddress ipv4Addr = svc.getAddress();
         String host = InetAddressUtils.str(ipv4Addr);
 
-        if (log().isDebugEnabled())
-            log().debug("CitrixMonitor.poll: Polling interface: " + host + timeoutTracker);
+        LOG.debug("CitrixMonitor.poll: Polling interface: {} {}", host, timeoutTracker);
 
         PollStatus serviceStatus = PollStatus.unavailable();
 
@@ -117,7 +121,7 @@ final public class CitrixMonitor extends AbstractServiceMonitor {
                 socket = new Socket();
                 socket.connect(new InetSocketAddress(ipv4Addr, port), timeoutTracker.getConnectionTimeout());
                 socket.setSoTimeout(timeoutTracker.getSoTimeout());
-                log().debug("CitrixMonitor: connected to host: " + host + " on port: " + port);
+                LOG.debug("CitrixMonitor: connected to host: {} on port: {}", host, port);
 
                 // We're connected, so upgrade status to unresponsive
 
@@ -141,24 +145,34 @@ final public class CitrixMonitor extends AbstractServiceMonitor {
             } catch (ConnectException e) {
 
                 // Connection refused!! Continue to retry.
-            	serviceStatus = logDown(Level.DEBUG, "Connection refused by host "+host, e);
+            	String reason = "Connection refused by host "+host;
+                LOG.debug(reason, e);
+                serviceStatus = PollStatus.unavailable(reason);
             	
             } catch (NoRouteToHostException e) {
 
             	// No route to host!! Try retries anyway in case strict timeouts are enabled
-                serviceStatus = logDown(Level.INFO, "Unable to test host " + host + ", no route available", e);
+                String reason = "Unable to test host " + host + ", no route available";
+                LOG.debug(reason, e);
+                serviceStatus = PollStatus.unavailable(reason);
             
             } catch (InterruptedIOException e) {
             	
-            	serviceStatus = logDown(Level.DEBUG, "did not connect to host " + host +" within timeout: " + timeoutTracker);
+            	String reason = "did not connect to host " + host +" within timeout: " + timeoutTracker;
+                LOG.debug(reason);
+                serviceStatus = PollStatus.unavailable(reason);
                 		
             } catch (IOException e) {
             	
-            	serviceStatus = logDown(Level.INFO, "Error communicating with host " + host, e);
+            	String reason = "Error communicating with host " + host;
+                LOG.debug(reason, e);
+                serviceStatus = PollStatus.unavailable(reason);
                 
             } catch (Throwable t) {
 
-                serviceStatus = logDown(Level.WARN, "Undeclared throwable exception caught contacting host " + host, t);
+                String reason = "Undeclared throwable exception caught contacting host " + host;
+                LOG.debug(reason, t);
+                serviceStatus = PollStatus.unavailable(reason);
                 
             } finally {
                 try {

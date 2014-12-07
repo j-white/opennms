@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2002-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -33,7 +33,8 @@ import java.net.DatagramSocket;
 
 import org.opennms.core.fiber.Fiber;
 import org.opennms.core.utils.InetAddressUtils;
-import org.opennms.core.utils.ThreadCategory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.opennms.netmgt.config.SyslogdConfig;
 import org.opennms.netmgt.config.syslogd.HideMessage;
 import org.opennms.netmgt.config.syslogd.UeiList;
@@ -51,6 +52,7 @@ import org.opennms.netmgt.xml.event.EventReceipt;
  * @author <a href="http://www.oculan.com">Oculan Corporation </a>
  */
 public final class SyslogHandler implements Fiber {
+    private static final Logger LOG = LoggerFactory.getLogger(SyslogHandler.class);
     /**
      * The UDP receiver thread.
      */
@@ -145,6 +147,7 @@ public final class SyslogHandler implements Fiber {
     /**
      * <p>start</p>
      */
+    @Override
     public synchronized void start() {
         if (m_status != START_PENDING)
             throw new RuntimeException("The Fiber is in an incorrect state");
@@ -191,6 +194,7 @@ public final class SyslogHandler implements Fiber {
     /**
      * <p>stop</p>
      */
+    @Override
     public synchronized void stop() {
         if (m_status == STOPPED)
             return;
@@ -204,10 +208,7 @@ public final class SyslogHandler implements Fiber {
         try {
             m_receiver.stop();
         } catch (InterruptedException e) {
-            ThreadCategory log = ThreadCategory.getInstance(this.getClass());
-            log.warn(
-                    "The thread was interrupted while attempting to join sub-threads",
-                    e);
+            LOG.warn("The thread was interrupted while attempting to join sub-threads", e);
         }
 
         m_dgSock.close();
@@ -220,6 +221,7 @@ public final class SyslogHandler implements Fiber {
      *
      * @return a {@link java.lang.String} object.
      */
+    @Override
     public String getName() {
         return "SyslogdHandler[" + getIpAddress() + ":" + m_dgPort + "]";
     }
@@ -229,6 +231,7 @@ public final class SyslogHandler implements Fiber {
      *
      * @return a int.
      */
+    @Override
     public int getStatus() {
         return m_status;
     }

@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2007-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2007-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -30,13 +30,14 @@ package org.opennms.netmgt.statsd;
 
 import java.util.Date;
 
-import org.opennms.core.utils.LogUtils;
-import org.opennms.netmgt.dao.ResourceReferenceDao;
-import org.opennms.netmgt.dao.StatisticsReportDao;
+import org.opennms.netmgt.dao.api.ResourceReferenceDao;
+import org.opennms.netmgt.dao.api.StatisticsReportDao;
 import org.opennms.netmgt.model.AttributeStatistic;
 import org.opennms.netmgt.model.ResourceReference;
 import org.opennms.netmgt.model.StatisticsReport;
 import org.opennms.netmgt.model.StatisticsReportData;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.util.Assert;
 
@@ -47,10 +48,12 @@ import org.springframework.util.Assert;
  * @version $Id: $
  */
 public class DatabaseReportPersister implements ReportPersister, InitializingBean {
+    private static final Logger LOG = LoggerFactory.getLogger(DatabaseReportPersister.class);
     private StatisticsReportDao m_statisticsReportDao;
     private ResourceReferenceDao m_resourceReferenceDao;
 
     /** {@inheritDoc} */
+    @Override
     public void persist(ReportInstance report) {
         StatisticsReport dbReport = new StatisticsReport();
         dbReport.setName(report.getName());
@@ -69,11 +72,11 @@ public class DatabaseReportPersister implements ReportPersister, InitializingBea
             data.setReport(dbReport);
             data.setValue(stat.getStatistic());
             dbReport.addData(data);
-            LogUtils.debugf(this, "Adding %s", data);
+            LOG.debug("Adding {}", data);
         }
         
         if (dbReport.getData().isEmpty()) {
-            LogUtils.warnf(this, "Cannot store %s because it doesn't contain data. Probably all the metrics are NaN for the report period.", report);
+            LOG.warn("Cannot store {} because it doesn't contain data. Probably all the metrics are NaN for the report period.", report);
         } else {
             m_statisticsReportDao.save(dbReport);
         }
@@ -104,7 +107,7 @@ public class DatabaseReportPersister implements ReportPersister, InitializingBea
     /**
      * <p>getStatisticsReportDao</p>
      *
-     * @return a {@link org.opennms.netmgt.dao.StatisticsReportDao} object.
+     * @return a {@link org.opennms.netmgt.dao.api.StatisticsReportDao} object.
      */
     public StatisticsReportDao getStatisticsReportDao() {
         return m_statisticsReportDao;
@@ -113,7 +116,7 @@ public class DatabaseReportPersister implements ReportPersister, InitializingBea
     /**
      * <p>setStatisticsReportDao</p>
      *
-     * @param statisticsReportDao a {@link org.opennms.netmgt.dao.StatisticsReportDao} object.
+     * @param statisticsReportDao a {@link org.opennms.netmgt.dao.api.StatisticsReportDao} object.
      */
     public void setStatisticsReportDao(StatisticsReportDao statisticsReportDao) {
         m_statisticsReportDao = statisticsReportDao;
@@ -122,7 +125,7 @@ public class DatabaseReportPersister implements ReportPersister, InitializingBea
     /**
      * <p>getResourceReferenceDao</p>
      *
-     * @return a {@link org.opennms.netmgt.dao.ResourceReferenceDao} object.
+     * @return a {@link org.opennms.netmgt.dao.api.ResourceReferenceDao} object.
      */
     public ResourceReferenceDao getResourceReferenceDao() {
         return m_resourceReferenceDao;
@@ -131,7 +134,7 @@ public class DatabaseReportPersister implements ReportPersister, InitializingBea
     /**
      * <p>setResourceReferenceDao</p>
      *
-     * @param resourceReferenceDao a {@link org.opennms.netmgt.dao.ResourceReferenceDao} object.
+     * @param resourceReferenceDao a {@link org.opennms.netmgt.dao.api.ResourceReferenceDao} object.
      */
     public void setResourceReferenceDao(ResourceReferenceDao resourceReferenceDao) {
         m_resourceReferenceDao = resourceReferenceDao;

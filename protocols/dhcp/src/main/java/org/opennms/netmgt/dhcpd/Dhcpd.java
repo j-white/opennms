@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2011-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2002-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -40,12 +40,11 @@ import java.util.List;
 import java.util.Observable;
 import java.util.Observer;
 
-import org.apache.log4j.Category;
-import org.apache.log4j.Logger;
 import org.opennms.core.utils.InetAddressUtils;
 import org.opennms.netmgt.config.dhcpd.DhcpdConfigFactory;
 import org.opennms.netmgt.daemon.AbstractServiceDaemon;
-import org.opennms.netmgt.utils.IpValidator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * <P>
@@ -94,10 +93,13 @@ import org.opennms.netmgt.utils.IpValidator;
  */
 public final class Dhcpd extends AbstractServiceDaemon implements Runnable, Observer {
 
+    private static final Logger LOG = LoggerFactory.getLogger(Dhcpd.class);
+
+
     /**
      * The singular instance of the DHCP server.
      */
-    private final static Dhcpd m_singleton = new Dhcpd();
+    private static final Dhcpd m_singleton = new Dhcpd();
 
     /**
      * List of clients currently connected to the DHCP daemon
@@ -131,7 +133,7 @@ public final class Dhcpd extends AbstractServiceDaemon implements Runnable, Obse
      * 
      */
     private Dhcpd() {
-    	super("OpenNMS.Dhcpd");
+    	super("dhcpd");
         m_clients = null;
         m_server = null;
         m_listener = null;
@@ -142,9 +144,10 @@ public final class Dhcpd extends AbstractServiceDaemon implements Runnable, Obse
     /**
      * <p>onStart</p>
      */
+    @Override
     protected void onStart() {
         boolean relayMode = false;
-        log().debug("start: DHCP client daemon starting...");
+        LOG.debug("start: DHCP client daemon starting...");
 
         // Only allow start to be called once.
         if (m_worker != null && m_worker.isAlive()) {
@@ -165,45 +168,42 @@ public final class Dhcpd extends AbstractServiceDaemon implements Runnable, Obse
             DhcpdConfigFactory.reload();
             dFactory = DhcpdConfigFactory.getInstance();
         } catch (Exception ex) {
-            log().error("Failed to load dhcpd configuration", ex);
+            LOG.error("Failed to load dhcpd configuration", ex);
             throw new UndeclaredThrowableException(ex);
         }
 
         // open the server
         //
         try {
-            if (log().isDebugEnabled()) {
-                log().debug("start: listening on TCP port " + dFactory.getPort() + " for incoming client requests.");
-            }
+            LOG.debug("start: listening on TCP port {} for incoming client requests.", dFactory.getPort());
             m_server = new ServerSocket(dFactory.getPort(), 0, InetAddressUtils.addr("127.0.0.1"));
         } catch (IOException ex) {
             if (ex instanceof java.net.BindException) {
-                managerLog().error("Failed to listen on DHCP port, perhaps something else is already listening?", ex);
-                log().error("Failed to listen on DHCP port, perhaps something else is already listening?", ex);
+                LOG.error("Failed to listen on DHCP port, perhaps something else is already listening?", ex);
+                LOG.error("Failed to listen on DHCP port, perhaps something else is already listening?", ex);
             } else {
-                log().error("Failed to initialize DHCP socket", ex);
+                LOG.error("Failed to initialize DHCP socket", ex);
             }
             throw new UndeclaredThrowableException(ex);
         }
 
         // see if we have a valid relay address
         String myIpStr = DhcpdConfigFactory.getInstance().getMyIpAddress();
-        if (log().isDebugEnabled()) {
-            log().debug("Checking string \"" + myIpStr + "\" to see if we have an IP address");
-        }
+        LOG.debug("Checking string \"{}\" to see if we have an IP address", myIpStr);
         if (myIpStr != null &&  !myIpStr.equals("") && !myIpStr.equalsIgnoreCase("broadcast")) {
-            if(IpValidator.isIpValid(myIpStr)) {
+            try {
+                InetAddressUtils.toIpAddrBytes(myIpStr);
                 relayMode = true;
+            } catch (IllegalArgumentException e) {
+                LOG.warn("Invalid format for IP address: {}", myIpStr);
             }
         }
-        if (log().isDebugEnabled()) {
-            log().debug("Setting relay mode " + relayMode);
-        }
+        LOG.debug("Setting relay mode {}", relayMode);
         
         // open the receiver socket(s)
         if(!relayMode || (dFactory.getExtendedMode() != null && dFactory.getExtendedMode().equalsIgnoreCase("true"))) {
             try {
-                log().debug("start: starting receiver thread for port 68");
+                LOG.debug("start: starting receiver thread for port 68");
                 m_listener = new Receiver(m_clients);
                 m_listener.start();
             } catch (IOException ex) {
@@ -217,7 +217,7 @@ public final class Dhcpd extends AbstractServiceDaemon implements Runnable, Obse
 
         if(relayMode) {
             try {
-                log().debug("start: starting receiver thread for port 67");
+                LOG.debug("start: starting receiver thread for port 67");
                 m_listener2 = new Receiver2(m_clients);
                 m_listener2.start();
             } catch (IOException ex) {
@@ -236,6 +236,7 @@ public final class Dhcpd extends AbstractServiceDaemon implements Runnable, Obse
     /**
      * <p>onStop</p>
      */
+    @Override
     protected void onStop() {
 	if (m_worker == null) {
             return;
@@ -278,6 +279,7 @@ public final class Dhcpd extends AbstractServiceDaemon implements Runnable, Obse
      * The main routine of the DHCP server. This method accepts incoming client
      * requests and starts new client handlers to process each request.
      */
+    @Override
     public void run() {
         
         try {
@@ -286,7 +288,7 @@ public final class Dhcpd extends AbstractServiceDaemon implements Runnable, Obse
             // ignore
         }
         
-        log().debug("run: DHCPD client daemon running...");
+        LOG.debug("run: DHCPD client daemon running...");
         
         /*
          * Begin accepting connections from clients
@@ -318,7 +320,7 @@ public final class Dhcpd extends AbstractServiceDaemon implements Runnable, Obse
                 }
 
                 // Add the client's new socket connection to the client list
-                log().debug("run: got connection request...creating client handler...");
+                LOG.debug("run: got connection request...creating client handler...");
 
                 try {
                     Client clnt = new Client(sock);
@@ -326,15 +328,15 @@ public final class Dhcpd extends AbstractServiceDaemon implements Runnable, Obse
                     clnt.addObserver(this);
                     clnt.start();
                 } catch (IOException ioE) {
-                    log().error("I/O exception occured creating client handler.", ioE);
+                    LOG.error("I/O exception occured creating client handler.", ioE);
                 }
             }
         } catch (IOException ioE) {
-            log().error("I/O exception occured processing incoming request", ioE);
+            LOG.error("I/O exception occured processing incoming request", ioE);
         } catch (Throwable t) {
-            log().error("An undeclared throwable was caught", t);
+            LOG.error("An undeclared throwable was caught", t);
         } finally {
-            log().debug("run: DHCPD client daemon run completed setting status to stopped");
+            LOG.debug("run: DHCPD client daemon run completed setting status to stopped");
         }
 
     }
@@ -345,6 +347,7 @@ public final class Dhcpd extends AbstractServiceDaemon implements Runnable, Obse
      * This method is called by the observable instances that the server has
      * registered to receive.
      */
+    @Override
     public void update(Observable inst, Object ignored) {
         synchronized (this) {
             if (m_clients != null) {
@@ -399,12 +402,8 @@ public final class Dhcpd extends AbstractServiceDaemon implements Runnable, Obse
     /**
      * <p>onInit</p>
      */
+    @Override
     protected void onInit() {
     	
     }
-
-    private Category managerLog() {
-        return Logger.getLogger("OpenNMS.Manager");
-    }
-
 }

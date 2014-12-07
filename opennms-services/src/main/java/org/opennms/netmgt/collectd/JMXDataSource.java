@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2002-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -30,7 +30,8 @@ package org.opennms.netmgt.collectd;
 import java.io.File;
 import java.util.List;
 
-import org.opennms.core.utils.ThreadCategory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.opennms.netmgt.config.DataCollectionConfigFactory;
 import org.opennms.netmgt.config.MibObject;
 import org.opennms.netmgt.rrd.RrdException;
@@ -52,6 +53,7 @@ import org.opennms.netmgt.snmp.SnmpValue;
  * @version 1.1.1.1
  */
 public class JMXDataSource implements Cloneable {
+    private static final Logger LOG = LoggerFactory.getLogger(JMXDataSource.class);
 	private static final int MAX_DS_NAME_LENGTH = 19;
 	/** Constant <code>RRD_ERROR="RRD_ERROR"</code> */
 	public static final String RRD_ERROR = "RRD_ERROR";
@@ -197,7 +199,6 @@ public class JMXDataSource implements Cloneable {
                 
                 m_collectionName = collectionName;
                 
-                ThreadCategory log = ThreadCategory.getInstance(getClass());
 
                 // Assign heartbeat using formula (2 * step) and hard code
                 // min & max values to "U" ("unknown").
@@ -209,11 +210,7 @@ public class JMXDataSource implements Cloneable {
                 // Truncate MIB object name/alias if it exceeds the 19 char max for
                 // RRD data source names.
                 if (this.getName().length() > MAX_DS_NAME_LENGTH) {
-                        if (log.isEnabledFor(ThreadCategory.Level.WARN))
-                                log.warn(
-                                        "buildDataSourceList: Mib object name/alias '"
-                                                + obj.getAlias()
-                                                + "' exceeds 19 char maximum for RRD data source names, truncating.");
+                        LOG.warn("buildDataSourceList: Mib object name/alias '{}' exceeds 19 char maximum for RRD data source names, truncating.", obj.getAlias());
                         char[] temp = this.getName().toCharArray();
                         this.setName(String.copyValueOf(temp, 0, MAX_DS_NAME_LENGTH));
                 }
@@ -224,20 +221,7 @@ public class JMXDataSource implements Cloneable {
                 this.m_max = "U";
 
                 // Assign the data source object identifier and instance
-                if (log.isDebugEnabled()) {
-                        log.debug(
-                                "buildDataSourceList: ds_name: "
-                                        + this.getName()
-                                        + " ds_oid: "
-                                        + this.getOid()
-                                        + "."
-                                        + this.getInstance()
-                                        + " ds_max: "
-                                        + this.getMax()
-                                        + " ds_min: "
-                                        + this.getMin());
-                }
-
+                LOG.debug("buildDataSourceList: ds_name: {} ds_oid: {}.{} ds_max: {} ds_min: {}", this.getName(), this.getOid(), this.getInstance(), this.getMax(), this.getMin());
         }
 
 

@@ -23,6 +23,7 @@ import javax.servlet.ServletContextEvent;
 import javax.servlet.ServletContextListener;
 
 import org.apache.karaf.main.Main;
+import org.opennms.core.soa.support.OnmsOSGiBridgeActivator;
 import org.osgi.framework.BundleContext;
 
 public class WebAppListener implements ServletContextListener {
@@ -32,6 +33,7 @@ public class WebAppListener implements ServletContextListener {
     private BundleContext m_framework;
     private OnmsOSGiBridgeActivator m_bridge = new OnmsOSGiBridgeActivator();
     
+    @Override
     public void contextInitialized(ServletContextEvent sce) {
 
         try {
@@ -67,9 +69,10 @@ public class WebAppListener implements ServletContextListener {
             m_servletContext.log("Root: " + root);
             System.setProperty("karaf.home", root);
             System.setProperty("karaf.base", root);
-            System.setProperty("karaf.data", root + "/data");
-            System.setProperty("karaf.history", root + "/data/history.txt");
-            System.setProperty("karaf.instances", root + "/instances");
+            System.setProperty("karaf.data", root + File.separator + "data");
+            System.setProperty("karaf.etc", root + File.separator + "etc");
+            System.setProperty("karaf.history", root + File.separator + "data" + File.separator + "history.txt");
+            System.setProperty("karaf.instances", root + File.separator + "instances");
             System.setProperty("karaf.startLocalConsole", "false");
             System.setProperty("karaf.startRemoteShell", "true");
             System.setProperty("karaf.lock", "false");
@@ -85,12 +88,13 @@ public class WebAppListener implements ServletContextListener {
             
             m_bridge.start(m_framework);
 
-        } catch (final Exception e) {
+        } catch (final Throwable e) {
             main = null;
             e.printStackTrace();
         }
     }
 
+    @Override
     public void contextDestroyed(ServletContextEvent sce) {
         try {
             
@@ -101,7 +105,7 @@ public class WebAppListener implements ServletContextListener {
             if (main != null) {
                 main.destroy();
             }
-        } catch (final Exception e) {
+        } catch (final Throwable e) {
             e.printStackTrace();
         }
     }

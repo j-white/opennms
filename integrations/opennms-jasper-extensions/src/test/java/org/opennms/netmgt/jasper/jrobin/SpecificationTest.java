@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2010-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2010-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -82,6 +82,7 @@ public class SpecificationTest {
             m_factor = 2 * Math.PI / period;
         }
         
+        @Override
         public double evaluate(long timestamp) {
             long x = timestamp - m_startTime;
             double ret = (m_amplitude * Math.sin(m_factor * x)) + m_offset;
@@ -108,6 +109,7 @@ public class SpecificationTest {
             m_factor = 2 * Math.PI / period;
         }
         
+        @Override
         public double evaluate(long timestamp) {
             long x = timestamp - m_startTime;
             double ret = (m_amplitude * Math.cos(m_factor * x)) + m_offset;
@@ -125,6 +127,7 @@ public class SpecificationTest {
             m_b = b;
         }
 
+        @Override
         public double evaluate(long timestamp) {
             return m_a.evaluate(timestamp)*m_b.evaluate(timestamp);
         }
@@ -139,6 +142,7 @@ public class SpecificationTest {
             m_function = function;
         }
 
+        @Override
         public double evaluate(long timestamp) {
             double m_diff = m_function.evaluate(timestamp);
             m_prevValue += m_diff;

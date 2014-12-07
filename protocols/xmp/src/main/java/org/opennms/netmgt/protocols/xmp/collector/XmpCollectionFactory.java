@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2011-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2009-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -64,16 +64,21 @@ import org.exolab.castor.xml.MarshalException;
 import org.exolab.castor.xml.Unmarshaller;
 import org.exolab.castor.xml.ValidationException;
 import org.opennms.core.utils.ConfigFileConstants;
-import org.opennms.core.utils.ThreadCategory;
+
 import org.opennms.netmgt.config.xmpDataCollection.XmpCollection;
 import org.opennms.netmgt.config.xmpDataCollection.XmpDatacollectionConfig;
-import org.opennms.netmgt.model.RrdRepository;
+import org.opennms.netmgt.rrd.RrdRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 public class XmpCollectionFactory {
 
     /* class variables and methods *********************** */
     private static XmpCollectionFactory instance;
 
     private static XmpDatacollectionConfig config;
+    
+	private static final Logger LOG = LoggerFactory.getLogger(XmpCollectionFactory.class);
+
 
     // initialize our class for the creation of instances
     /**
@@ -125,14 +130,11 @@ public class XmpCollectionFactory {
         rrdPath = null;
 
         // list out the collections I've found
-        XmpCollection[] collections = config.getXmpCollection();
-        for (XmpCollection coll: collections) {
-
-            log().debug("XmpCollectionFactory: found collection "+
-                        coll.getName());
-
-            //System.out.println("XmpCollectionFactory: found collection "+
-            //                    coll.getName());
+        if (LOG.isDebugEnabled()) {
+            XmpCollection[] collections = config.getXmpCollection();
+            for (XmpCollection coll: collections) {
+                LOG.debug("XmpCollectionFactory: found collection {}", coll.getName());
+            }
         }
 
         return; 
@@ -157,9 +159,7 @@ public class XmpCollectionFactory {
     }
 
     /* private methods *********************************** */
-    private ThreadCategory log() {
-        return ThreadCategory.getInstance(getClass());
-    }
+   
 
     /* public methods ************************************ */
 
@@ -186,7 +186,7 @@ public class XmpCollectionFactory {
      *       the XmpDatacollectionConfig class and return an new repository *
      *
      * @param collectionName a {@link java.lang.String} object.
-     * @return a {@link org.opennms.netmgt.model.RrdRepository} object.
+     * @return a {@link org.opennms.netmgt.rrd.RrdRepository} object.
      */
     public RrdRepository getRrdRepository(String collectionName) 
     { 

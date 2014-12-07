@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2009-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2008-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -42,7 +42,8 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
 import org.opennms.core.concurrent.LogPreservingThreadFactory;
-import org.opennms.core.utils.ThreadCategory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.util.Assert;
 
@@ -53,6 +54,8 @@ import org.springframework.util.Assert;
  * @version $Id: $
  */
 public class DefaultTaskCoordinator implements InitializingBean {
+	
+	private static final Logger LOG = LoggerFactory.getLogger(DefaultTaskCoordinator.class);
 
     /**
      * A RunnableActor class is a thread that simple removes Future<Runnable> from a queue
@@ -68,6 +71,7 @@ public class DefaultTaskCoordinator implements InitializingBean {
             start();
         }
         
+        @Override
         public void run() {
             while(true) {
                 try {
@@ -79,12 +83,12 @@ public class DefaultTaskCoordinator implements InitializingBean {
                         sleep(m_loopDelay);
                     }
                 } catch (InterruptedException e) {
-                    log().warn("runnable actor interrupted", e);
+                	LOG.warn("runnable actor interrupted", e);
                     Thread.currentThread().interrupt();
                 } catch (ExecutionException e) {
-                    log().warn("runnable actor execution failed", e);
+                	LOG.warn("runnable actor execution failed", e);
                 } catch (Throwable e) {
-                    log().error("an unknown error occurred in the runnable actor", e);
+                	LOG.error("an unknown error occurred in the runnable actor", e);
                 }
             }
         }
@@ -93,8 +97,6 @@ public class DefaultTaskCoordinator implements InitializingBean {
 
     private final BlockingQueue<Future<Runnable>> m_queue;
     private final ConcurrentHashMap<String, CompletionService<Runnable>> m_taskCompletionServices = new ConcurrentHashMap<String, CompletionService<Runnable>>();
-    @SuppressWarnings("unused")
-    private final RunnableActor m_actor;
     
     private String m_defaultExecutor ;
     private CompletionService<Runnable> m_defaultCompletionService;
@@ -109,9 +111,10 @@ public class DefaultTaskCoordinator implements InitializingBean {
      */
     public DefaultTaskCoordinator(String name) {
         m_queue = new LinkedBlockingQueue<Future<Runnable>>();
-        m_actor = new RunnableActor(name+"-TaskScheduler", m_queue);
+        // Create a new actor and add it to the queue
+        new RunnableActor(name+"-TaskScheduler", m_queue);
         addExecutor(SyncTask.ADMIN_EXECUTOR, Executors.newSingleThreadExecutor(
-            new LogPreservingThreadFactory(SyncTask.ADMIN_EXECUTOR, 1, false)
+            new LogPreservingThreadFactory(SyncTask.ADMIN_EXECUTOR, 1)
         ));
     }
     
@@ -304,21 +307,27 @@ public class DefaultTaskCoordinator implements InitializingBean {
     
     private void onProcessorThread(final Runnable r) {
         Future<Runnable> now = new Future<Runnable>() {
+            @Override
             public boolean cancel(boolean mayInterruptIfRunning) {
                 return false;
             }
+            @Override
             public Runnable get() {
                 return r;
             }
+            @Override
             public Runnable get(long timeout, TimeUnit unit) {
                 return get();
             }
+            @Override
             public boolean isCancelled() {
                 return false;
             }
+            @Override
             public boolean isDone() {
                 return true;
             }
+            @Override
             public String toString() {
                 return "Future<"+r+">";
             }
@@ -330,10 +339,12 @@ public class DefaultTaskCoordinator implements InitializingBean {
 
     private Runnable scheduler(final Task task) {
         return new Runnable() {
+            @Override
             public void run() {
                 task.scheduled();
                 task.submitIfReady(); 
             }
+            @Override
             public String toString() {
                 return String.format("schedule(%s)", task);
             }
@@ -342,9 +353,11 @@ public class DefaultTaskCoordinator implements InitializingBean {
     
     Runnable taskCompleter(final Task task) {
         return new Runnable() {
+            @Override
             public void run() {
                 notifyDependents(task);
             }
+            @Override
             public String toString() {
                 return String.format("notifyDependents(%s)", task);
             }
@@ -380,6 +393,7 @@ public class DefaultTaskCoordinator implements InitializingBean {
         Assert.notNull(prereq, "prereq must not be null");
         Assert.notNull(dependent, "dependent must not be null");
         return new Runnable() {
+            @Override
             public void run() {
                 prereq.doAddDependent(dependent);
                 dependent.doAddPrerequisite(prereq);
@@ -392,6 +406,7 @@ public class DefaultTaskCoordinator implements InitializingBean {
                  */
                 dependent.submitIfReady();
             }
+            @Override
             public String toString() {
                 return String.format("%s.addPrerequisite(%s)", dependent, prereq);
             }
@@ -438,10 +453,6 @@ public class DefaultTaskCoordinator implements InitializingBean {
         for (Map.Entry<String, Executor> e : executors.entrySet()) {
             addExecutor(e.getKey(), e.getValue());
         }
-    }
-
-    private ThreadCategory log() {
-        return ThreadCategory.getInstance(getClass());
     }
 
 }

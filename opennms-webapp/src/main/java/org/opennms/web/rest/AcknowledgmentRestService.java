@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2009-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2009-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -41,15 +41,14 @@ import javax.ws.rs.core.SecurityContext;
 import javax.ws.rs.core.UriInfo;
 
 import org.opennms.core.criteria.CriteriaBuilder;
-import org.opennms.netmgt.dao.AcknowledgmentDao;
-import org.opennms.netmgt.dao.AlarmDao;
-import org.opennms.netmgt.dao.NotificationDao;
+import org.opennms.netmgt.dao.api.AcknowledgmentDao;
+import org.opennms.netmgt.dao.api.AlarmDao;
+import org.opennms.netmgt.dao.api.NotificationDao;
 import org.opennms.netmgt.model.AckAction;
 import org.opennms.netmgt.model.OnmsAcknowledgment;
 import org.opennms.netmgt.model.OnmsAcknowledgmentCollection;
 import org.opennms.netmgt.model.OnmsAlarm;
 import org.opennms.netmgt.model.OnmsNotification;
-import org.opennms.netmgt.model.acknowledgments.AckService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
@@ -79,9 +78,6 @@ public class AcknowledgmentRestService extends OnmsRestService {
     @Autowired
     private NotificationDao m_notificationDao;
     
-    @Autowired
-    private AckService m_ackSvc;
-    
     @Context 
     UriInfo m_uriInfo;
 
@@ -101,8 +97,7 @@ public class AcknowledgmentRestService extends OnmsRestService {
     public OnmsAcknowledgment getAcknowledgment(@PathParam("id") String alarmId) {
         readLock();
         try {
-            OnmsAcknowledgment result = m_ackDao.get(new Integer(alarmId));
-        	return result;
+            return m_ackDao.get(new Integer(alarmId));
         } finally {
             readUnlock();
         }
@@ -199,7 +194,7 @@ public class AcknowledgmentRestService extends OnmsRestService {
 	            "Must supply the 'action' parameter, set to either 'ack, 'unack', 'clear', or 'esc'");
 	        }
 
-	        m_ackSvc.processAck(ack);
+	        m_ackDao.processAck(ack);
 	        return ack;
     	} finally {
     		writeUnlock();

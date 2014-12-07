@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2011-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2011-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -47,6 +47,8 @@ import java.util.regex.Pattern;
 import org.joda.time.DateTime;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.jcraft.jsch.ChannelSftp.LsEntry;
 import com.jcraft.jsch.SftpException;
@@ -58,6 +60,10 @@ import com.jcraft.jsch.SftpException;
  */
 public class Sftp3gppUrlConnection extends SftpUrlConnection {
 
+    /** The Constant LOG. */
+    private static final Logger LOG = LoggerFactory.getLogger(Sftp3gppUrlConnection.class);
+
+    /** The URL properties map. */
     private Map<String,String> m_urlProperties;
 
     /**
@@ -79,7 +85,7 @@ public class Sftp3gppUrlConnection extends SftpUrlConnection {
     protected String getPath() throws SftpUrlException {
         File f = new File(url.getPath(), get3gppFileName());
         String path = f.getAbsolutePath();
-        log().debug("getPath: retrieving data 3GPP (NE Mode) using " + path);
+        LOG.debug("getPath: retrieving data 3GPP (NE Mode) using {}", path);
         return path;
     }
 
@@ -113,19 +119,19 @@ public class Sftp3gppUrlConnection extends SftpUrlConnection {
         }
         long step = Long.parseLong(properties.get("step")) * 1000;
         long timestamp = reference - reference  % step; // normalize timestamp
-        log().debug("getPath: the reference timestamp used will be " + new Date(timestamp));
+        LOG.debug("getPath: the reference timestamp used will be {}", new Date(timestamp));
 
         // Creating common time format objects
-        log().info("getPath: generating 3GPP file type A (NE Mode) using URL " + url);
+        LOG.info("getPath: generating 3GPP file type A (NE Mode) using URL {}", url);
         SimpleDateFormat datef = new SimpleDateFormat("yyyyMMdd");
         SimpleDateFormat timef = new SimpleDateFormat("HHmmZ");
 
         // Timezone processing
         String tz = properties.get("timezone");
         if (tz == null) {
-            log().debug("getPath: time zone not provided, using current timezone " + TimeZone.getDefault().getID());
+            LOG.debug("getPath: time zone not provided, using current timezone {}", TimeZone.getDefault().getID());
         } else {
-            log().debug("getPath: using time zone " + TimeZone.getTimeZone(tz).getID());
+            LOG.debug("getPath: using time zone {}", TimeZone.getTimeZone(tz).getID());
             datef.setTimeZone(TimeZone.getTimeZone(tz));
             timef.setTimeZone(TimeZone.getTimeZone(tz));
         }
@@ -158,7 +164,7 @@ public class Sftp3gppUrlConnection extends SftpUrlConnection {
                 DateTime dateTime = dtf.parseDateTime(value);
                 return dateTime.getMillis();
             } catch (Exception e) {
-                log().warn("getTimeStampFromFile: malformed 3GPP file " + fileName + ", because " + e.getMessage());
+                LOG.warn("getTimeStampFromFile: malformed 3GPP file {}, because {}", fileName, e.getMessage());
                 return 0;
             }
         }
@@ -175,7 +181,7 @@ public class Sftp3gppUrlConnection extends SftpUrlConnection {
             m_urlProperties = new HashMap<String,String>();
             if (url.getQuery() != null) {
                 for (String pair : url.getQuery().split("&")) {
-                    String data[] = pair.split("=");
+                    String[] data = pair.split("=");
                     m_urlProperties.put(data[0].toLowerCase(), data[1]);
                 }
             }
@@ -214,7 +220,7 @@ public class Sftp3gppUrlConnection extends SftpUrlConnection {
         String deleteFlag = getQueryMap().get("deletefile");
         if (deleteFlag != null && Boolean.parseBoolean(deleteFlag)) {
             String file = url.getPath() + File.separatorChar + fileName;
-            log().debug("deleting file " + file + " from " + url.getHost());
+            LOG.debug("deleting file {} from {}", file, url.getHost());
             getChannel().rm(file);
         }
     }

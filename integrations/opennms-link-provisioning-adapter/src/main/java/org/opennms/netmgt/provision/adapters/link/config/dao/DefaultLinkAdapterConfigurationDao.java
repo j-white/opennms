@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2009-2013 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2013 The OpenNMS Group, Inc.
+ * Copyright (C) 2009-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -43,11 +43,15 @@ import org.opennms.core.xml.JaxbUtils;
 import org.opennms.core.xml.MarshallingResourceFailureException;
 import org.opennms.netmgt.provision.adapters.link.config.linkadapter.LinkAdapterConfiguration;
 import org.opennms.netmgt.provision.adapters.link.config.linkadapter.LinkPattern;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.core.io.Resource;
 import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.util.Assert;
 
 public class DefaultLinkAdapterConfigurationDao extends AbstractJaxbConfigDao<LinkAdapterConfiguration, LinkAdapterConfiguration> implements LinkAdapterConfigurationDao {
+    private static final Logger LOG = LoggerFactory.getLogger(DefaultLinkAdapterConfigurationDao.class);    
+
     /**
      * <p>Constructor for DefaultLinkAdapterConfigurationDao.</p>
      */
@@ -76,6 +80,7 @@ public class DefaultLinkAdapterConfigurationDao extends AbstractJaxbConfigDao<Li
      *
      * @return a {@link java.util.Set} object.
      */
+    @Override
     public Set<LinkPattern> getPatterns() {
         Assert.notNull(getContainer(), "LinkAdapterConfigDao has no container!");
         Assert.notNull(getContainer().getObject(), "LinkAdapterConfigDao has no configuration loaded!");
@@ -83,6 +88,7 @@ public class DefaultLinkAdapterConfigurationDao extends AbstractJaxbConfigDao<Li
     }
 
     /** {@inheritDoc} */
+    @Override
     public void setPatterns(Set<LinkPattern> patterns) {
         Assert.notNull(getContainer(), "LinkAdapterConfigDao has no container!");
         Assert.notNull(getContainer().getObject(), "LinkAdapterConfigDao has no configuration loaded!");
@@ -92,6 +98,7 @@ public class DefaultLinkAdapterConfigurationDao extends AbstractJaxbConfigDao<Li
     /**
      * <p>saveCurrent</p>
      */
+    @Override
     public synchronized void saveCurrent() {
         File file;
         try {
@@ -127,15 +134,12 @@ public class DefaultLinkAdapterConfigurationDao extends AbstractJaxbConfigDao<Li
     protected LinkAdapterConfiguration loadConfig(final Resource resource) {
         long startTime = System.currentTimeMillis();
 
-        if (log().isDebugEnabled()) {
-            log().debug("Loading " + getDescription() + " configuration from " + resource);
-        }
+        LOG.debug("Loading {} configuration from {}", getDescription(), resource);
 
         try {
             LinkAdapterConfiguration config = JaxbUtils.unmarshal(LinkAdapterConfiguration.class, resource);
             long endTime = System.currentTimeMillis();
-            log().info(createLoadedLogMessage(config, (endTime - startTime)));
-            log().info(config.toString());
+            LOG.info(config.toString());
             return config;
         } catch (Throwable e) {
             throw new MarshallingResourceFailureException("Unable to unmarshal the link adapter configuration.", e);

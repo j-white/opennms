@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2009-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2009-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -30,7 +30,8 @@ package org.opennms.netmgt.provision;
 
 import java.util.concurrent.TimeUnit;
 
-import org.opennms.core.utils.ThreadCategory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.support.TransactionCallback;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -44,20 +45,13 @@ import org.springframework.transaction.support.TransactionTemplate;
  */
 public abstract class SimplerQueuedProvisioningAdapter extends SimpleQueuedProvisioningAdapter {
     
+    private static final Logger LOG = LoggerFactory.getLogger(SimplerQueuedProvisioningAdapter.class);
+    
     private String m_name;
     protected long m_delay = 1;
     protected TimeUnit m_timeUnit = TimeUnit.SECONDS;
 
     protected TransactionTemplate m_template;
-
-    /**
-     * <p>getTemplate</p>
-     *
-     * @return a {@link org.springframework.transaction.support.TransactionTemplate} object.
-     */
-    public TransactionTemplate getTemplate() {
-        return m_template;
-    }
 
     /**
      * <p>setTemplate</p>
@@ -115,14 +109,13 @@ public abstract class SimplerQueuedProvisioningAdapter extends SimpleQueuedProvi
     /** {@inheritDoc} */
     @Override
     public final void processPendingOperationForNode(final AdapterOperation op) throws ProvisioningAdapterException {
-        if (log().isDebugEnabled()) {
-            log().debug("processPendingOperationForNode: " + op.getType() + " for node: " + op.getNodeId() );
-        }
+        LOG.debug("processPendingOperationForNode: {} for node ID: {}", op.getType(), op.getNodeId());
         switch (op.getType()) {
         case ADD:
             m_template.execute(new TransactionCallback<Object>() {
+                @Override
                 public Object doInTransaction(TransactionStatus arg0) {
-                    log().debug("processPendingOperationForNode: calling doAddNode() for node: " + op.getNodeId() );
+                    LOG.debug("processPendingOperationForNode: calling doAddNode() for node ID: {}", op.getNodeId());
                     doAddNode(op.getNodeId());
                     return null;
                 }
@@ -130,8 +123,9 @@ public abstract class SimplerQueuedProvisioningAdapter extends SimpleQueuedProvi
             break;
         case UPDATE:
             m_template.execute(new TransactionCallback<Object>() {
+                @Override
                 public Object doInTransaction(TransactionStatus arg0) {
-                    log().debug("processPendingOperationForNode: calling doUpdateNode() for node: " + op.getNodeId() );
+                    LOG.debug("processPendingOperationForNode: calling doUpdateNode() for node ID: {}", op.getNodeId());
                     doUpdateNode(op.getNodeId());
                     return null;
                 }
@@ -139,8 +133,9 @@ public abstract class SimplerQueuedProvisioningAdapter extends SimpleQueuedProvi
             break;
         case DELETE:
             m_template.execute(new TransactionCallback<Object>() {
+                @Override
                 public Object doInTransaction(TransactionStatus arg0) {
-                    log().debug("processPendingOperationForNode: calling doDeleteNode() for node: " + op.getNodeId() );
+                    LOG.debug("processPendingOperationForNode: calling doDeleteNode() for node ID: {}", op.getNodeId() );
                     doDeleteNode(op.getNodeId());
                     return null;
                 }
@@ -148,15 +143,16 @@ public abstract class SimplerQueuedProvisioningAdapter extends SimpleQueuedProvi
             break;
         case CONFIG_CHANGE:
             m_template.execute(new TransactionCallback<Object>() {
+                @Override
                 public Object doInTransaction(TransactionStatus arg0) {
-                    log().debug("processPendingOperationForNode: calling doNotifyConfigChange() for node: " + op.getNodeId() );
+                    LOG.debug("processPendingOperationForNode: calling doNotifyConfigChange() for node ID: {}", op.getNodeId() );
                     doNotifyConfigChange(op.getNodeId());
                     return null;
                 }
             });
             break;
         default:
-            log().warn("unknown operation: " + op.getType());
+            LOG.warn("unknown operation: {}", op.getType());
         }
     }
     
@@ -201,9 +197,4 @@ public abstract class SimplerQueuedProvisioningAdapter extends SimpleQueuedProvi
      * @param nodeid a int.
      */
     public void doNotifyConfigChange(int nodeid) {}
-    
-    
-    private static ThreadCategory log() {
-        return ThreadCategory.getInstance(SimplerQueuedProvisioningAdapter.class);
-    }
 }

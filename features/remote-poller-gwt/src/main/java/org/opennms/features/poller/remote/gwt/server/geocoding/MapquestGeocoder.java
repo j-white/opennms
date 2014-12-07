@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2010-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2010-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -38,9 +38,10 @@ import net.simon04.jelementtree.ElementTree;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpUriRequest;
-import org.apache.http.impl.client.DefaultHttpClient;
-import org.opennms.core.utils.LogUtils;
+import org.apache.http.impl.client.HttpClientBuilder;
 import org.opennms.features.poller.remote.gwt.client.GWTLatLng;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * <p>MapquestGeocoder class.</p>
@@ -50,6 +51,7 @@ import org.opennms.features.poller.remote.gwt.client.GWTLatLng;
  * @since 1.8.1
  */
 public class MapquestGeocoder implements Geocoder {
+    private static final Logger LOG = LoggerFactory.getLogger(MapquestGeocoder.class);
 
 	public enum Quality {
 		COUNTRY,
@@ -65,7 +67,7 @@ public class MapquestGeocoder implements Geocoder {
 	}
 
 	private static final String GEOCODE_URL = "http://www.mapquestapi.com/geocoding/v1/address?callback=renderGeocode&outFormat=xml";
-	private static final HttpClient m_httpClient = new DefaultHttpClient();
+	private static final HttpClient m_httpClient = HttpClientBuilder.create().build();
 	private String m_apiKey;
 	private Quality m_minimumQuality;
 	private String m_referer;
@@ -94,6 +96,7 @@ public class MapquestGeocoder implements Geocoder {
 	}
 
 	/** {@inheritDoc} */
+        @Override
 	public GWTLatLng geocode(final String geolocation) throws GeocoderException {
 		final HttpUriRequest method = new HttpGet(getUrl(geolocation));
 		method.addHeader("User-Agent", "OpenNMS-MapQuestGeocoder/1.0");
@@ -118,7 +121,7 @@ public class MapquestGeocoder implements Geocoder {
 
 			final List<ElementTree> locations = tree.findAll("//location");
 			if (locations.size() > 1) {
-				LogUtils.warnf(this, "more than one location returned for query: %s", geolocation);
+				LOG.warn("more than one location returned for query: {}", geolocation);
 			} else if (locations.size() == 0) {
 				throw new GeocoderException("MapQuest returned an OK status code, but no locations");
 			}

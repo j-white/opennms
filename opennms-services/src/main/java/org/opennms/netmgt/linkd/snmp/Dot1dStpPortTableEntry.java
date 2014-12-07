@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2006-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -28,8 +28,10 @@
 
 package org.opennms.netmgt.linkd.snmp;
 
-import org.opennms.netmgt.capsd.snmp.NamedSnmpVar;
-import org.opennms.netmgt.capsd.snmp.SnmpStore;
+import org.opennms.netmgt.model.OnmsStpInterface;
+import org.opennms.netmgt.model.OnmsStpInterface.StpPortStatus;
+import org.opennms.netmgt.snmp.NamedSnmpVar;
+import org.opennms.netmgt.snmp.SnmpStore;
 
 /**
  *<P>The Dot1dStpPortTableEntry class is designed to hold all the MIB-II
@@ -193,10 +195,8 @@ public final class Dot1dStpPortTableEntry extends SnmpStore {
 	 *
 	 * @return a int.
 	 */
-	public int getDot1dStpPort() {
-		Integer dot1dStpPort = getInt32(Dot1dStpPortTableEntry.STP_PORT);
-		if (dot1dStpPort == null) return -1;
-		return dot1dStpPort;
+	public Integer getDot1dStpPort() {
+		return getInt32(Dot1dStpPortTableEntry.STP_PORT);
 	}
 
 	/**
@@ -204,10 +204,8 @@ public final class Dot1dStpPortTableEntry extends SnmpStore {
 	 *
 	 * @return a int.
 	 */
-	public int getDot1dStpPortPriority() {
-		Integer dot1dStpPortPriority = getInt32(Dot1dStpPortTableEntry.STP_PORT_PRIORITY);
-		if (dot1dStpPortPriority == null) return -1;
-		return dot1dStpPortPriority;
+	public Integer getDot1dStpPortPriority() {
+		return getInt32(Dot1dStpPortTableEntry.STP_PORT_PRIORITY);
 	}
 	
 	/**
@@ -215,10 +213,8 @@ public final class Dot1dStpPortTableEntry extends SnmpStore {
 	 *
 	 * @return a int.
 	 */
-	public int getDot1dStpPortState() {
-		Integer val = getInt32(Dot1dStpPortTableEntry.STP_PORT_STATE);
-		if (val == null) return -1;
-		return val;
+	public Integer getDot1dStpPortState() {
+		return getInt32(Dot1dStpPortTableEntry.STP_PORT_STATE);
 	}
 	
 	/**
@@ -226,10 +222,8 @@ public final class Dot1dStpPortTableEntry extends SnmpStore {
 	 *
 	 * @return a int.
 	 */
-	public int getDot1dStpPortEnable() {
-		Integer val = getInt32(Dot1dStpPortTableEntry.STP_PORT_ENABLE);
-		if (val == null) return -1;
-		return val;
+	public Integer getDot1dStpPortEnable() {
+		return getInt32(Dot1dStpPortTableEntry.STP_PORT_ENABLE);
 	}
 
 	/**
@@ -237,10 +231,8 @@ public final class Dot1dStpPortTableEntry extends SnmpStore {
 	 *
 	 * @return a int.
 	 */
-	public int getDot1dStpPortPathCost() {
-		Integer val = getInt32(Dot1dStpPortTableEntry.STP_PORT_PATH_COST);
-		if (val == null) return -1;
-		return val;
+	public Integer getDot1dStpPortPathCost() {
+		return getInt32(Dot1dStpPortTableEntry.STP_PORT_PATH_COST);
 	}
 
 	/**
@@ -257,10 +249,8 @@ public final class Dot1dStpPortTableEntry extends SnmpStore {
 	 *
 	 * @return a int.
 	 */
-	public int getDot1dStpPortDesignatedCost() {
-		Integer val =  getInt32(Dot1dStpPortTableEntry.STP_PORT_DESIGNATED_COST);
-		if (val == null) return -1;
-		return val;
+	public Integer getDot1dStpPortDesignatedCost() {
+		return  getInt32(Dot1dStpPortTableEntry.STP_PORT_DESIGNATED_COST);
 	}
 
 	/**
@@ -287,10 +277,24 @@ public final class Dot1dStpPortTableEntry extends SnmpStore {
 	 *
 	 * @return a int.
 	 */
-	public int getDot1dStpPortForwardTransitions() {
-		Integer val = getInt32(Dot1dStpPortTableEntry.STP_PORT_FORW_TRANS);
-		if (val == null) return -1;
-		return val;
+	public Integer getDot1dStpPortForwardTransitions() {
+		return getInt32(Dot1dStpPortTableEntry.STP_PORT_FORW_TRANS);
 	}
 
+	public OnmsStpInterface getOnmsStpInterface(OnmsStpInterface stpInterface) {
+        
+        if (getDot1dStpPortDesignatedBridge() != null) 
+            stpInterface.setStpPortDesignatedBridge(getDot1dStpPortDesignatedBridge());
+        if (getDot1dStpPortDesignatedRoot() != null)
+        	stpInterface.setStpPortDesignatedRoot(getDot1dStpPortDesignatedRoot());
+        if (getDot1dStpPortDesignatedPort() != null) 
+            stpInterface.setStpPortDesignatedPort(getDot1dStpPortDesignatedPort());
+        if (getDot1dStpPortState() != null)
+        	stpInterface.setStpPortState(StpPortStatus.get(getDot1dStpPortState()));
+        if (getDot1dStpPortPathCost() != null)
+        	stpInterface.setStpPortPathCost(getDot1dStpPortPathCost());
+        if (getDot1dStpPortDesignatedCost() !=  null)
+        	stpInterface.setStpPortDesignatedCost(getDot1dStpPortDesignatedCost());
+        return stpInterface;
+	}
 }

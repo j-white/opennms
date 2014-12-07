@@ -194,17 +194,37 @@
 
 
 /*  --------------------------------------------------
+   :: TOOLTIP
+   -------------------------------------------------- */
+.tooltip {
+    position: absolute;
+    display: none;
+    padding: 10px;
+    background-color: #EEE;
+    z-index: 1000;
+    max-width: 250px;
+    border: 1px solid #999;
+}
+
+img.info {
+    background:url(../css/images/ui-icons_454545_256x240.png);
+    width: 16px;
+    height: 16px;
+    background-position: -16px -144px;
+}
+
+/*  --------------------------------------------------
     :: Layout (Onms Column Layout)
     -------------------------------------------------- */
     
 	div.TwoColLeft {
-	    width: 40%;
+	    width: 48%;
 	    float: left;
 	    position: relative;
 	    margin-right: 2%;
 	}
 	div.TwoColRight {
-	    width: 57%;
+	    width: 49%;
 	    float: left;
 	    position: relative;
 	}
@@ -225,6 +245,7 @@
     :: Tables
     -------------------------------------------------- */
     table {
+        border-spacing: 0;
         border-collapse: collapse;
         width: 100%;
         margin-top: 0;
@@ -582,6 +603,7 @@
 	    border: 1px solid #CCC;
 	    background-color: #DDD;
 	    padding: 3px 4px;
+        line-height: 25px;
 	}
 	
 	/* Online Report Page Styles */
@@ -718,6 +740,33 @@
     }
 
 /* --------------------------------------------------
+ :: Style for alert status
+ -------------------------------------------------- */
+div .alert {
+    padding: 10pt;
+}
+
+div .alert-error {
+    color: #FF3300;
+    background-color: #FFD7CD;
+}
+
+div .alert-success {
+    color: #336600;
+    background-color: #D7E1CD;
+}
+
+div .alert-info {
+    color: #999;
+    background-color: #EEE;
+}
+
+div .alert-warning {
+    color: #FFCC00;
+    background-color: #FFF5CD;
+}
+
+/* --------------------------------------------------
     :: Style for notification status
     -------------------------------------------------- */
 #notificationOff{
@@ -734,6 +783,37 @@
 #graph-results
 {
 	text-align: center;
+}
+
+/* --------------------------------------------------
+    :: Styles for DBIDs, foreign-source, and foreign-ID
+    :: spans in the node list and node details pages
+    -------------------------------------------------- */
+
+span.NLdbid, span.NLfs, span.NLfid, span.NPdbid, span.NPfs, span.NPfid {
+	background-repeat: no-repeat;
+	padding-left: 17px;
+	padding-right: 4px;
+}
+
+span.NLdbid, span.NLfs, span.NLfid {
+	display: none;
+}
+
+span.NLdbid, span.NPdbid {
+	background-image: url(../images/nodelist/dbid-16.png);
+}
+
+span.NLfs, span.NPfs {
+	background-image: url(../images/nodelist/foreignsource-16.png);
+}
+
+span.NLfid, span.NPfid {
+	background-image: url(../images/nodelist/foreignid-16.png);
+}
+
+div.NLnode:hover span.NLdbid, div.NLnode:hover span.NLfs, div.NLnode:hover span.NLfid {
+	display: inline;
 }
 
 /* --------------------------------------------------

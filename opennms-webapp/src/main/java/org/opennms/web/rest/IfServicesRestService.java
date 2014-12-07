@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2008-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -46,15 +46,17 @@ import org.opennms.core.criteria.Alias.JoinType;
 import org.opennms.core.criteria.Criteria;
 import org.opennms.core.criteria.CriteriaBuilder;
 import org.opennms.core.criteria.Order;
-import org.opennms.netmgt.EventConstants;
-import org.opennms.netmgt.dao.MonitoredServiceDao;
+import org.opennms.netmgt.dao.api.MonitoredServiceDao;
+import org.opennms.netmgt.events.api.EventConstants;
+import org.opennms.netmgt.events.api.EventProxy;
+import org.opennms.netmgt.events.api.EventProxyException;
 import org.opennms.netmgt.model.OnmsMonitoredService;
 import org.opennms.netmgt.model.OnmsMonitoredServiceDetail;
 import org.opennms.netmgt.model.OnmsMonitoredServiceDetailList;
 import org.opennms.netmgt.model.OnmsMonitoredServiceList;
 import org.opennms.netmgt.model.events.EventBuilder;
-import org.opennms.netmgt.model.events.EventProxy;
-import org.opennms.netmgt.model.events.EventProxyException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
@@ -92,6 +94,8 @@ import com.sun.jersey.spi.resource.PerRequest;
 @Path("ifservices")
 @Transactional
 public class IfServicesRestService extends OnmsRestService {
+
+    private static final Logger LOG = LoggerFactory.getLogger(IfServicesRestService.class);
 
     @Autowired
     private MonitoredServiceDao m_serviceDao;
@@ -161,12 +165,12 @@ public class IfServicesRestService extends OnmsRestService {
                     svc.setStatus(status);
                     m_serviceDao.update(svc);
                     if ("S".equals(status) || (currentStatus.equals("A") && status.equals("F"))) {
-                        log().debug("updateServices: suspending polling for service " + svc.getServiceName() + " on node with IP " + svc.getIpAddress().getHostAddress());
+                        LOG.debug("updateServices: suspending polling for service {} on node with IP {}", svc.getServiceName(), svc.getIpAddress().getHostAddress());
                         sendEvent(EventConstants.SERVICE_UNMANAGED_EVENT_UEI, svc); // TODO ManageNodeServlet is sending this.
                         sendEvent(EventConstants.SUSPEND_POLLING_SERVICE_EVENT_UEI, svc);
                     }
                     if ("R".equals(status) || (currentStatus.equals("F") && status.equals("A"))) {
-                        log().debug("updateServices: resumg polling for service " + svc.getServiceName() + " on node with IP " + svc.getIpAddress().getHostAddress());
+                        LOG.debug("updateServices: resuming polling for service {} on node with IP {}", svc.getServiceName(), svc.getIpAddress().getHostAddress());
                         sendEvent(EventConstants.RESUME_POLLING_SERVICE_EVENT_UEI, svc);
                     }
                 }
@@ -189,8 +193,7 @@ public class IfServicesRestService extends OnmsRestService {
         builder.alias("serviceType", "serviceType", JoinType.LEFT_JOIN);
         applyQueryFilters(params, builder);
 
-        final Criteria criteria = builder.toCriteria();
-        return criteria;
+        return builder.toCriteria();
     }
 
     private void sendEvent(String eventUEI, OnmsMonitoredService dbObj) {

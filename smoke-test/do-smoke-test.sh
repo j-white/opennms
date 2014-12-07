@@ -78,8 +78,8 @@ reset_database() {
 	banner "Resetting OpenNMS Database"
 
 	# easy way to make sure no one is holding on to any pg sockets
-	do_log "/etc/init.d/postgresql restart"
-	/etc/init.d/postgresql restart
+	do_log "/sbin/service postgresql restart"
+	/sbin/service postgresql restart
 
 	sleep 5
 
@@ -103,8 +103,8 @@ reset_opennms() {
 	rm -rf "$OPENNMS_HOME"/* /var/log/opennms /var/opennms
 
 	if [ `ls "$ME"/../../rpms/*.rpm | wc -l` -gt 0 ]; then
-		do_log "rpm -Uvh $ME/../../rpms/*.rpm"
-		rpm -Uvh "$ME"/../../rpms/*.rpm
+		do_log "rpm -Uvh --force $ME/../../rpms/*.rpm"
+		rpm -Uvh --force "$ME"/../../rpms/*.rpm
 	else
 		echo "Unable to locate RPMs for installing!"
 		exit 1
@@ -148,10 +148,10 @@ configure_opennms() {
 	popd
 
 	do_log "runjava -s"
-	/opt/opennms/bin/runjava -s || die "'runjava -s' failed."
+	$OPENNMS_HOME/bin/runjava -s || die "'runjava -s' failed."
 
 	do_log "install -dis"
-	/opt/opennms/bin/install -dis || die "Unable to run OpenNMS install."
+	$OPENNMS_HOME/bin/install -dis || die "Unable to run OpenNMS install."
 }
 
 start_opennms() {
@@ -159,6 +159,8 @@ start_opennms() {
 
 	do_log "opennms start"
 	/etc/init.d/opennms start || die "Unable to start OpenNMS."
+	# wait a little longer for OSGi to settle down after we know OpenNMS came up
+	sleep 20
 }
 
 run_tests() {

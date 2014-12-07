@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2007-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2007-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -38,10 +38,11 @@ import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.util.regex.Pattern;
 
-import org.opennms.core.utils.ThreadCategory;
 import org.opennms.core.utils.TimeoutTracker;
-import org.opennms.netmgt.model.PollStatus;
+import org.opennms.netmgt.poller.PollStatus;
 import org.opennms.netmgt.protocols.InsufficientParametersException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * <p>Ssh class.</p>
@@ -50,6 +51,8 @@ import org.opennms.netmgt.protocols.InsufficientParametersException;
  * @version $Id: $
  */
 public class Ssh extends org.opennms.netmgt.protocols.AbstractPoll {
+    
+    private static final Logger LOG = LoggerFactory.getLogger(Ssh.class);
     
     private static final Pattern SSH_IOEXCEPTION_PATTERN = Pattern.compile("^.*java.io.IOException.*$");
     private static final Pattern SSH_AUTHENTICATION_PATTERN = Pattern.compile("^.*Authentication:.*$");
@@ -268,15 +271,15 @@ public class Ssh extends org.opennms.netmgt.protocols.AbstractPoll {
 
             return true;
         } catch (final NumberFormatException e) {
-            log().debug("unable to parse server version", e);
+            LOG.debug("unable to parse server version", e);
             setError(e);
             disconnect();
         } catch (final ConnectException e) {
-            log().debug("connection failed: " + e.getMessage());
+            LOG.debug("connection failed: {}", e.getMessage());
             setError(e);
             disconnect();
         } catch (final Throwable e) {
-            log().debug("connection failed", e);
+            LOG.debug("connection failed", e);
             setError(e);
             disconnect();
         }
@@ -291,26 +294,27 @@ public class Ssh extends org.opennms.netmgt.protocols.AbstractPoll {
             try {
                 m_writer.close();
             } catch (final IOException e) {
-                log().warn("error disconnecting output stream", e);
+                LOG.warn("error disconnecting output stream", e);
             }
         }
         if (m_reader != null) {
             try {
                 m_reader.close();
             } catch (final IOException e) {
-                log().warn("error disconnecting input stream", e);
+                LOG.warn("error disconnecting input stream", e);
             }
         }
         if (m_socket != null) {
             try {
                 m_socket.close();
             } catch (final IOException e) {
-                log().warn("error disconnecting socket", e);
+                LOG.warn("error disconnecting socket", e);
             }
         }
     }
 
     /** {@inheritDoc} */
+    @Override
     public PollStatus poll(final TimeoutTracker tracker) throws InsufficientParametersException {
         tracker.startAttempt();
         final boolean isAvailable = tryConnect();
@@ -328,24 +332,20 @@ public class Ssh extends org.opennms.netmgt.protocols.AbstractPoll {
 
         if (isAvailable) {
             ps = PollStatus.available(responseTime);
-        } else if (SSH_AUTHENTICATION_PATTERN.matcher(errorMessage).matches()) {
+        } else if (SSH_AUTHENTICATION_PATTERN.matcher(errorMessage).find()) {
             ps = PollStatus.unavailable("authentication failed");
-        } else if (SSH_NOROUTETOHOST_PATTERN.matcher(errorMessage).matches()) {
+        } else if (SSH_NOROUTETOHOST_PATTERN.matcher(errorMessage).find()) {
             ps = PollStatus.unavailable("no route to host");
-        } else if (SSH_SOCKETERROR_PATTERN.matcher(errorMessage).matches()) {
+        } else if (SSH_SOCKETERROR_PATTERN.matcher(errorMessage).find()) {
             ps = PollStatus.unavailable("connection timed out");
-        } else if (SSH_CONNECTIONERROR_PATTERN.matcher(errorMessage).matches()) {
+        } else if (SSH_CONNECTIONERROR_PATTERN.matcher(errorMessage).find()) {
             ps = PollStatus.unavailable("connection exception");
-        } else if (SSH_NUMBERFORMAT_PATTERN.matcher(errorMessage).matches()) {
+        } else if (SSH_NUMBERFORMAT_PATTERN.matcher(errorMessage).find()) {
             ps = PollStatus.unavailable("an error occurred parsing the server version number");
-        } else if (SSH_IOEXCEPTION_PATTERN.matcher(errorMessage).matches()) {
+        } else if (SSH_IOEXCEPTION_PATTERN.matcher(errorMessage).find()) {
             ps = PollStatus.unavailable("I/O exception");
         }
         
         return ps;
-    }
-
-    private ThreadCategory log() {
-        return ThreadCategory.getInstance(getClass());
     }
 }

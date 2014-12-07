@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2008-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2008-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -31,18 +31,19 @@ package org.opennms.netmgt.scriptd.ins.events;
 import java.util.List;
 
 import org.hibernate.criterion.Restrictions;
-import org.opennms.core.utils.BeanUtils;
-import org.opennms.core.utils.LogUtils;
-import org.opennms.core.utils.ThreadCategory;
-import org.opennms.netmgt.dao.SnmpInterfaceDao;
+import org.opennms.core.spring.BeanUtils;
+import org.opennms.netmgt.dao.api.SnmpInterfaceDao;
 import org.opennms.netmgt.model.OnmsCriteria;
 import org.opennms.netmgt.model.OnmsSnmpInterface;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.access.BeanFactoryReference;
 import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.support.TransactionCallback;
 import org.springframework.transaction.support.TransactionTemplate;
 
 public abstract class InsAbstractSession extends Thread {
+    private static final Logger LOG = LoggerFactory.getLogger(InsAbstractSession.class);
 
     private String m_criteria;
     
@@ -70,14 +71,13 @@ public abstract class InsAbstractSession extends Thread {
 	}
 
 	public void setCriteriaRestriction(final String criteriaRestriction) {
-	    LogUtils.debugf(this, "Setting the criteria restriction for active alarm list: %s", criteriaRestriction);
+	    LOG.debug("Setting the criteria restriction for active alarm list: {}", criteriaRestriction);
 		this.criteriaRestriction = criteriaRestriction;
 	}
 
     public InsAbstractSession() {
         super();
-        ThreadCategory.setPrefix("OpenNMS.InsProxy");
-        LogUtils.debugf(this, "InsAbstract Session Constructor: loaded");
+        LOG.debug("InsAbstract Session Constructor: loaded");
     }
 
     private String getCriteria() {
@@ -90,7 +90,7 @@ public abstract class InsAbstractSession extends Thread {
     
     protected String getIfAlias(final int nodeid, final int ifindex) {
 
-        LogUtils.debugf(this, "getting ifalias for nodeid: %d and ifindex: %d", nodeid, ifindex);
+        LOG.debug("getting ifalias for nodeid: {} and ifindex: {}", nodeid, ifindex);
 
         setCriteria("nodeid = " + nodeid + " AND snmpifindex = " + ifindex);
         BeanFactoryReference bf = BeanUtils.getBeanFactory("daoContext");
@@ -105,11 +105,11 @@ public abstract class InsAbstractSession extends Thread {
                         }
                    }
         );
-        LogUtils.debugf(this, "interfaces found: %d", iface.size());
+        LOG.debug("interfaces found: {}", iface.size());
 
         if (iface.size() == 0) return "-1";
         final String ifAlias = iface.get(0).getIfAlias();
-        LogUtils.debugf(this, "ifalias found: %s", ifAlias);
+        LOG.debug("ifalias found: {}", ifAlias);
         
         return ifAlias;
     }

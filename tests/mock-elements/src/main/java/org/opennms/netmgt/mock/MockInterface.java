@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2010-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2004-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -33,7 +33,7 @@ import java.util.List;
 
 import org.apache.commons.lang.builder.ToStringBuilder;
 import org.opennms.core.utils.InetAddressUtils;
-import org.opennms.netmgt.model.PollStatus;
+import org.opennms.netmgt.poller.PollStatus;
 import org.opennms.netmgt.xml.event.Event;
 
 /**
@@ -90,6 +90,7 @@ public class MockInterface extends MockContainer<MockNode,MockService> {
     }
 
     // impl
+        @Override
     Object getKey() {
         return getIpAddr();
     }
@@ -100,6 +101,7 @@ public class MockInterface extends MockContainer<MockNode,MockService> {
      *
      * @return a {@link org.opennms.netmgt.mock.MockNetwork} object.
      */
+        @Override
     public MockNetwork getNetwork() {
         return getNode().getNetwork();
     }
@@ -138,8 +140,9 @@ public class MockInterface extends MockContainer<MockNode,MockService> {
     /**
      * <p>getPollStatus</p>
      *
-     * @return a {@link org.opennms.netmgt.model.PollStatus} object.
+     * @return a {@link org.opennms.netmgt.poller.PollStatus} object.
      */
+        @Override
     public PollStatus getPollStatus() {
         final String critSvcName = getNetwork().getCriticalService();
         final MockService critSvc = getService(critSvcName);
@@ -150,6 +153,7 @@ public class MockInterface extends MockContainer<MockNode,MockService> {
                 return status;
             }
 
+            @Override
             public void visitService(MockService svc) {
                 if (critSvc == null || critSvc.equals(svc)) {
                     if (svc.getPollStatus().isUp())
@@ -201,6 +205,7 @@ public class MockInterface extends MockContainer<MockNode,MockService> {
      *
      * @return a {@link java.lang.String} object.
      */
+        @Override
     public String toString() {
     	return new ToStringBuilder(this)
     		.append("ifAlias", m_ifAlias)
@@ -212,6 +217,7 @@ public class MockInterface extends MockContainer<MockNode,MockService> {
 
     // impl
     /** {@inheritDoc} */
+        @Override
     public void visit(MockVisitor v) {
         super.visit(v);
         v.visitInterface(this);
@@ -223,6 +229,7 @@ public class MockInterface extends MockContainer<MockNode,MockService> {
      *
      * @return a {@link org.opennms.netmgt.xml.event.Event} object.
      */
+        @Override
     public Event createDownEvent() {
         return MockEventUtil.createInterfaceDownEvent("Test", this);
     }
@@ -232,6 +239,7 @@ public class MockInterface extends MockContainer<MockNode,MockService> {
      *
      * @return a {@link org.opennms.netmgt.xml.event.Event} object.
      */
+        @Override
     public Event createUpEvent() {
         return MockEventUtil.createInterfaceUpEvent("Test", this);
     }
@@ -241,6 +249,7 @@ public class MockInterface extends MockContainer<MockNode,MockService> {
      *
      * @return a {@link org.opennms.netmgt.xml.event.Event} object.
      */
+        @Override
     public Event createNewEvent() {
         return MockEventUtil.createNodeGainedInterfaceEvent("Test", this);
     }
@@ -250,6 +259,7 @@ public class MockInterface extends MockContainer<MockNode,MockService> {
      *
      * @return a {@link org.opennms.netmgt.xml.event.Event} object.
      */
+        @Override
     public Event createDeleteEvent() {
         return MockEventUtil.createInterfaceDeletedEvent("Test", this);
     }

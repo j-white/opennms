@@ -7,16 +7,16 @@
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -29,26 +29,28 @@
 package org.opennms.netmgt.model.events;
 
 import static org.opennms.core.utils.InetAddressUtils.str;
-import static org.opennms.netmgt.EventConstants.INTERFACE_DELETED_EVENT_UEI;
-import static org.opennms.netmgt.EventConstants.NODE_ADDED_EVENT_UEI;
-import static org.opennms.netmgt.EventConstants.NODE_DELETED_EVENT_UEI;
-import static org.opennms.netmgt.EventConstants.NODE_GAINED_INTERFACE_EVENT_UEI;
-import static org.opennms.netmgt.EventConstants.NODE_GAINED_SERVICE_EVENT_UEI;
-import static org.opennms.netmgt.EventConstants.NODE_UPDATED_EVENT_UEI;
-import static org.opennms.netmgt.EventConstants.PARM_IP_HOSTNAME;
-import static org.opennms.netmgt.EventConstants.PARM_NODE_LABEL;
-import static org.opennms.netmgt.EventConstants.PARM_NODE_LABEL_SOURCE;
-import static org.opennms.netmgt.EventConstants.PARM_NODE_SYSDESCRIPTION;
-import static org.opennms.netmgt.EventConstants.PARM_NODE_SYSNAME;
-import static org.opennms.netmgt.EventConstants.SERVICE_DELETED_EVENT_UEI;
+import static org.opennms.netmgt.events.api.EventConstants.INTERFACE_DELETED_EVENT_UEI;
+import static org.opennms.netmgt.events.api.EventConstants.NODE_ADDED_EVENT_UEI;
+import static org.opennms.netmgt.events.api.EventConstants.NODE_CATEGORY_MEMBERSHIP_CHANGED_EVENT_UEI;
+import static org.opennms.netmgt.events.api.EventConstants.NODE_DELETED_EVENT_UEI;
+import static org.opennms.netmgt.events.api.EventConstants.NODE_GAINED_INTERFACE_EVENT_UEI;
+import static org.opennms.netmgt.events.api.EventConstants.NODE_GAINED_SERVICE_EVENT_UEI;
+import static org.opennms.netmgt.events.api.EventConstants.NODE_UPDATED_EVENT_UEI;
+import static org.opennms.netmgt.events.api.EventConstants.PARM_IP_HOSTNAME;
+import static org.opennms.netmgt.events.api.EventConstants.PARM_NODE_LABEL;
+import static org.opennms.netmgt.events.api.EventConstants.PARM_NODE_LABEL_SOURCE;
+import static org.opennms.netmgt.events.api.EventConstants.PARM_NODE_SYSDESCRIPTION;
+import static org.opennms.netmgt.events.api.EventConstants.PARM_NODE_SYSNAME;
+import static org.opennms.netmgt.events.api.EventConstants.PARM_RESCAN_EXISTING;
+import static org.opennms.netmgt.events.api.EventConstants.SERVICE_DELETED_EVENT_UEI;
 
 import java.net.InetAddress;
 import java.util.Collection;
 import java.util.Date;
 import java.util.Iterator;
 
-import org.opennms.core.utils.ThreadCategory;
 import org.opennms.core.utils.WebSecurityUtils;
+import org.opennms.netmgt.model.OnmsNode.NodeLabelSource;
 import org.opennms.netmgt.xml.event.Autoaction;
 import org.opennms.netmgt.xml.event.Event;
 import org.opennms.netmgt.xml.event.Forward;
@@ -57,6 +59,8 @@ import org.opennms.netmgt.xml.event.Parm;
 import org.opennms.netmgt.xml.event.Script;
 import org.opennms.netmgt.xml.event.Snmp;
 import org.opennms.netmgt.xml.event.Value;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * <p>Abstract EventUtils class.</p>
@@ -65,6 +69,9 @@ import org.opennms.netmgt.xml.event.Value;
  * @version $Id: $
  */
 public abstract class EventUtils {
+	
+	private static final Logger LOG = LoggerFactory.getLogger(EventUtils.class);
+
     
     /**
      * <p>createNodeAddedEvent</p>
@@ -75,14 +82,16 @@ public abstract class EventUtils {
      * @param labelSource a {@link java.lang.String} object.
      * @return a {@link org.opennms.netmgt.xml.event.Event} object.
      */
-    public static Event createNodeAddedEvent(String source, int nodeId, String nodeLabel, String labelSource) {
+    public static Event createNodeAddedEvent(String source, int nodeId, String nodeLabel, NodeLabelSource labelSource) {
         
         debug("CreateNodeAddedEvent: nodedId: %d", nodeId);
         
         EventBuilder bldr = new EventBuilder(NODE_ADDED_EVENT_UEI, source);
         bldr.setNodeid(nodeId);
         bldr.addParam(PARM_NODE_LABEL, WebSecurityUtils.sanitizeString(nodeLabel));
-        bldr.addParam(PARM_NODE_LABEL_SOURCE, labelSource);
+        if (labelSource != null) {
+            bldr.addParam(PARM_NODE_LABEL_SOURCE, labelSource.toString());
+        }
         
         return bldr.getEvent();
 
@@ -122,7 +131,7 @@ public abstract class EventUtils {
      * @param sysDescr a {@link java.lang.String} object.
      * @return a {@link org.opennms.netmgt.xml.event.Event} object.
      */
-    public static Event createNodeGainedServiceEvent(String source, int nodeId, InetAddress ifaddr, String service, String nodeLabel, String labelSource, String sysName, String sysDescr) {
+    public static Event createNodeGainedServiceEvent(String source, int nodeId, InetAddress ifaddr, String service, String nodeLabel, NodeLabelSource labelSource, String sysName, String sysDescr) {
         
         debug("createAndSendNodeGainedServiceEvent:  nodeId/interface/service  %d/%s/%s", nodeId, str(ifaddr), service);
 
@@ -132,7 +141,9 @@ public abstract class EventUtils {
         bldr.setService(service);
         bldr.setParam(PARM_IP_HOSTNAME, ifaddr.getHostName());
         bldr.setParam(PARM_NODE_LABEL, nodeLabel);
-        bldr.setParam(PARM_NODE_LABEL_SOURCE, labelSource);
+        if (labelSource != null) {
+            bldr.setParam(PARM_NODE_LABEL_SOURCE, labelSource.toString());
+        }
 
         // Add sysName if available
         if (sysName != null) {
@@ -322,10 +333,7 @@ public abstract class EventUtils {
     }
     
     private static void debug(String format, Object... args) {
-        ThreadCategory log = ThreadCategory.getInstance(EventUtils.class);
-        if (log.isDebugEnabled()) {
-            log.debug(String.format(format, args));
-        }
+            LOG.debug(String.format(format, args));
     }
 
 
@@ -336,14 +344,28 @@ public abstract class EventUtils {
      * @param nodeId a {@link java.lang.Integer} object.
      * @param nodeLabel a {@link java.lang.String} object.
      * @param labelSource a {@link java.lang.String} object.
+     * @param rescanExisting a {@link java.lang.String} object.
      * @return a {@link org.opennms.netmgt.xml.event.Event} object.
      */
-    public static Event createNodeUpdatedEvent(String source, Integer nodeId, String nodeLabel, String labelSource) {
+    public static Event createNodeUpdatedEvent(String source, Integer nodeId, String nodeLabel, NodeLabelSource labelSource, String rescanExisting) {
         debug("CreateNodeUpdatedEvent: nodedId: %d", nodeId);
         EventBuilder bldr = new EventBuilder(NODE_UPDATED_EVENT_UEI, source);
         bldr.setNodeid(nodeId);
         bldr.addParam(PARM_NODE_LABEL, nodeLabel);
-        bldr.addParam(PARM_NODE_LABEL_SOURCE, labelSource);
+        if (labelSource != null) {
+            bldr.addParam(PARM_NODE_LABEL_SOURCE, labelSource.toString());
+        }
+        if (rescanExisting != null) {
+            bldr.addParam(PARM_RESCAN_EXISTING, rescanExisting);
+        }
+        return bldr.getEvent();
+    }
+
+
+    public static Event createNodeCategoryMembershipChangedEvent(final String source, final Integer nodeId, final String nodeLabel) {
+        EventBuilder bldr = new EventBuilder(NODE_CATEGORY_MEMBERSHIP_CHANGED_EVENT_UEI, source);
+        bldr.setNodeid(nodeId);
+        bldr.addParam(PARM_NODE_LABEL, nodeLabel);
         return bldr.getEvent();
     }
 
@@ -520,6 +542,38 @@ public abstract class EventUtils {
         
         b.append("End Snmp\n");
         return b.toString();
+    }
+
+
+    /**
+     * <p>eventsMatch</p>
+     *
+     * @param e1 a {@link org.opennms.netmgt.xml.event.Event} object.
+     * @param e2 a {@link org.opennms.netmgt.xml.event.Event} object.
+     * @return a boolean.
+     */
+    public static boolean eventsMatch(final Event e1, final Event e2) {
+    	if (e1 == e2) {
+            return true;
+        }
+        if (e1 == null || e2 == null) {
+            return false;
+        }
+        if (e1.getUei() != e2.getUei() && (e1.getUei() == null || e2.getUei() == null || !e1.getUei().equals(e2.getUei()))) {
+        		return false;
+        }
+    
+        if (e1.getNodeid() != e2.getNodeid()) {
+            return false;
+        }
+        if (e1.getInterface() != e2.getInterface() && (e1.getInterface() == null || e2.getInterface() == null || !e1.getInterface().equals(e2.getInterface()))) {
+            return false;
+        }
+        if (e1.getService() != e2.getService() && (e1.getService() == null || e2.getService() == null || !e1.getService().equals(e2.getService()))) {
+            return false;
+        }
+    
+        return true;
     }
 
 }

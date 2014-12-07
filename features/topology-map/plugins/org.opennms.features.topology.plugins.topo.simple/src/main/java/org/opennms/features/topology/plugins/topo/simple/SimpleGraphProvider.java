@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2012-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -33,15 +33,14 @@ import java.net.MalformedURLException;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
-
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBException;
 import javax.xml.bind.Marshaller;
 import javax.xml.bind.Unmarshaller;
-
 import org.opennms.features.topology.api.topo.AbstractEdge;
 import org.opennms.features.topology.api.topo.AbstractTopologyProvider;
 import org.opennms.features.topology.api.topo.AbstractVertex;
+import org.opennms.features.topology.api.topo.Criteria;
 import org.opennms.features.topology.api.topo.Edge;
 import org.opennms.features.topology.api.topo.GraphProvider;
 import org.opennms.features.topology.api.topo.SimpleEdgeProvider;
@@ -61,7 +60,7 @@ public class SimpleGraphProvider extends AbstractTopologyProvider implements Gra
 
 	protected static final String TOPOLOGY_NAMESPACE_SIMPLE = "simple";
 
-	private static final Logger s_log = LoggerFactory.getLogger(SimpleGraphProvider.class);
+	private static final Logger LOG = LoggerFactory.getLogger(SimpleGraphProvider.class);
 
 	private URI m_topologyLocation = null;
 
@@ -71,11 +70,7 @@ public class SimpleGraphProvider extends AbstractTopologyProvider implements Gra
 
     public SimpleGraphProvider(String namespace) {
         super(namespace);
-        s_log.debug("Creating a new SimpleTopologyProvider with namespace {}", namespace);
-        
-        //URL defaultGraph = getClass().getResource("/saved-vmware-graph.xml");
-
-        //setTopologyLocation(defaultGraph);
+        LOG.debug("Creating a new SimpleTopologyProvider with namespace {}", namespace);
     }
 
 	public URI getTopologyLocation() {
@@ -86,10 +81,10 @@ public class SimpleGraphProvider extends AbstractTopologyProvider implements Gra
 		m_topologyLocation = topologyLocation;
 		
 		if (m_topologyLocation != null && new File(m_topologyLocation).exists()) {
-			s_log.debug("Loading topology from " + m_topologyLocation);
+			LOG.debug("Loading topology from " + m_topologyLocation);
 			load(m_topologyLocation);
 		} else {
-			s_log.debug("Setting topology location to null");
+			LOG.debug("Setting topology location to null");
 			clearVertices();
 			clearEdges();
 		}
@@ -123,7 +118,7 @@ public class SimpleGraphProvider extends AbstractTopologyProvider implements Gra
         	Marshaller u = jc.createMarshaller();
         	u.marshal(graph, new File(getTopologyLocation()));
         } catch (JAXBException e) {
-        	s_log.error(e.getMessage(), e);
+        	LOG.error(e.getMessage(), e);
         }
     }
     
@@ -137,8 +132,7 @@ public class SimpleGraphProvider extends AbstractTopologyProvider implements Gra
             LoggerFactory.getLogger(this.getClass()).info("Creating new edge provider with namespace {}", namespace);
             m_edgeProvider = new SimpleEdgeProvider(namespace);
         }
-
-        clearVertices();
+        resetContainer();
         for (WrappedVertex vertex : graph.m_vertices) {
             if (vertex.namespace == null) {
                 vertex.namespace = getVertexNamespace();
@@ -147,16 +141,6 @@ public class SimpleGraphProvider extends AbstractTopologyProvider implements Gra
 
             if (vertex.id == null) {
                 LoggerFactory.getLogger(this.getClass()).warn("Invalid vertex unmarshalled from {}: {}", source.toString(), vertex);
-            } else if (vertex.id.startsWith(SIMPLE_GROUP_ID_PREFIX)) {
-                try {
-                    // Find the highest index group number and start the index for new groups above it
-                    int groupNumber = Integer.parseInt(vertex.id.substring(SIMPLE_GROUP_ID_PREFIX.length()));
-                    if (m_groupCounter <= groupNumber) {
-                        m_groupCounter = groupNumber + 1;
-                    }
-                } catch (NumberFormatException e) {
-                    // Ignore this group ID since it doesn't conform to our pattern for auto-generated IDs
-                }
             }
             AbstractVertex newVertex;
             if (vertex.group) {
@@ -178,7 +162,6 @@ public class SimpleGraphProvider extends AbstractTopologyProvider implements Gra
             addVertices(newVertex);
         }
         
-        clearEdges();
         for (WrappedEdge edge : graph.m_edges) {
             if (edge.namespace == null) {
                 edge.namespace = getEdgeNamespace();
@@ -203,7 +186,7 @@ public class SimpleGraphProvider extends AbstractTopologyProvider implements Gra
                     // Ignore this edge ID since it doesn't conform to our pattern for auto-generated IDs
                 }
             }
-            AbstractEdge newEdge = connectVertices(edge.id, edge.source, edge.target);
+            AbstractEdge newEdge = connectVertices(edge.id, edge.source, edge.target, edge.namespace);
             newEdge.setLabel(edge.label);
             newEdge.setTooltipText(edge.tooltipText);
             //addEdges(newEdge);
@@ -217,17 +200,26 @@ public class SimpleGraphProvider extends AbstractTopologyProvider implements Gra
         }
     }
 
+    @Override
     public void refresh() {
         try {
             load(getTopologyLocation());
         } catch (JAXBException e) {
-            s_log.error(e.getMessage(), e);
+            LOG.error(e.getMessage(), e);
         } catch (MalformedURLException e) {
-            s_log.error(e.getMessage(), e);
+            LOG.error(e.getMessage(), e);
         }
     }
 
+    @Override
+    public Criteria getDefaultCriteria() {
+        return null;  //To change body of implemented methods use File | Settings | File Templates.
+    }
+
     void load(URI url) throws JAXBException, MalformedURLException {
+    	if (url == null) {
+    		throw new IllegalArgumentException("URI for SimpleGraphProvider configuration must not be null");
+    	}
     	JAXBContext jc = JAXBContext.newInstance(WrappedGraph.class);
     	Unmarshaller u = jc.createUnmarshaller();
     	WrappedGraph graph = (WrappedGraph) u.unmarshal(url.toURL());

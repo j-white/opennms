@@ -6,7 +6,7 @@
        http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
        http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx-2.0.xsd">
 
-  <bean id="ackdConfigurationDao" class="org.opennms.netmgt.dao.castor.DefaultAckdConfigurationDao">
+  <bean id="ackdConfigurationDao" class="org.opennms.netmgt.dao.jaxb.DefaultAckdConfigurationDao">
     <property name="configResource" value="file:${opennms.home}/etc/ackd-configuration.xml" />
   </bean>
   
@@ -30,12 +30,12 @@
     <property name="ackdConfigDao" ref="ackdConfigurationDao" />
     <!-- From META-INF/opennms/applicationContext-dao.xml -->
     <property name="alarmDao" ref="alarmDao" />
-    <property name="ackService" ref="ackService" />
+    <property name="acknowledgmentDao" ref="acknowledgmentDao" />
   </bean>
 
   <bean id="mailAckProcessor" class="org.opennms.netmgt.ackd.readers.MailAckProcessor" >
     <property name="ackdConfigDao" ref="ackdConfigurationDao" />
-    <property name="ackService" ref="ackService" />
+    <property name="acknowledgmentDao" ref="acknowledgmentDao" />
     <property name="jmConfigDao" ref="javamailConfigDao" />
   </bean>
 
@@ -44,7 +44,7 @@
     <property name="executor" ref="readerScheduler" />
     <property name="configDao" ref="ackdConfigurationDao" />
     <property name="eventForwarder" ref="eventForwarder"/>
-    <property name="ackService" ref="ackService" />
+    <property name="acknowledgmentDao" ref="acknowledgmentDao" />
     <property name="ackReaders" >
       <list>
         <ref local="javaMailReader" />
@@ -53,7 +53,7 @@
     </property>
   </bean>
   
-  <bean id="daemonListener" class="org.opennms.netmgt.model.events.AnnotationBasedEventListenerAdapter">
+  <bean id="daemonListener" class="org.opennms.netmgt.events.api.AnnotationBasedEventListenerAdapter">
     <property name="annotatedListener" ref="daemon" />
     <property name="eventSubscriptionService" ref="eventSubscriptionService" />
   </bean>

@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2011-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2011-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -35,20 +35,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.TimeZone;
 
+import org.opennms.core.spring.BeanUtils;
 
-import org.opennms.core.utils.BeanUtils;
-
-import org.opennms.netmgt.dao.AlarmDao;
-
+import org.opennms.netmgt.dao.api.AlarmDao;
 import org.opennms.netmgt.model.OnmsAlarm;
-
 import org.opennms.netmgt.xml.event.AlarmData;
 import org.opennms.netmgt.xml.event.Event;
 import org.opennms.netmgt.xml.event.Logmsg;
-
 import org.springframework.beans.factory.access.BeanFactoryReference;
 import org.springframework.transaction.TransactionStatus;
-import org.springframework.transaction.support.TransactionCallback;
+import org.springframework.transaction.support.TransactionCallbackWithoutResult;
 import org.springframework.transaction.support.TransactionTemplate;
 
 public class AlarmEventSynchronization implements EventSynchronization {
@@ -59,11 +55,13 @@ public class AlarmEventSynchronization implements EventSynchronization {
 		super();
     }
 
+        @Override
 	public void addEventForwarder(EventForwarder forwarder) {
 		if (forwarder != null)
 			m_forwarders.add(forwarder);
 	}
 
+        @Override
 	public void sync() {
 		
 		for (EventForwarder forwarder: m_forwarders) {
@@ -99,16 +97,12 @@ public class AlarmEventSynchronization implements EventSynchronization {
 
         // alarm creation time
         if (alarm.getFirstEventTime() != null) {
-            DateFormat dateFormat = DateFormat.getDateTimeInstance(DateFormat.FULL, DateFormat.FULL);
-            dateFormat.setTimeZone(TimeZone.getTimeZone("GMT"));
-        	event.setCreationTime(dateFormat.format(alarm.getFirstEventTime()));
+        	event.setCreationTime(alarm.getFirstEventTime());
         }
 
         // last event timestamp
         if (alarm.getLastEventTime() != null) {
-            DateFormat dateFormat = DateFormat.getDateTimeInstance(DateFormat.FULL, DateFormat.FULL);
-            dateFormat.setTimeZone(TimeZone.getTimeZone("GMT"));
-            event.setTime(dateFormat.format(alarm.getLastEventTime()));
+            event.setTime(alarm.getLastEventTime());
         }
         
         // host
@@ -157,14 +151,16 @@ public class AlarmEventSynchronization implements EventSynchronization {
         return event;
     }
 	
+        @Override
 	public List<Event> getEvents() {
         BeanFactoryReference bf = BeanUtils.getBeanFactory("daoContext");
         final AlarmDao alarmDao = BeanUtils.getBean(bf,"alarmDao", AlarmDao.class);
         final List<Event> xmlevents = new ArrayList<Event>();
         TransactionTemplate transTemplate = BeanUtils.getBean(bf, "transactionTemplate",TransactionTemplate.class);
         try {
-                transTemplate.execute(new TransactionCallback<Object>() {
-                public Object doInTransaction(final TransactionStatus status) {
+                transTemplate.execute(new TransactionCallbackWithoutResult() {
+                @Override
+                public void doInTransactionWithoutResult(final TransactionStatus status) {
                     Map<String, OnmsAlarm> forwardAlarms = new HashMap<String, OnmsAlarm>();
                 	for (OnmsAlarm alarm : alarmDao.findAll()) {
                 		// Got Clear alarm
@@ -196,7 +192,6 @@ public class AlarmEventSynchronization implements EventSynchronization {
                         	if (xmlEvent != null) xmlevents.add(xmlEvent);
                 		}
                 	}
-                    return new Object();
                 }
 
             });

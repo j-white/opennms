@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2002-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -36,15 +36,17 @@ import java.util.Map;
 import javax.sql.DataSource;
 
 import org.opennms.core.utils.Querier;
-import org.opennms.netmgt.EventConstants;
 import org.opennms.netmgt.config.PassiveStatusKey;
 import org.opennms.netmgt.config.PassiveStatusValue;
 import org.opennms.netmgt.daemon.AbstractServiceDaemon;
-import org.opennms.netmgt.model.PollStatus;
-import org.opennms.netmgt.model.events.EventIpcManager;
-import org.opennms.netmgt.model.events.EventListener;
+import org.opennms.netmgt.events.api.EventConstants;
+import org.opennms.netmgt.events.api.EventIpcManager;
+import org.opennms.netmgt.events.api.EventListener;
 import org.opennms.netmgt.model.events.EventUtils;
+import org.opennms.netmgt.poller.PollStatus;
 import org.opennms.netmgt.xml.event.Event;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * <p>PassiveStatusKeeper class.</p>
@@ -53,6 +55,8 @@ import org.opennms.netmgt.xml.event.Event;
  * @author <a href="mailto:david@opennms.org">David Hustace</a>
  */
 public class PassiveStatusKeeper extends AbstractServiceDaemon implements EventListener {
+    
+    private static final Logger LOG = LoggerFactory.getLogger(PassiveStatusKeeper.class);
     
     private static PassiveStatusKeeper s_instance = new PassiveStatusKeeper();
     
@@ -69,13 +73,13 @@ public class PassiveStatusKeeper extends AbstractServiceDaemon implements EventL
      * <p>Constructor for PassiveStatusKeeper.</p>
      */
     public PassiveStatusKeeper() {
-    	super("OpenNMS.PassiveStatusKeeper");
+    	super("passive");
     }
     
     /**
      * <p>Constructor for PassiveStatusKeeper.</p>
      *
-     * @param eventMgr a {@link org.opennms.netmgt.model.events.EventIpcManager} object.
+     * @param eventMgr a {@link org.opennms.netmgt.events.api.EventIpcManager} object.
      */
     public PassiveStatusKeeper(EventIpcManager eventMgr) {
     	this();
@@ -87,7 +91,7 @@ public class PassiveStatusKeeper extends AbstractServiceDaemon implements EventL
      *
      * @param psk a {@link org.opennms.netmgt.passive.PassiveStatusKeeper} object.
      */
-    public synchronized static void setInstance(PassiveStatusKeeper psk) {
+    public static synchronized void setInstance(PassiveStatusKeeper psk) {
         s_instance = psk;
     }
     
@@ -96,7 +100,7 @@ public class PassiveStatusKeeper extends AbstractServiceDaemon implements EventL
      *
      * @return a {@link org.opennms.netmgt.passive.PassiveStatusKeeper} object.
      */
-    public synchronized static PassiveStatusKeeper getInstance() {
+    public static synchronized PassiveStatusKeeper getInstance() {
         return s_instance;
     }
 
@@ -104,6 +108,7 @@ public class PassiveStatusKeeper extends AbstractServiceDaemon implements EventL
     /**
      * <p>onInit</p>
      */
+    @Override
     protected void onInit() {
         if (m_initialized) return;
         
@@ -120,6 +125,7 @@ public class PassiveStatusKeeper extends AbstractServiceDaemon implements EventL
         
         Querier querier = new Querier(m_dataSource, sql) {
         
+            @Override
             public void processRow(ResultSet rs) throws SQLException {
                
                 PassiveStatusKey key = new PassiveStatusKey(rs.getString("nodeLabel"), rs.getString("ipAddr"), rs.getString("serviceName"));
@@ -147,6 +153,7 @@ public class PassiveStatusKeeper extends AbstractServiceDaemon implements EventL
     /**
      * <p>onStop</p>
      */
+    @Override
     protected void onStop() {
         m_initialized = false;
         m_eventMgr = null;
@@ -159,7 +166,7 @@ public class PassiveStatusKeeper extends AbstractServiceDaemon implements EventL
      * @param nodeLabel a {@link java.lang.String} object.
      * @param ipAddr a {@link java.lang.String} object.
      * @param svcName a {@link java.lang.String} object.
-     * @param pollStatus a {@link org.opennms.netmgt.model.PollStatus} object.
+     * @param pollStatus a {@link org.opennms.netmgt.poller.PollStatus} object.
      */
     public void setStatus(String nodeLabel, String ipAddr, String svcName, PollStatus pollStatus) {
         checkInit();
@@ -170,7 +177,7 @@ public class PassiveStatusKeeper extends AbstractServiceDaemon implements EventL
      * <p>setStatus</p>
      *
      * @param key a {@link org.opennms.netmgt.config.PassiveStatusKey} object.
-     * @param pollStatus a {@link org.opennms.netmgt.model.PollStatus} object.
+     * @param pollStatus a {@link org.opennms.netmgt.poller.PollStatus} object.
      */
     public void setStatus(PassiveStatusKey key, PollStatus pollStatus) {
         checkInit();
@@ -188,7 +195,7 @@ public class PassiveStatusKeeper extends AbstractServiceDaemon implements EventL
      * @param nodeLabel a {@link java.lang.String} object.
      * @param ipAddr a {@link java.lang.String} object.
      * @param svcName a {@link java.lang.String} object.
-     * @return a {@link org.opennms.netmgt.model.PollStatus} object.
+     * @return a {@link org.opennms.netmgt.poller.PollStatus} object.
      */
     public PollStatus getStatus(String nodeLabel, String ipAddr, String svcName) {
         //FIXME: Throw a log or exception here if this method is called and the this class hasn't been initialized
@@ -202,18 +209,19 @@ public class PassiveStatusKeeper extends AbstractServiceDaemon implements EventL
     }
 
     /** {@inheritDoc} */
+    @Override
     public void onEvent(Event e) {
         
         if (isPassiveStatusEvent(e)) {
-            log().debug("onEvent: received valid registered passive status event: \n"+EventUtils.toString(e));
+            LOG.debug("onEvent: received valid registered passive status event: \n", EventUtils.toString(e));
             PassiveStatusValue statusValue = getPassiveStatusValue(e);
             setStatus(statusValue.getKey(), statusValue.getStatus());
-            log().debug("onEvent: passive status for: "+statusValue.getKey()+ "is: "+m_statusTable.get(statusValue.getKey()));
+            LOG.debug("onEvent: passive status for: {} is: {}", statusValue.getKey(), m_statusTable.get(statusValue.getKey()));
         } 
         
         if (!isPassiveStatusEvent(e))
         {
-            log().debug("onEvent: received Invalid registered passive status event: \n"+EventUtils.toString(e));
+            LOG.debug("onEvent: received Invalid registered passive status event: \n", EventUtils.toString(e));
         }
     }
 
@@ -238,7 +246,7 @@ public class PassiveStatusKeeper extends AbstractServiceDaemon implements EventL
 	/**
 	 * <p>getEventManager</p>
 	 *
-	 * @return a {@link org.opennms.netmgt.model.events.EventIpcManager} object.
+	 * @return a {@link org.opennms.netmgt.events.api.EventIpcManager} object.
 	 */
 	public EventIpcManager getEventManager() {
         return m_eventMgr;
@@ -247,7 +255,7 @@ public class PassiveStatusKeeper extends AbstractServiceDaemon implements EventL
     /**
      * <p>setEventManager</p>
      *
-     * @param eventMgr a {@link org.opennms.netmgt.model.events.EventIpcManager} object.
+     * @param eventMgr a {@link org.opennms.netmgt.events.api.EventIpcManager} object.
      */
     public void setEventManager(EventIpcManager eventMgr) {
         m_eventMgr = eventMgr;

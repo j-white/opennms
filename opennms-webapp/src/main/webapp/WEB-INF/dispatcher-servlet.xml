@@ -1,14 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <beans xmlns="http://www.springframework.org/schema/beans"
        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:tx="http://www.springframework.org/schema/tx"
        xmlns:context="http://www.springframework.org/schema/context"
        xmlns:onmsgi="http://xmlns.opennms.org/xsd/spring/onms-osgi" 
        xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
-
+       http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx-2.5.xsd
        http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-2.5.xsd
        http://xmlns.opennms.org/xsd/spring/onms-osgi http://xmlns.opennms.org/xsd/spring/onms-osgi.xsd"
         >
 
+    <tx:annotation-driven/>
     <context:annotation-config/>
 
     <!-- Scan the following packages for controllers that are annotated with the @Controller annotation -->
@@ -18,7 +20,6 @@
         <property name="systemPropertiesModeName" value="SYSTEM_PROPERTIES_MODE_OVERRIDE"/>
         <property name="locations">
             <list>
-                <value>WEB-INF/configuration.properties</value>
                 <value>file:${opennms.home}/etc/model-importer.properties</value>
             </list>
         </property>
@@ -97,6 +98,11 @@
           class="org.opennms.web.controller.CategoryController">
         <property name="adminCategoryService" ref="adminCategoryService"/>
         <property name="surveillanceViewConfigDao" ref="surveillanceViewConfigDao"/>
+    </bean>
+    <!-- -->
+    <bean name="/support/groups/setACLUserGroups" class="org.opennms.web.admin.groups.SetUserGroupController">
+        <property name="filterManager" ref="filterManager" />
+        <property name="groupDao" ref="groupDao" />
     </bean>
 
     <bean name="/admin/userGroupView/groups/list.htm"
@@ -264,84 +270,59 @@
     </bean>
 
     <bean name="/alarm/acknowledge" class="org.opennms.web.controller.alarm.AcknowledgeAlarmController">
-        <property name="webAlarmRepository" ref="webAlarmRepository"/>
+        <property name="alarmRepository" ref="alarmRepository"/>
         <property name="redirectView" value="/alarm/list.htm"/>
     </bean>
 
     <bean name="/alarm/acknowledgeByFilter" class="org.opennms.web.controller.alarm.AcknowledgeAlarmByFilterController">
-        <property name="webAlarmRepository" ref="webAlarmRepository"/>
+        <property name="alarmRepository" ref="alarmRepository"/>
         <property name="redirectView" value="/alarm/list.htm"/>
     </bean>
 
     <bean name="/alarm/changeSeverity" class="org.opennms.web.controller.alarm.AlarmSeverityChangeController">
-        <property name="webAlarmRepository" ref="webAlarmRepository"/>
+        <property name="alarmRepository" ref="alarmRepository"/>
         <property name="redirectView" value="/alarm/list.htm"/>
     </bean>
 
-    <bean name="/alarm/list.htm" class="org.opennms.web.controller.alarm.AlarmFilterController">
-        <property name="successView" value="alarm/list"/>
-        <property name="defaultShortLimit" value="20"/>
-        <property name="defaultLongLimit" value="10"/>
-        <property name="defaultAcknowledgeType" value="UNACKNOWLEDGED"/>
-        <property name="defaultSortStyle" value="ID"/>
-        <property name="webAlarmRepository" ref="webAlarmRepository"/>
-    </bean>
+    <bean name="/alarm/createFavorite" class="org.opennms.web.controller.alarm.AlarmFilterController"/>
 
-    <bean name="/event/acknowledge" class="org.opennms.web.controller.event.AcknowledgeEventController">
-        <property name="webEventRepository" ref="webEventRepository"/>
-        <property name="redirectView" value="/event/list.htm"/>
-    </bean>
+    <bean name="/alarm/deleteFavorite" class="org.opennms.web.controller.alarm.AlarmFilterController"/>
 
-    <bean name="/event/acknowledgeByFilter" class="org.opennms.web.controller.event.AcknowledgeEventByFilterController">
-        <property name="webEventRepository" ref="webEventRepository"/>
-        <property name="redirectView" value="/event/list.htm"/>
-    </bean>
+    <alias name="/alarm/index.htm" alias="/alarm/index"/>
+    <bean name="/alarm/index.htm" class="org.opennms.web.controller.alarm.AlarmFilterController"/>
+
+    <alias name="/alarm/list.htm" alias="/alarm/list"/>
+    <bean name="/alarm/list.htm" class="org.opennms.web.controller.alarm.AlarmFilterController"/>
 
     <alias name="/alarm/detail.htm" alias="/alarm/detail.jsp"/>
     <bean name="/alarm/detail.htm" class="org.opennms.web.controller.alarm.AlarmDetailController">
-        <property name="webAlarmRepository" ref="webAlarmRepository"/>
+        <property name="alarmRepository" ref="alarmRepository"/>
     </bean>
 
-    <bean name="/alarm/saveSticky.htm" class="org.opennms.web.controller.alarm.AlarmDetailController">
-        <property name="webAlarmRepository" ref="webAlarmRepository"/>
+    <bean name="/alarm/saveStickyMemo.htm" class="org.opennms.web.controller.alarm.AlarmDetailController">
+        <property name="alarmRepository" ref="alarmRepository"/>
     </bean>
     
-    <bean name="/alarm/clearSticky.htm" class="org.opennms.web.controller.alarm.AlarmDetailController">
-        <property name="webAlarmRepository" ref="webAlarmRepository"/>
+    <bean name="/alarm/removeStickyMemo.htm" class="org.opennms.web.controller.alarm.AlarmDetailController">
+        <property name="alarmRepository" ref="alarmRepository"/>
     </bean>
 
-    <bean name="/alarm/saveJournal.htm" class="org.opennms.web.controller.alarm.AlarmDetailController">
-        <property name="webAlarmRepository" ref="webAlarmRepository"/>
+    <bean name="/alarm/saveJournalMemo.htm" class="org.opennms.web.controller.alarm.AlarmDetailController">
+        <property name="alarmRepository" ref="alarmRepository"/>
     </bean>
     
-    <bean name="/alarm/clearJournal.htm" class="org.opennms.web.controller.alarm.AlarmDetailController">
-        <property name="webAlarmRepository" ref="webAlarmRepository"/>
+    <bean name="/alarm/removeJournalMemo.htm" class="org.opennms.web.controller.alarm.AlarmDetailController">
+        <property name="alarmRepository" ref="alarmRepository"/>
     </bean>
     
     <bean name="/alarm/summary-box.htm" class="org.opennms.web.controller.alarm.AlarmBoxController">
         <property name="successView" value="alarm/summary-box"/>
-        <property name="webAlarmRepository" ref="webAlarmRepository"/>
-    </bean>
- 
-    <alias name="/event/detail.htm" alias="/event/detail.jsp"/>
-    <bean name="/event/detail.htm" class="org.opennms.web.controller.event.EventFilterController">
-        <property name="successView" value="event/detail"/>
-        <property name="defaultShortLimit" value="20"/>
-        <property name="defaultLongLimit" value="10"/>
-        <property name="defaultAcknowledgeType" value="UNACKNOWLEDGED"/>
-        <property name="defaultSortStyle" value="ID"/>
-        <property name="webEventRepository" ref="webEventRepository"/>
+        <property name="alarmRepository" ref="alarmRepository"/>
     </bean>
 
-    <alias name="/event/list.htm" alias="/event/list"/>
-    <bean name="/event/list.htm" class="org.opennms.web.controller.event.EventFilterController">
-        <property name="successView" value="event/list"/>
-        <property name="defaultShortLimit" value="20"/>
-        <property name="defaultLongLimit" value="10"/>
-        <property name="defaultAcknowledgeType" value="UNACKNOWLEDGED"/>
-        <property name="defaultSortStyle" value="ID"/>
-        <property name="webEventRepository" ref="webEventRepository"/>
+   	<bean name="/event/*" class="org.opennms.web.controller.event.EventController">
     </bean>
+
 
     <bean name="/notification/acknowledge"
           class="org.opennms.web.controller.notification.AcknowledgeNotificationController">
@@ -484,6 +465,29 @@
         <property name="mapMenuEntries" ref="mapMenuEntries" />
     </bean>
 
+    <bean name="dashboardMenuEntries" class="org.opennms.web.navigate.MenuDropdownNavBarEntry">
+        <property name="name" value="Dashboards" />
+        <property name="url" value="dashboards.htm" />
+        <property name="entries">
+            <list>
+                <bean class="org.opennms.web.navigate.LocationBasedNavBarEntry">
+                    <property name="name" value="Dashboard"/>
+                    <property name="url" value="dashboard.jsp"/>
+                    <property name="locationMatch" value="dashboard"/>
+                </bean>
+                <bean class="org.opennms.web.navigate.LocationBasedNavBarEntry">
+                    <property name="name" value="Ops Board"/>
+                    <property name="url" value="vaadin-wallboard"/>
+                    <property name="locationMatch" value="vaadin-wallboard"/>
+                </bean>
+            </list>
+        </property>
+    </bean>
+
+    <bean name="/dashboards.htm" class="org.opennms.web.controller.DashboardController">
+        <property name="dashboardMenuEntries" ref="dashboardMenuEntries" />
+    </bean>
+
     <!--  "includes" -->
     <bean id="headerProvider" name="/navBar.htm" class="org.opennms.web.controller.NavBarController">
         <property name="navBarItems">
@@ -512,21 +516,25 @@
                     <property name="locationMatch" value="pathOutage"/>
                 </bean>
 
+                <!--
                 <bean class="org.opennms.web.navigate.LocationBasedNavBarEntry">
                     <property name="name" value="Dashboard"/>
                     <property name="url" value="dashboard.jsp"/>
                     <property name="locationMatch" value="dashboard"/>
                 </bean>
+                -->
+
+                <ref bean="dashboardMenuEntries" />
 
                 <bean class="org.opennms.web.navigate.LocationBasedNavBarEntry">
                     <property name="name" value="Events"/>
-                    <property name="url" value="event/index.jsp"/>
+                    <property name="url" value="event/index"/>
                     <property name="locationMatch" value="event"/>
                 </bean>
 
                 <bean class="org.opennms.web.navigate.LocationBasedNavBarEntry">
                     <property name="name" value="Alarms"/>
-                    <property name="url" value="alarm/index.jsp"/>
+                    <property name="url" value="alarm/index.htm"/>
                     <property name="locationMatch" value="alarm"/>
                 </bean>
 
@@ -645,26 +653,6 @@
         <property name="categoryDao" ref="categoryDao"/>
         <property name="bindOnNewForm" value="true"/>
         <property name="commandName" value="parameters"/>
-    </bean>
-
-    <bean name="/report/database/manage.htm"
-          class="org.opennms.web.controller.ManageDatabaseReportController">
-        <property name="bindOnNewForm" value="true"/>
-        <property name="reportStoreService" ref="reportStoreService"/>
-        <property name="commandName" value="ManageDatabaseReportCommand"/>
-        <property name="commandClass" value="org.opennms.web.command.ManageDatabaseReportCommand"/>
-        <property name="pageSize" value="20"/>
-        <property name="successView" value="redirect:/report/database/manage.htm"/>
-    </bean>
-
-    <bean name="/report/database/manageSchedule.htm"
-          class="org.opennms.web.controller.ManageReportScheduleController">
-        <property name="bindOnNewForm" value="true"/>
-        <property name="reportSchedulerService" ref="reportSchedulerService"/>
-        <property name="commandName" value="ManageReportScheduleCommand"/>
-        <property name="commandClass" value="org.opennms.web.command.ManageReportScheduleCommand"/>
-        <property name="pageSize" value="10"/>
-        <property name="successView" value="redirect:/report/database/manageSchedule.htm"/>
     </bean>
 
     <bean name="/report/database/downloadReport.htm"

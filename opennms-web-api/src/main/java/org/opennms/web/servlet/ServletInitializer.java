@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2002-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -39,10 +39,10 @@ import java.util.Properties;
 import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
 
-import org.opennms.core.db.DataSourceFactory;
+import org.opennms.core.logging.Logging;
 import org.opennms.core.resource.Vault;
-import org.opennms.core.resource.db.DbConnectionFactory;
-import org.opennms.core.utils.ThreadCategory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Encapsulates all initialization and configuration needed by the OpenNMS
@@ -50,27 +50,10 @@ import org.opennms.core.utils.ThreadCategory;
  *
  * @author <A HREF="mailto:larry@opennms.org">Lawrence Karnowski </A>
  * @author <A HREF="http://www.opennms.org/">OpenNMS </A>
- * @author <A HREF="mailto:larry@opennms.org">Lawrence Karnowski </A>
- * @author <A HREF="http://www.opennms.org/">OpenNMS </A>
- * @version $Id: $
  */
 public class ServletInitializer extends Object {
-    /**
-     * A reference to the factory we set in {@link Vault Vault}during
-     * {@link #init init}so we can destroy it in {@link #destroy destroy}.
-     * 
-     * <p>
-     * Maybe there's a better way to do this then storing a reference? Should we
-     * just add a method to <code>Vault</code>?
-     * </p>
-     * 
-     * <p>
-     * This reference also serves as a flag to determine whether or not this
-     * class has been initialized yet. If it is null, the class has not yet been
-     * initialized.
-     * </p>
-     */
-    protected static DbConnectionFactory factory;
+	
+	private static final Logger LOG = LoggerFactory.getLogger(ServletInitializer.class);
 
     /**
      * Private, empty constructor so that this class cannot be instantiated
@@ -96,7 +79,7 @@ public class ServletInitializer extends Object {
      *            servlet is running
      * @throws javax.servlet.ServletException if any.
      */
-    public synchronized static void init(ServletContext context) throws ServletException {
+    public static synchronized void init(ServletContext context) throws ServletException {
         if (context == null) {
             throw new IllegalArgumentException("Cannot take null parameters.");
         }
@@ -105,84 +88,63 @@ public class ServletInitializer extends Object {
          * All ThreadCategory instances in the WebUI should use this as their
          * category prefix
          */
-        ThreadCategory.setPrefix("OpenNMS.WEB");
+        
+        Logging.putPrefix("web");
 
-        if (factory == null) {
-            Properties properties = new Properties(System.getProperties());
+        Properties properties = new Properties(System.getProperties());
 
-            try {
-                /*
-                 * First, check if opennms.home is set, if so, we already have properties
-                 * because we're in Jetty.
-                 */
-                if (properties.getProperty("opennms.home") == null) {
-                    // If not, load properties from configuration.properties
-                    loadPropertiesFromContextResource(context, properties, "/WEB-INF/configuration.properties");
-
-                    // Make sure that we now have opennms.home set
-                    if (properties.getProperty("opennms.home") == null) {
-                        throw new ServletException("The opennms.home context parameter must be set.");
-                    }
-                }
-            } catch (IOException e) {
-                throw new ServletException("Could not load configuration.properties", e);
-            }
-
-            String homeDir = properties.getProperty("opennms.home");
-
-            /*
-             * Now that we've got opennms.home, load $OPENNMS_HOME/etc/opennms.properties
-             * in case it isn't--but if anything is already set, we don't override it.
-             */
-            Properties opennmsProperties = new Properties();
-            
-            try {
-                loadPropertiesFromFile(opennmsProperties, homeDir + File.separator + "etc" + File.separator + "opennms.properties");
-            } catch (IOException e) {
-                throw new ServletException("Could not load opennms.properties", e);
-            }
-
-            try {
-                loadPropertiesFromContextResource(context, opennmsProperties, "/WEB-INF/version.properties");
-            } catch (IOException e) {
-                throw new ServletException("Could not load version.properties", e);
-            }
-
-            for (Enumeration<Object> opennmsKeys = opennmsProperties.keys(); opennmsKeys.hasMoreElements(); ) {
-                Object key = opennmsKeys.nextElement();
-                if (!properties.containsKey(key)) {
-                    properties.put(key, opennmsProperties.get(key));
-                }
-            }
-
-            Enumeration<?> initParamNames = context.getInitParameterNames();
-            while (initParamNames.hasMoreElements()) {
-                String name = (String) initParamNames.nextElement();
-                properties.put(name, context.getInitParameter(name));
-            }
-
-            Vault.setProperties(properties);
-            Vault.setHomeDir(homeDir);
-            
-            try {
-                DataSourceFactory.init();
-            } catch (Throwable e) {
-                throw new ServletException("Could not initialize data source factory: " + e, e);
-            }
-            
-            // This is done inside "Vault.getDataSource" to ensure that "Vault" could be used by "IfLabel" - See Bug 4117
-            // Vault.setDataSource(DataSourceFactory.getInstance());
+        /*
+         * First, check if opennms.home is set, if so, we already have properties
+         * because we're in Jetty.
+         */
+        if (properties.getProperty("opennms.home") == null) {
+            throw new ServletException("The opennms.home context parameter must be set.");
         }
+
+        String homeDir = properties.getProperty("opennms.home");
+
+        /*
+         * Now that we've got opennms.home, load $OPENNMS_HOME/etc/opennms.properties
+         * in case it isn't--but if anything is already set, we don't override it.
+         */
+        Properties opennmsProperties = new Properties();
+
+        try {
+        	loadPropertiesFromFile(opennmsProperties, homeDir + File.separator + "etc" + File.separator + "opennms.properties");
+        } catch (IOException e) {
+        	throw new ServletException("Could not load opennms.properties", e);
+        }
+
+        try {
+        	loadPropertiesFromContextResource(context, opennmsProperties, "/WEB-INF/version.properties");
+        } catch (IOException e) {
+        	throw new ServletException("Could not load version.properties", e);
+        }
+
+        for (Enumeration<Object> opennmsKeys = opennmsProperties.keys(); opennmsKeys.hasMoreElements(); ) {
+        	Object key = opennmsKeys.nextElement();
+        	if (!properties.containsKey(key)) {
+        		properties.put(key, opennmsProperties.get(key));
+        	}
+        }
+
+        Enumeration<?> initParamNames = context.getInitParameterNames();
+        while (initParamNames.hasMoreElements()) {
+        	String name = (String) initParamNames.nextElement();
+        	properties.put(name, context.getInitParameter(name));
+        }
+
+        Vault.setProperties(properties);
+        Vault.setHomeDir(homeDir);
+
+        // This is done inside "Vault.getDataSource" to ensure that "Vault" could be used by "IfLabel" - See Bug 4117
+        // Vault.setDataSource(DataSourceFactory.getInstance());
     }
 
     private static void loadPropertiesFromFile(Properties opennmsProperties, String propertiesFile) throws FileNotFoundException, ServletException, IOException {
         InputStream configurationStream = new FileInputStream(propertiesFile);
-        if (configurationStream == null) {
-            throw new ServletException("Could not load properties from file '" + propertiesFile + "'");
-        } else {
-            opennmsProperties.load(configurationStream);
-            configurationStream.close();
-        }
+        opennmsProperties.load(configurationStream);
+        configurationStream.close();
     }
 
     private static void loadPropertiesFromContextResource(ServletContext context, Properties properties, String propertiesResource) throws ServletException, IOException {
@@ -210,15 +172,7 @@ public class ServletInitializer extends Object {
      *            servlet is running
      * @throws javax.servlet.ServletException if any.
      */
-    public synchronized static void destroy(ServletContext context) throws ServletException {
-        try {
-            if (factory != null) {
-                factory.destroy();
-                factory = null;
-            }
-        } catch (Throwable e) {
-            throw new ServletException("Could not destroy the database connection factory", e);
-        }
+    public static synchronized void destroy(ServletContext context) throws ServletException {
     }
 
     /**

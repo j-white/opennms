@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2002-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -28,17 +28,26 @@
 
 package org.opennms.web.alarm;
 
+import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.List;
 import java.util.NoSuchElementException;
 
 import javax.servlet.ServletContext;
 
 import org.apache.commons.lang.ArrayUtils;
+import org.hibernate.criterion.Order;
+import org.hibernate.criterion.Restrictions;
+import org.opennms.core.utils.InetAddressUtils;
 import org.opennms.core.utils.WebSecurityUtils;
+import org.opennms.netmgt.model.OnmsAlarm;
+import org.opennms.netmgt.model.OnmsCriteria;
 import org.opennms.netmgt.model.OnmsSeverity;
 import org.opennms.web.alarm.filter.AcknowledgedByFilter;
 import org.opennms.web.alarm.filter.AfterFirstEventTimeFilter;
 import org.opennms.web.alarm.filter.AfterLastEventTimeFilter;
+import org.opennms.web.alarm.filter.AlarmCriteria;
+import org.opennms.web.alarm.filter.AlarmCriteria.AlarmCriteriaVisitor;
 import org.opennms.web.alarm.filter.BeforeFirstEventTimeFilter;
 import org.opennms.web.alarm.filter.BeforeLastEventTimeFilter;
 import org.opennms.web.alarm.filter.EventParmLikeFilter;
@@ -79,6 +88,105 @@ public abstract class AlarmUtil extends Object {
     /** Constant <code>ANY_RELATIVE_TIMES_OPTION="Any"</code> */
     public static final String ANY_RELATIVE_TIMES_OPTION = "Any";
 
+    public static OnmsCriteria getOnmsCriteria(final AlarmCriteria alarmCriteria) {
+        final OnmsCriteria criteria = new OnmsCriteria(OnmsAlarm.class);
+        criteria.createAlias("node", "node", OnmsCriteria.LEFT_JOIN);
+        criteria.createAlias("serviceType", "serviceType", OnmsCriteria.LEFT_JOIN);
+
+        alarmCriteria.visit(new AlarmCriteriaVisitor<RuntimeException>() {
+
+            @Override
+            public void visitAckType(AcknowledgeType ackType) throws RuntimeException {
+                if (ackType == AcknowledgeType.ACKNOWLEDGED) {
+                    criteria.add(Restrictions.isNotNull("alarmAckUser"));
+                } else if (ackType == AcknowledgeType.UNACKNOWLEDGED) {
+                    criteria.add(Restrictions.isNull("alarmAckUser"));
+                }
+            }
+
+            @Override
+            public void visitFilter(Filter filter) throws RuntimeException {
+                criteria.add(filter.getCriterion());
+            }
+
+            @Override
+            public void visitLimit(int limit, int offset) throws RuntimeException {
+                criteria.setMaxResults(limit);
+                criteria.setFirstResult(offset);
+            }
+
+            @Override
+            public void visitSortStyle(SortStyle sortStyle) throws RuntimeException {
+                switch (sortStyle) {
+                    case COUNT:
+                        criteria.addOrder(Order.desc("counter"));
+                        break;
+                    case FIRSTEVENTTIME:
+                        criteria.addOrder(Order.desc("firstEventTime"));
+                        break;
+                    case ID:
+                        criteria.addOrder(Order.desc("id"));
+                        break;
+                    case INTERFACE:
+                        criteria.addOrder(Order.desc("ipAddr"));
+                        break;
+                    case LASTEVENTTIME:
+                        criteria.addOrder(Order.desc("lastEventTime"));
+                        break;
+                    case NODE:
+                        criteria.addOrder(Order.desc("node.label"));
+                        break;
+                    case POLLER:
+                        criteria.addOrder(Order.desc("distPoller"));
+                        break;
+                    case SERVICE:
+                        criteria.addOrder(Order.desc("serviceType.name"));
+                        break;
+                    case SEVERITY:
+                        criteria.addOrder(Order.desc("severity"));
+                        break;
+                    case ACKUSER:
+                        criteria.addOrder(Order.asc("alarmAckUser"));
+                        break;
+                    case REVERSE_COUNT:
+                        criteria.addOrder(Order.asc("counter"));
+                        break;
+                    case REVERSE_FIRSTEVENTTIME:
+                        criteria.addOrder(Order.asc("firstEventTime"));
+                        break;
+                    case REVERSE_ID:
+                        criteria.addOrder(Order.asc("id"));
+                        break;
+                    case REVERSE_INTERFACE:
+                        criteria.addOrder(Order.asc("ipAddr"));
+                        break;
+                    case REVERSE_LASTEVENTTIME:
+                        criteria.addOrder(Order.asc("lastEventTime"));
+                        break;
+                    case REVERSE_NODE:
+                        criteria.addOrder(Order.asc("node.label"));
+                        break;
+                    case REVERSE_POLLER:
+                        criteria.addOrder(Order.asc("distPoller"));
+                        break;
+                    case REVERSE_SERVICE:
+                        criteria.addOrder(Order.asc("serviceType.name"));
+                        break;
+                    case REVERSE_SEVERITY:
+                        criteria.addOrder(Order.asc("severity"));
+                        break;
+                    case REVERSE_ACKUSER:
+                        criteria.addOrder(Order.desc("alarmAckUser"));
+                        break;
+                    default:
+                        break;
+                }
+            }
+        });
+
+        return criteria;
+    }
+
     /**
      * <p>getFilter</p>
      *
@@ -110,7 +218,7 @@ public abstract class AlarmUtil extends Object {
         } else if (type.equals(NodeNameLikeFilter.TYPE)) {
             filter = new NodeNameLikeFilter(value);
         } else if (type.equals(InterfaceFilter.TYPE)) {
-            filter = new InterfaceFilter(value);
+            filter = new InterfaceFilter(InetAddressUtils.addr(value));
         } else if (type.equals(ServiceFilter.TYPE)) {
             filter = new ServiceFilter(WebSecurityUtils.safeParseInt(value), servletContext);
         } else if (type.equals(PartialUEIFilter.TYPE)) {
@@ -124,7 +232,7 @@ public abstract class AlarmUtil extends Object {
         } else if (type.equals(NegativeNodeFilter.TYPE)) {
             filter = new NegativeNodeFilter(WebSecurityUtils.safeParseInt(value), servletContext);
         } else if (type.equals(NegativeInterfaceFilter.TYPE)) {
-            filter = new NegativeInterfaceFilter(value);
+            filter = new NegativeInterfaceFilter(InetAddressUtils.addr(value));
         } else if (type.equals(NegativeServiceFilter.TYPE)) {
             filter = new NegativeServiceFilter(WebSecurityUtils.safeParseInt(value), servletContext);
         } else if (type.equals(NegativePartialUEIFilter.TYPE)) {
@@ -237,5 +345,18 @@ public abstract class AlarmUtil extends Object {
         filter = new AfterLastEventTimeFilter(now.getTime());
 
         return filter;
+    }
+
+    public static List<Filter> getFilterList(String[] filterStrings, ServletContext servletContext) {
+        List<Filter> filterList = new ArrayList<Filter>();
+        if (filterStrings != null) {
+            for (String filterString : filterStrings) {
+                Filter filter = AlarmUtil.getFilter(filterString, servletContext);
+                if (filter != null) {
+                    filterList.add(filter);
+                }
+            }
+        }
+        return filterList;
     }
 }

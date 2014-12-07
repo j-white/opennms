@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2002-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -28,6 +28,9 @@
 
 package org.opennms.core.utils;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -36,14 +39,13 @@ import java.io.Reader;
 import java.net.HttpURLConnection;
 import java.net.URL;
 
-import org.apache.log4j.Logger;
-
 /**
  * Provides convenience methods for use the HTTP POST method.
  *
  * @author <A HREF="mailto:larry@opennms.org">Lawrence Karnowski </A>
  */
-public abstract class HttpUtils extends Object {
+public abstract class HttpUtils {
+	private static final Logger LOG = LoggerFactory.getLogger(HttpUtils.class);
 
     /** Default buffer size for reading data. (Default is one kilobyte.) */
     public final static int DEFAULT_POST_BUFFER_SIZE = 1024;
@@ -55,7 +57,7 @@ public abstract class HttpUtils extends Object {
      *            the <code>URL</code> to post to
      * @param dataStream
      *            an input stream containing the data to send
-     * @return An <code>InputStream</a> that the programmer can read from
+     * @return An <code>InputStream</code> that the programmer can read from
      * to get the HTTP server's response.
      * @throws java.io.IOException if any.
      */
@@ -75,7 +77,7 @@ public abstract class HttpUtils extends Object {
      *            the username to use in the BASIC authentication
      * @param password
      *            the password to use in the BASIC authentication
-     * @return An <code>InputStream</a> that the programmer can read from
+     * @return An <code>InputStream</code> that the programmer can read from
      * to get the HTTP server's response.
      * @throws java.io.IOException if any.
      */
@@ -98,7 +100,7 @@ public abstract class HttpUtils extends Object {
      * @param bufSize
      *            the size of the buffer to read from <code>dataStream</code>
      *            and write to the HTTP server
-     * @return An <code>InputStream</a> that the programmer can read from
+     * @return An <code>InputStream</code> that the programmer can read from
      * to get the HTTP server's response.
      * @throws java.io.IOException if any.
      */
@@ -173,7 +175,7 @@ public abstract class HttpUtils extends Object {
      * @param bufSize
      *            the size of the buffer to read from <code>dataStream</code>
      *            and write to the HTTP server
-     * @return An <code>InputStream</a> that the programmer can read from
+     * @return An <code>InputStream</code> that the programmer can read from
      * to get the HTTP server's response.
      * @throws java.io.IOException if any.
      */
@@ -219,27 +221,23 @@ public abstract class HttpUtils extends Object {
         OutputStreamWriter ostream = new OutputStreamWriter(conn.getOutputStream(), "US-ASCII");
 
         // log data
-        Logger log = Logger.getLogger("POSTDATALOG");
-        if (log.isDebugEnabled()) {
-            String nl = System.getProperty("line.separator");
-            log.debug(nl + "HTTP Post: Current time: " + new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new java.util.GregorianCalendar().getTime()));
-            log.debug(nl + "Data posted:" + nl);
-        }
+        LOG.debug("HTTP Post: Current time: {}", new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new java.util.GregorianCalendar().getTime()));
+        LOG.debug("Data posted:");
 
         // initialize a buffer to use to read and write
         char[] b = new char[bufSize];
 
         // write the given data stream over the out-going HTTP connection
         int bytesRead = dataReader.read(b, 0, bufSize);
-        if (bytesRead > 0 && log.isDebugEnabled())
-            log.debug(new String(b, 0, bytesRead));
+        if (bytesRead > 0 && LOG.isDebugEnabled())
+            LOG.debug(new String(b, 0, bytesRead));
 
         while (bytesRead > 0) {
             ostream.write(b, 0, bytesRead);
             bytesRead = dataReader.read(b, 0, bufSize);
 
-            if (bytesRead > 0 && log.isDebugEnabled())
-                log.debug(new String(b, 0, bytesRead));
+            if (bytesRead > 0 && LOG.isDebugEnabled())
+                LOG.debug(new String(b, 0, bytesRead));
         }
 
         // close the out-going HTTP connection

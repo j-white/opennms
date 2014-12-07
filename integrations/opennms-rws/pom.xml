@@ -3,11 +3,11 @@
   <parent>
     <groupId>org.opennms</groupId>
     <artifactId>opennms-integrations</artifactId>
-    <version>1.12.9-SNAPSHOT</version>
+    <version>15.0.0-SNAPSHOT</version>
   </parent>
   <modelVersion>4.0.0</modelVersion>
   <artifactId>opennms-rws</artifactId>
-  <name>OpenNMS RWS Interface</name>
+  <name>OpenNMS Integrations RWS Interface</name>
   <dependencies>
     <dependency>
       <groupId>org.opennms.dependencies</groupId>
@@ -28,4 +28,15 @@
       <artifactId>commons-io</artifactId>
     </dependency>
   </dependencies>
+
+  <repositories>
+    <repository>
+      <snapshots><enabled>false</enabled></snapshots>
+      <releases><enabled>true</enabled></releases>
+      <id>opennms-repo</id>
+      <name>OpenNMS Repository</name>
+      <url>http://maven.opennms.org/content/groups/opennms.org-release</url>
+    </repository>
+  </repositories>
+
 </project>

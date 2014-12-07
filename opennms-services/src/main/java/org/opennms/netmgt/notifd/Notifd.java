@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2002-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -41,8 +41,10 @@ import org.opennms.netmgt.config.PollOutagesConfigManager;
 import org.opennms.netmgt.config.UserManager;
 import org.opennms.netmgt.config.notifd.Queue;
 import org.opennms.netmgt.daemon.AbstractServiceDaemon;
-import org.opennms.netmgt.dao.NodeDao;
-import org.opennms.netmgt.model.events.EventIpcManager;
+import org.opennms.netmgt.dao.api.NodeDao;
+import org.opennms.netmgt.events.api.EventIpcManager;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * This class is used to represent the notification execution service. When an
@@ -62,7 +64,9 @@ import org.opennms.netmgt.model.events.EventIpcManager;
  * @version $Id: $
  */
 public final class Notifd extends AbstractServiceDaemon {
-
+    
+    private static final Logger LOG = LoggerFactory.getLogger(Notifd.class);
+    
     /**
      * The singleton instance.
      */
@@ -106,20 +110,21 @@ public final class Notifd extends AbstractServiceDaemon {
      * Constructs a new Notifd service daemon.
      */
     protected Notifd() {
-    	super("OpenNMS.Notifd");
+    	super("notifd");
     }
 
     /**
      * <p>onInit</p>
      */
+    @Override
     protected void onInit() {
         
         m_eventReader = new BroadcastEventProcessor();
 
         try {
-            log().info("Notification status = " + getConfigManager().getNotificationStatus());
+            LOG.info("Notification status = {}", getConfigManager().getNotificationStatus());
 
-            Queue queues[] = getConfigManager().getConfiguration().getQueue();
+            Queue[] queues = getConfigManager().getConfiguration().getQueue();
             for (Queue queue : queues) {
                 NoticeQueue curQueue = new NoticeQueue();
 
@@ -134,7 +139,7 @@ public final class Notifd extends AbstractServiceDaemon {
                 m_queueHandlers.put(queue.getQueueId(), handlerQueue);
             }
         } catch (Throwable t) {
-            log().error("start: Failed to load notifd queue handlers.", t);
+            LOG.error("start: Failed to load notifd queue handlers.", t);
             throw new UndeclaredThrowableException(t);
         }
         
@@ -152,7 +157,7 @@ public final class Notifd extends AbstractServiceDaemon {
         try {
             m_eventReader.init();
         } catch (Throwable e) {
-            log().error("Failed to setup event receiver", e);
+            LOG.error("Failed to setup event receiver", e);
             throw new UndeclaredThrowableException(e);
         }
     }
@@ -277,6 +282,7 @@ public final class Notifd extends AbstractServiceDaemon {
     /**
      * <p>onStart</p>
      */
+    @Override
     protected void onStart() {
         for (NotifdQueueHandler curHandler : m_queueHandlers.values()) {
             curHandler.start();
@@ -286,6 +292,7 @@ public final class Notifd extends AbstractServiceDaemon {
     /**
      * <p>onStop</p>
      */
+    @Override
     protected void onStop() {
         try {
             for (NotifdQueueHandler curHandler : m_queueHandlers.values()) {
@@ -304,6 +311,7 @@ public final class Notifd extends AbstractServiceDaemon {
     /**
      * <p>onPause</p>
      */
+    @Override
     protected void onPause() {
         for (NotifdQueueHandler curHandler : m_queueHandlers.values()) {
             curHandler.pause();
@@ -313,6 +321,7 @@ public final class Notifd extends AbstractServiceDaemon {
     /**
      * <p>onResume</p>
      */
+    @Override
     protected void onResume() {
         for (NotifdQueueHandler curHandler : m_queueHandlers.values()) {
             curHandler.resume();
@@ -332,7 +341,7 @@ public final class Notifd extends AbstractServiceDaemon {
     /**
      * <p>getEventManager</p>
      *
-     * @return a {@link org.opennms.netmgt.model.events.EventIpcManager} object.
+     * @return a {@link org.opennms.netmgt.events.api.EventIpcManager} object.
      */
     public EventIpcManager getEventManager() {
         return m_eventManager;
@@ -368,7 +377,7 @@ public final class Notifd extends AbstractServiceDaemon {
     /**
      * <p>setNodeDao</p>
      *
-     * @param nodeDao a {@link org.opennms.netmgt.dao.NodeDao} object.
+     * @param nodeDao a {@link org.opennms.netmgt.dao.api.NodeDao} object.
      */
     public void setNodeDao(NodeDao nodeDao) {
         m_nodeDao = nodeDao;
@@ -377,7 +386,7 @@ public final class Notifd extends AbstractServiceDaemon {
     /**
      * <p>getNodeDao</p>
      *
-     * @return a {@link org.opennms.netmgt.dao.NodeDao} object.
+     * @return a {@link org.opennms.netmgt.dao.api.NodeDao} object.
      */
     public NodeDao getNodeDao() {
         return m_nodeDao;

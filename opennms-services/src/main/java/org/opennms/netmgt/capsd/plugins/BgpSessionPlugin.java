@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2009-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2009-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -32,12 +32,13 @@ import java.net.InetAddress;
 import java.util.Map;
 
 import org.opennms.core.utils.ParameterMap;
-import org.opennms.core.utils.ThreadCategory;
 import org.opennms.netmgt.config.SnmpPeerFactory;
 import org.opennms.netmgt.snmp.SnmpAgentConfig;
 import org.opennms.netmgt.snmp.SnmpObjId;
 import org.opennms.netmgt.snmp.SnmpUtils;
 import org.opennms.netmgt.snmp.SnmpValue;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * <p>
@@ -52,6 +53,9 @@ import org.opennms.netmgt.snmp.SnmpValue;
  * @version $Id: $
  */
 public final class BgpSessionPlugin extends SnmpPlugin {
+    
+    private static final Logger LOG = LoggerFactory.getLogger(BgpSessionPlugin.class);
+    
     /**
      * Name of monitored service.
      */
@@ -107,6 +111,7 @@ public final class BgpSessionPlugin extends SnmpPlugin {
      *
      * @return The protocol name for this plugin.
      */
+    @Override
     public String getProtocolName() {
         return PROTOCOL_NAME;
     }
@@ -120,13 +125,14 @@ public final class BgpSessionPlugin extends SnmpPlugin {
      * return additional information by key-name. These key-value pairs can be
      * added to service events if needed.
      */
+    @Override
     public boolean isProtocolSupported(InetAddress ipaddr, Map<String, Object> qualifiers) {
         try {
             String bgpPeerIp = ParameterMap.getKeyedString(qualifiers,"bgpPeerIp", null);
             
             // If no parameter for bgpPeerIp, do not detect the protocol and quit
             if (bgpPeerIp == null) {
-                log().warn("poll: No BGP-Peer IP Defined! ");
+                LOG.warn("poll: No BGP-Peer IP Defined! ");
                 return false;
             }
             
@@ -177,12 +183,10 @@ public final class BgpSessionPlugin extends SnmpPlugin {
                 // If no admin state received, do not detect the protocol and quit
                 if (bgpPeerAdminState == null)
                 {
-                    log().warn("Cannot receive bgpAdminState");
+                    LOG.warn("Cannot receive bgpAdminState");
                     return false;
                 } else {
-                    if (log().isDebugEnabled()) {
-                        log().debug("poll: bgpPeerAdminState: " + bgpPeerAdminState);
-                    }
+                    LOG.debug("poll: bgpPeerAdminState: {}", bgpPeerAdminState);
                 }
                 
                 // If BGP peer session administratively STOP do not detect
@@ -197,12 +201,10 @@ public final class BgpSessionPlugin extends SnmpPlugin {
                 
                 // If no peer state is received or SNMP is not possible, do not detect and quit
                 if (bgpPeerState == null) {
-                    log().warn("No BGP peer state received!");
+                    LOG.warn("No BGP peer state received!");
                     return false;
                 } else {
-                    if (log().isDebugEnabled()) {
-                        log().debug("poll: bgpPeerState: " + bgpPeerState);
-                    }
+                    LOG.debug("poll: bgpPeerState: {}", bgpPeerState);
                 }
 
                 // Validate sessions, check state is somewhere between IDLE and ESTABLISHED
@@ -210,32 +212,19 @@ public final class BgpSessionPlugin extends SnmpPlugin {
                     Integer.parseInt(bgpPeerState.toString()) <= BGP_PEER_STATE.ESTABLISHED.value())
                 {
                     // Session detected
-                    if (log().isDebugEnabled()) {
-                        log().debug("poll: bgpPeerState: "
-                                    + bgpPeerState
-                                    + " is valid, protocol supported.");
-                    }
+                    LOG.debug("poll: bgpPeerState: {} is valid, protocol supported.", bgpPeerState);
                     return true;
                 }
             }
         } catch (NullPointerException e) {
-            log().warn("SNMP not available or RFC1269-MIB not supported!");
+            LOG.warn("SNMP not available or RFC1269-MIB not supported!");
         } catch (NumberFormatException e) {
-            log().warn("Number operator used on a non-number " + e.getMessage());
+            LOG.warn("Number operator used on a non-number {}", e.getMessage());
         } catch (IllegalArgumentException e) {
-            log().warn("Invalid SNMP Criteria: " + e.getMessage());
+            LOG.warn("Invalid SNMP Criteria: {}", e.getMessage());
         } catch (Throwable t) {
-            log().warn("Unexpected exception during SNMP poll of interface " + ipaddr, t);
+            LOG.warn("Unexpected exception during SNMP poll of interface {}", ipaddr, t);
         }
         return false;
-    }
-
-    /**
-     * <p>log</p>
-     *
-     * @return a {@link org.opennms.core.utils.ThreadCategory} object.
-     */
-    public static ThreadCategory log() {
-        return ThreadCategory.getInstance(BgpSessionPlugin.class);
     }
 }

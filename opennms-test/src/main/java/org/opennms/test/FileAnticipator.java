@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2006-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -42,28 +42,29 @@ import java.util.List;
 import java.util.ListIterator;
 import java.util.Random;
 
-import junit.framework.Assert;
+import org.junit.Assert;
 import junit.framework.AssertionFailedError;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
-import org.opennms.core.utils.LogUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * File anticipator.
  *
  * Example usage with late initialization:
- * <pre>
- * private FileAnticipator m_fileAnticipator;
  *
  * @author <a href="mailto:dj@opennms.org">DJ Gregor</a>
- * @version $Id: $
  */
 public class FileAnticipator extends Assert {
+	
+	private static final Logger LOG = LoggerFactory.getLogger(FileAnticipator.class);
+
     private static final String JAVA_IO_TMPDIR = "java.io.tmpdir";
     
-    private LinkedList<File> m_expecting = new LinkedList<File>();
-    private LinkedList<File> m_deleteMe = new LinkedList<File>();
+    private List<File> m_expecting = new LinkedList<File>();
+    private List<File> m_deleteMe = new LinkedList<File>();
     private File m_tempDir = null;
     private boolean m_initialized = false;
     
@@ -88,10 +89,12 @@ public class FileAnticipator extends Assert {
         }
     }
     
-    /** {@inheritDoc} */
+    /** {@inheritDoc} 
+     * @throws Throwable */
     @Override
-    protected void finalize() {
+    protected void finalize() throws Throwable {
         tearDown();
+        super.finalize();
     }
 
     /**
@@ -132,10 +135,10 @@ public class FileAnticipator extends Assert {
             		FileUtils.forceDelete(m_tempDir);
             		return;
             	} catch (final IOException innerThrowable) {
-                    LogUtils.warnf(this, innerThrowable, "an error occurred while forcibly removing temporary directory %s", m_tempDir);
+                    LOG.warn("an error occurred while forcibly removing temporary directory {}", m_tempDir, innerThrowable);
                 }
             } else {
-            	LogUtils.warnf(this, t, "does not exist? %s", m_tempDir);
+            	LOG.warn("does not exist? {}", m_tempDir, t);
             }
             if (t instanceof RuntimeException) {
                 throw (RuntimeException) t;
@@ -192,7 +195,7 @@ public class FileAnticipator extends Assert {
             fail("Could not initialize SecureRandom: " + e);
         }*/
         
-        byte bytes[] = new byte[length];
+        byte[] bytes = new byte[length];
         random.nextBytes(bytes);
         
         StringBuffer sb = new StringBuffer();
@@ -443,6 +446,7 @@ public class FileAnticipator extends Assert {
         assertInitialized();
 
         Collections.sort(m_expecting, new Comparator<File>() {
+            @Override
             public int compare(File a, File b) {
                 return a.getAbsolutePath().compareTo(b.getAbsolutePath());
             }
@@ -493,6 +497,16 @@ public class FileAnticipator extends Assert {
      */
     public boolean isInitialized() {
         return m_initialized;
+    }
+
+    public boolean foundExpected() {
+        LOG.debug("checking for {} expected files...", m_expecting.size());
+        for (final File expected : m_expecting) {
+            if (!expected.exists()) {
+                return false;
+            }
+        }
+        return true;
     }
     
 }

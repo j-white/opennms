@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2003-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -32,13 +32,14 @@ import java.io.IOException;
 import java.io.InterruptedIOException;
 import java.net.InetAddress;
 import java.util.Map;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 
-import org.apache.regexp.RE;
-import org.apache.regexp.RESyntaxException;
 import org.opennms.core.utils.ExecRunner;
 import org.opennms.core.utils.InetAddressUtils;
 import org.opennms.core.utils.ParameterMap;
-import org.opennms.core.utils.ThreadCategory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.opennms.netmgt.capsd.AbstractPlugin;
 
 /**
@@ -56,6 +57,7 @@ import org.opennms.netmgt.capsd.AbstractPlugin;
  * @author <a href="mailto:ayres@net.orst.edu">Bill Ayres</a>
  */
 public final class GpPlugin extends AbstractPlugin {
+    private static final Logger LOG = LoggerFactory.getLogger(GpPlugin.class);
     /**
      * The protocol supported by the plugin
      */
@@ -80,7 +82,7 @@ public final class GpPlugin extends AbstractPlugin {
      * generate a banner line which contains the text from the banner or match
      * argument.
      * </P>
-     * 
+     *
      * @param host
      *            The host to pass to the script
      * @param retry
@@ -98,33 +100,33 @@ public final class GpPlugin extends AbstractPlugin {
      *            The option string passed to the exec for the IP address (hostname)
      * @param toption
      *            The option string passed to the exec for the timeout
-     * 
+     *
      * @return True if a connection is established with the script and the
      *         banner line returned by the script matches the regular expression
      *         regex.
      */
-    private boolean isServer(InetAddress host, int retry, int timeout, String script, String args, RE regex, StringBuffer bannerResult, String hoption, String toption) {
-        ThreadCategory log = ThreadCategory.getInstance(getClass());
+    private boolean isServer(InetAddress host, int retry, int timeout, String script, String args, Pattern regex, StringBuffer bannerResult, String hoption, String toption) {
 
         boolean isAServer = false;
 
-        log.debug("poll: address = " + InetAddressUtils.str(host) + ", script = " + script + ", arguments = " + args + ", timeout(seconds) = " + timeout + ", retry = " + retry);
+        LOG.debug("poll: address = {}, script = {}, arguments = {}, timeout(seconds) = {}, retry = {}", retry, InetAddressUtils.str(host), script, args, timeout);
 
         for (int attempts = 0; attempts <= retry && !isAServer; attempts++) {
             try {
                 int exitStatus = 100;
                 ExecRunner er = new ExecRunner();
                 er.setMaxRunTimeSecs(timeout);
-                if (args == null)
+                if (args == null) {
                     exitStatus = er.exec(script + " " + hoption + " " + InetAddressUtils.str(host) + " " + toption + " " + timeout);
-                else
+                } else {
                     exitStatus = er.exec(script + " " + hoption + " " + InetAddressUtils.str(host) + " " + toption + " " + timeout + " " + args);
+                }
                 if (exitStatus != 0) {
-                    log.debug(script + " failed with exit code " + exitStatus);
+                    LOG.debug("{} failed with exit code {}", script, exitStatus);
                     isAServer = false;
                 }
                 if (er.isMaxRunTimeExceeded()) {
-                    log.debug(script + " failed. Timeout exceeded");
+                    LOG.debug("{} failed. Timeout exceeded", script);
                     isAServer = false;
                 } else {
                     if (exitStatus == 0) {
@@ -132,27 +134,30 @@ public final class GpPlugin extends AbstractPlugin {
                         String error = "";
                         response = er.getOutString();
                         error = er.getErrString();
-                        if (response.equals(""))
-                            log.debug(script + " returned no output");
-                        if (!error.equals(""))
-                            log.debug(script + " error = " + error);
-                        if (regex == null || regex.match(response)) {
-                            if (log.isDebugEnabled())
-                                log.debug("isServer: matching response = " + response);
+                        if (response.equals("")) {
+                            LOG.debug("{} returned no output", script);
+                        }
+                        if (!error.equals("")) {
+                            LOG.debug("{} error = {}", script, error);
+                        }
+                        if (regex == null || regex.matcher(response).find()) {
+
+                            LOG.debug("isServer: matching response = {}", response);
                             isAServer = true;
-                            if (bannerResult != null)
+                            if (bannerResult != null) {
                                 bannerResult.append(response);
+                            }
                         } else {
                             isAServer = false;
-                            if (log.isDebugEnabled())
-                                log.debug("isServer: NON-matching response = " + response);
+
+                            LOG.debug("isServer: NON-matching response = {}", response);
                         }
                     }
                 }
             } catch (ArrayIndexOutOfBoundsException e) {
                 isAServer = false;
                 e.fillInStackTrace();
-                log.debug(script + " ArrayIndexOutOfBoundsException");
+                LOG.debug("{} ArrayIndexOutOfBoundsException", script);
             } catch (InterruptedIOException e) {
                 // This is an expected exception
                 //
@@ -160,18 +165,18 @@ public final class GpPlugin extends AbstractPlugin {
             } catch (IOException e) {
                 isAServer = false;
                 e.fillInStackTrace();
-                log.debug("IOException occurred. Check for proper operation of " + script);
+                LOG.debug("IOException occurred. Check for proper operation of {}", script);
             } catch (Throwable e) {
                 isAServer = false;
                 e.fillInStackTrace();
-                log.debug(script + " Exception occurred");
+                LOG.debug("{} Exception occurred", script);
             }
         }
 
         //
         // return the status of the server
         //
-        log.debug("poll: GP - isAServer = " + isAServer + "  " + InetAddressUtils.str(host));
+        LOG.debug("poll: GP - isAServer = {} {}", InetAddressUtils.str(host), isAServer);
         return isAServer;
     }
 
@@ -181,6 +186,7 @@ public final class GpPlugin extends AbstractPlugin {
      *
      * @return The protocol name for this plugin.
      */
+    @Override
     public String getProtocolName() {
         return PROTOCOL_NAME;
     }
@@ -191,6 +197,7 @@ public final class GpPlugin extends AbstractPlugin {
      * Returns true if the protocol defined by this plugin is supported. If the
      * protocol is not supported then a false value is returned to the caller.
      */
+    @Override
     public boolean isProtocolSupported(InetAddress address) {
         throw new UnsupportedOperationException("Undirected GP checking not supported");
     }
@@ -204,6 +211,7 @@ public final class GpPlugin extends AbstractPlugin {
      * additional information by key-name. These key-value pairs can be added to
      * service events if needed.
      */
+    @Override
     public boolean isProtocolSupported(InetAddress address, Map<String, Object> qualifiers) {
         int retry = DEFAULT_RETRY;
         int timeout = DEFAULT_TIMEOUT;
@@ -237,14 +245,14 @@ public final class GpPlugin extends AbstractPlugin {
 
         try {
             StringBuffer bannerResult = null;
-            RE regex = null;
+            Pattern regex = null;
             if (match == null && (banner == null || banner.equals("*"))) {
                 regex = null;
             } else if (match != null) {
-                regex = new RE(match);
+                regex = Pattern.compile(match);
                 bannerResult = new StringBuffer();
             } else if (banner != null) {
-                regex = new RE(banner);
+                regex = Pattern.compile(banner);
                 bannerResult = new StringBuffer();
             }
 
@@ -255,7 +263,7 @@ public final class GpPlugin extends AbstractPlugin {
             }
 
             return result;
-        } catch (RESyntaxException e) {
+        } catch (PatternSyntaxException e) {
             throw new java.lang.reflect.UndeclaredThrowableException(e);
         }
     }

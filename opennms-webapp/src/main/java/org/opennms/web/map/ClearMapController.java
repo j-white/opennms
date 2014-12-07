@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2007-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2006-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -39,14 +39,10 @@ import java.io.OutputStreamWriter;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-
-import org.opennms.core.utils.ThreadCategory;
-
-import org.opennms.web.map.MapsConstants;
-import org.opennms.web.map.view.*;
-
+import org.opennms.web.map.view.Manager;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.web.servlet.ModelAndView;
-import org.springframework.web.servlet.mvc.Controller;
 
 
 /**
@@ -59,8 +55,11 @@ import org.springframework.web.servlet.mvc.Controller;
  * @version $Id: $
  * @since 1.8.1
  */
-public class ClearMapController implements Controller {
-	ThreadCategory log;
+public class ClearMapController extends MapsLoggingController {
+	
+	private static final Logger LOG = LoggerFactory.getLogger(ClearMapController.class);
+
+
 
 	private Manager manager;
 	
@@ -84,11 +83,10 @@ public class ClearMapController implements Controller {
 	}
 
 	/** {@inheritDoc} */
-	public ModelAndView handleRequest(HttpServletRequest request, HttpServletResponse response) throws IOException {
-		
-		ThreadCategory.setPrefix(MapsConstants.LOG4J_CATEGORY);
-		log = ThreadCategory.getInstance(this.getClass());
-		log.info("Clearing map.");
+        @Override
+	protected ModelAndView handleRequestInternal(HttpServletRequest request, HttpServletResponse response) throws IOException {
+
+		LOG.info("Clearing map.");
 		BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(response
 					.getOutputStream(), "UTF-8"));
 	
@@ -96,7 +94,7 @@ public class ClearMapController implements Controller {
 			manager.clearMap();
 			bw.write(ResponseAssembler.getActionOKMapResponse(MapsConstants.CLEAR_ACTION));
 		} catch (Throwable e) {
-			log.error("Error while doing clear map ",e);
+			LOG.error("Error while doing clear map ",e);
 			bw.write(ResponseAssembler.getMapErrorResponse(MapsConstants.CLEAR_ACTION));
 		} finally {
 			bw.close();

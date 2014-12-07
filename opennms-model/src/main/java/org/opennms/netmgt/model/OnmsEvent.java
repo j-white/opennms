@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2006-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -54,9 +54,12 @@ import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.bind.annotation.XmlTransient;
 import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 
+import org.codehaus.jackson.annotate.JsonIgnore;
+import org.codehaus.jackson.annotate.JsonIgnoreProperties;
+import org.hibernate.ObjectNotFoundException;
 import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.Type;
-import org.opennms.core.xml.bind.InetAddressXmlAdapter;
+import org.opennms.core.network.InetAddressXmlAdapter;
 import org.springframework.core.style.ToStringCreator;
 
 /**
@@ -66,6 +69,7 @@ import org.springframework.core.style.ToStringCreator;
 @Entity
 @Table(name="events")
 @Filter(name=FilterManager.AUTH_FILTER_NAME, condition="exists (select distinct x.nodeid from node x join category_node cn on x.nodeid = cn.nodeid join category_group cg on cn.categoryId = cg.categoryId where x.nodeid = nodeid and cg.groupId in (:userGroups))")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class OnmsEvent extends OnmsEntity implements Serializable {
 
 	/**
@@ -336,7 +340,7 @@ public class OnmsEvent extends OnmsEntity implements Serializable {
     @XmlAttribute(name="id")
     @Column(name="eventId", nullable=false)
     @SequenceGenerator(name="eventSequence", sequenceName="eventsNxtId")
-    @GeneratedValue(generator="eventSequence")    
+    @GeneratedValue(generator="eventSequence")
 	public Integer getId() {
 		return m_eventId;
 	}
@@ -1023,20 +1027,36 @@ public class OnmsEvent extends OnmsEntity implements Serializable {
 	 *
 	 * @return a {@link org.opennms.netmgt.model.OnmsNode} object.
 	 */
-	@XmlIDREF
-	@XmlElement(name="nodeId")
+	@XmlTransient
+	@JsonIgnore
 	@ManyToOne(fetch=FetchType.LAZY)
 	@JoinColumn(name="nodeId")
 	public OnmsNode getNode() {
 		return m_node;
 	}
 
-	@Transient
-	@XmlElement(name="nodeLabel", required=false)
-	public String getNodeLabel() {
-	    if (m_node == null) return null;
-	    return m_node.getLabel();
-	}
+    @Transient
+    @XmlElement(name="nodeId")
+    public Integer getNodeId() {
+        try {
+            return m_node != null ? m_node.getId() : null;
+        } catch (ObjectNotFoundException e) {
+            return null;
+        }
+    }
+
+
+    @Transient
+    @XmlElement(name="nodeLabel", required=false)
+    public String getNodeLabel() {
+        try{
+            if (m_node == null) return null;
+            return m_node.getLabel();
+        } catch (ObjectNotFoundException e){
+            return "";
+        }
+
+    }
 
 	/**
 	 * <p>setNode</p>
@@ -1112,12 +1132,15 @@ public class OnmsEvent extends OnmsEntity implements Serializable {
 	 *
 	 * @return a {@link java.lang.String} object.
 	 */
+        @Override
 	public String toString() {
 		return new ToStringCreator(this).append("eventid", getId())
+		        .append("eventuei", getEventUei())
 				.toString();
 	}
 
 	/** {@inheritDoc} */
+        @Override
 	public void visit(EntityVisitor visitor) {
 		throw new RuntimeException("visitor method not implemented");
 	}

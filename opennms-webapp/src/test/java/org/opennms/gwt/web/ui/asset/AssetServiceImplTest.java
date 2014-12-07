@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2011-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2011-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -34,6 +34,7 @@ import static org.junit.Assert.assertTrue;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Date;
+import java.util.HashSet;
 
 import org.junit.After;
 import org.junit.Before;
@@ -42,17 +43,18 @@ import org.junit.runner.RunWith;
 import org.opennms.core.test.OpenNMSJUnit4ClassRunner;
 import org.opennms.core.test.db.TemporaryDatabaseExecutionListener;
 import org.opennms.core.test.db.annotations.JUnitTemporaryDatabase;
+import org.opennms.core.utils.WebSecurityUtils;
 import org.opennms.gwt.web.ui.asset.server.AssetServiceImpl;
 import org.opennms.gwt.web.ui.asset.shared.AssetCommand;
-import org.opennms.netmgt.dao.AssetRecordDao;
 import org.opennms.netmgt.dao.DatabasePopulator;
-import org.opennms.netmgt.dao.DistPollerDao;
-import org.opennms.netmgt.dao.NodeDao;
+import org.opennms.netmgt.dao.api.AssetRecordDao;
+import org.opennms.netmgt.dao.api.DistPollerDao;
+import org.opennms.netmgt.dao.api.NodeDao;
 import org.opennms.netmgt.model.OnmsAssetRecord;
 import org.opennms.netmgt.model.OnmsNode;
 import org.opennms.test.JUnitConfigurationEnvironment;
 import org.opennms.test.OpenNMSConfigurationExecutionListener;
-import org.opennms.web.springframework.security.Authentication;
+import org.opennms.web.api.Authentication;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -76,13 +78,12 @@ import org.springframework.test.context.transaction.TransactionalTestExecutionLi
 		DirtiesContextTestExecutionListener.class,
 		TransactionalTestExecutionListener.class })
 @ContextConfiguration(locations = {
+		"classpath:/META-INF/opennms/applicationContext-commonConfigs.xml",
 		"classpath:/META-INF/opennms/applicationContext-soa.xml",
-		"classpath:/META-INF/opennms/applicationContext-dao.xml",
-		"classpath:/META-INF/opennms/applicationContext-databasePopulator.xml",
-		"classpath:/META-INF/opennms/applicationContext-setupIpLike-enabled.xml",
-		"classpath*:/META-INF/opennms/component-dao.xml" })
-@JUnitTemporaryDatabase
+	        "classpath:/META-INF/opennms/applicationContext-mockDao.xml",
+		"classpath*:/META-INF/opennms/component-dao.xml"})
 @JUnitConfigurationEnvironment
+@JUnitTemporaryDatabase
 public class AssetServiceImplTest implements InitializingBean {
 
 	@Autowired
@@ -134,7 +135,7 @@ public class AssetServiceImplTest implements InitializingBean {
 
 	@Override
 	public void afterPropertiesSet() throws Exception {
-	    org.opennms.core.utils.BeanUtils.assertAutowiring(this);
+	    org.opennms.core.spring.BeanUtils.assertAutowiring(this);
 	}
 
 	@Before
@@ -329,5 +330,51 @@ public class AssetServiceImplTest implements InitializingBean {
 		assetServiceImpl.setNodeDao(m_nodeDao);
 		assetServiceImpl.setAssetRecordDao(m_assetRecordDao);
 		System.out.println("Asset: " + assetServiceImpl.getAssetByNodeId(onmsNode.getId()));
+	}
+
+	@Test
+	public void testBasicBeanSanitizer() {
+		CommandBeanMockup bean = new CommandBeanMockup();
+		bean = (CommandBeanMockup) AssetServiceImpl
+				.sanitizeBeanStringProperties(bean, null);
+
+		assertTrue("Script property is sanitized",
+				WebSecurityUtils.sanitizeString("<script>foo</script>", false)
+						.equals(bean.getScript()));
+		assertTrue("Script property is not sanitized with Html allowed",
+				!WebSecurityUtils.sanitizeString("<script>foo</script>", true)
+						.equals(bean.getScript()));
+
+		assertTrue("HtmlTable is sanitized and html removed", WebSecurityUtils
+				.sanitizeString("<table>", false).equals(bean.getHtmlTable()));
+		assertTrue(
+				"Not, HtmlTable is sanitized with Html allowed",
+				!WebSecurityUtils.sanitizeString("<table>", true).equals(
+						bean.getHtmlTable()));
+	}
+
+	@Test
+	public void testBeanSanitizerWithHtmlAllowList() {
+		CommandBeanMockup bean = new CommandBeanMockup();
+		HashSet<String> set = new HashSet<String>();
+		set.add("htmltable");
+		bean = (CommandBeanMockup) AssetServiceImpl
+				.sanitizeBeanStringProperties(bean, set);
+
+		assertTrue("Script property is sanitized no Html allowed",
+				WebSecurityUtils.sanitizeString("<script>foo</script>", false)
+						.equals(bean.getScript()));
+		assertTrue("Not, Script property is sanitized with Html allowed",
+				!WebSecurityUtils.sanitizeString("<script>foo</script>", true)
+						.equals(bean.getScript()));
+
+		assertTrue(
+				"HtmlTable is sanitzied with Html allowed so, no changes",
+				WebSecurityUtils.sanitizeString("<table>", true).equals(
+						bean.getHtmlTable()));
+		assertTrue(
+				"Not, HtmlTable is sanitized and html removed",
+				!WebSecurityUtils.sanitizeString("<table>", false).equals(
+						bean.getHtmlTable()));
 	}
 }

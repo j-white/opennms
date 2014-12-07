@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2002-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -30,8 +30,10 @@ package org.opennms.netmgt.collectd;
 
 import java.io.File;
 
-import org.opennms.netmgt.config.collector.ServiceParameters;
-import org.opennms.netmgt.model.RrdRepository;
+import org.opennms.netmgt.collection.api.CollectionAgent;
+import org.opennms.netmgt.collection.api.CollectionResource;
+import org.opennms.netmgt.collection.api.ServiceParameters;
+import org.opennms.netmgt.rrd.RrdRepository;
 
 
 /**
@@ -41,21 +43,18 @@ import org.opennms.netmgt.model.RrdRepository;
  *
  * @author <a href="mailto:mike@opennms.org">Mike Davidson </a>
  * @author <a href="http://www.opennms.org/">OpenNMS </a>
- * @author <a href="mailto:mike@opennms.org">Mike Davidson </a>
- * @author <a href="http://www.opennms.org/">OpenNMS </a>
- * @version $Id: $
  */
 public final class NodeInfo extends SnmpCollectionResource {
 
 	private SNMPCollectorEntry m_entry;
-    private int m_nodeId;
-    private CollectionAgent m_agent;
+    private final int m_nodeId;
+    private final CollectionAgent m_agent;
 
     /**
      * <p>Constructor for NodeInfo.</p>
      *
      * @param def a {@link org.opennms.netmgt.collectd.NodeResourceType} object.
-     * @param agent a {@link org.opennms.netmgt.collectd.CollectionAgent} object.
+     * @param agent a {@link org.opennms.netmgt.collection.api.CollectionAgent} object.
      */
     public NodeInfo(NodeResourceType def, CollectionAgent agent) {
         super(def);
@@ -68,11 +67,13 @@ public final class NodeInfo extends SnmpCollectionResource {
       *
       * @return a int.
       */
-     public int getType() {
+        @Override
+     public int getSnmpIfType() {
         return -1;
     }
 
     /** {@inheritDoc} */
+        @Override
     public File getResourceDir(RrdRepository repository) {
         File rrdBaseDir = repository.getRrdBaseDir();
         return new File(rrdBaseDir, getCollectionAgent().getStorageDir().toString());
@@ -83,6 +84,7 @@ public final class NodeInfo extends SnmpCollectionResource {
      *
      * @return a {@link java.lang.String} object.
      */
+        @Override
     public String toString() {
         return "node["+m_nodeId+']';
     }
@@ -106,6 +108,7 @@ public final class NodeInfo extends SnmpCollectionResource {
     }
 
     /** {@inheritDoc} */
+        @Override
     public boolean shouldPersist(ServiceParameters params) {
         return true;
     }
@@ -115,8 +118,9 @@ public final class NodeInfo extends SnmpCollectionResource {
      *
      * @return a {@link java.lang.String} object.
      */
+        @Override
     public String getResourceTypeName() {
-        return "node"; //This is a nodeInfo; must be a node type resource
+        return CollectionResource.RESOURCE_TYPE_NODE; //This is a nodeInfo; must be a node type resource
     }
     
     
@@ -125,6 +129,7 @@ public final class NodeInfo extends SnmpCollectionResource {
      *
      * @return a {@link java.lang.String} object.
      */
+        @Override
     public String getInstance() {
         return null; //For node type resources, use the default instance
     }
@@ -134,10 +139,12 @@ public final class NodeInfo extends SnmpCollectionResource {
      *
      * @return a {@link java.lang.String} object.
      */
-    public String getLabel() {
+        @Override
+    public String getInterfaceLabel() {
         return null;
     }
 
+        @Override
     public String getParent() {
         return m_agent.getStorageDir().toString();
     }

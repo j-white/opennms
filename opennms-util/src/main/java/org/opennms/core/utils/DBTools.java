@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2011-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2003-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -30,7 +30,6 @@ package org.opennms.core.utils;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.regex.PatternSyntaxException;
 
 /**
  * This class is intended to be group some utility classes related with RDBMS
@@ -51,7 +50,7 @@ public class DBTools {
      * 
      * @see #constructUrl
      */
-    public static final String JDBC_HOST = "OPENNMS_JDBC_HOSTNAME";
+    private static final String JDBC_HOST = "OPENNMS_JDBC_HOSTNAME";
 
     /**
      * Minimal port range
@@ -126,12 +125,12 @@ public class DBTools {
      */
     public int getNumberOfInstances() {
         return _counter;
-    };
+    }
 
     /**
      * Constructs a JDBC url given a set of fragments. The resulting Url will
      * have the form: <br>
-     * <code>jdbc:<protocol:<b>hostname</b>:<b>4100</b></code>
+     * <code>jdbc:&lt;protocol&gt;:<b>hostname</b>:<b>4100</b></code>
      *
      * @param hostname_
      *            The hostname where the database server is
@@ -154,13 +153,9 @@ public class DBTools {
         if (hostname_ == null) {
             throw new NullPointerException(DBTools.class.getName() + ": hostname cannot be null");
         }
-        try {
-            Matcher match = _pattern.matcher(url_);
-            url = match.replaceFirst(hostname_);
-        } catch (PatternSyntaxException patternExp) {
-            throw patternExp;
-        }
+        Matcher match = _pattern.matcher(url_);
+        url = match.replaceFirst(hostname_);
         return url;
     }
 
-} // End of class
+}

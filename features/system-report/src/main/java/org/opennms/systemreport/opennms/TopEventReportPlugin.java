@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2010-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2010-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -28,13 +28,14 @@
 
 package org.opennms.systemreport.opennms;
 
+import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 
-import org.opennms.core.utils.BeanUtils;
+import org.opennms.core.spring.BeanUtils;
+import org.opennms.netmgt.dao.api.CountedObject;
+import org.opennms.netmgt.dao.api.EventCountDao;
 import org.opennms.systemreport.AbstractSystemReportPlugin;
-import org.opennms.systemreport.dao.CountedObject;
-import org.opennms.systemreport.dao.EventCountDao;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ByteArrayResource;
@@ -49,19 +50,23 @@ public class TopEventReportPlugin extends AbstractSystemReportPlugin implements 
         BeanUtils.assertAutowiring(this);
     }
 
+    @Override
     public String getName() {
         return "TopEvent";
     }
 
+    @Override
     public String getDescription() {
         return "Top 20 most reported events";
     }
 
+    @Override
     public int getPriority() {
         return 4;
     }
 
-    public TreeMap<String, Resource> getEntries() {
+    @Override
+    public Map<String, Resource> getEntries() {
         final TreeMap<String,Resource> map = new TreeMap<String,Resource>();
 
         if (m_eventCountDao != null) {

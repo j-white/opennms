@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2011-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2011-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -39,7 +39,7 @@ import org.opennms.protocols.snmp.asn1.AsnEncodingException;
  * of 8-bit octet data. The format of the 8-bit characters are defined by the
  * application.
  * 
- * @author <a href="mailto:weave@oculan.com>Brian Weaver </a>
+ * @author Brian Weaver
  */
 public class SnmpOctetString extends Object implements SnmpSyntax, Cloneable, Serializable {
     /**
@@ -70,8 +70,8 @@ public class SnmpOctetString extends Object implements SnmpSyntax, Cloneable, Se
      * @param data
      *            The new data buffer.
      */
-    protected void assumeString(byte[] data) {
-        m_data = data;
+    protected void assumeString(final byte[] data) {
+        m_data = data == null? data : data.clone();
     }
 
     /**
@@ -180,6 +180,7 @@ public class SnmpOctetString extends Object implements SnmpSyntax, Cloneable, Se
      * @return The ASN.1 identifier.
      * 
      */
+    @Override
     public byte typeId() {
         return ASNTYPE;
     }
@@ -201,6 +202,7 @@ public class SnmpOctetString extends Object implements SnmpSyntax, Cloneable, Se
      * @exception AsnEncodingException
      *                Thrown if the encoder finds an error in the buffer.
      */
+    @Override
     public int encodeASN(byte[] buf, int offset, AsnEncoder encoder) throws AsnEncodingException {
         if (m_data == null)
             throw new AsnEncodingException("No data in octet string");
@@ -228,6 +230,7 @@ public class SnmpOctetString extends Object implements SnmpSyntax, Cloneable, Se
      *                Thrown by the encoder if an error occurs trying to decode
      *                the data buffer.
      */
+    @Override
     public int decodeASN(byte[] buf, int offset, AsnEncoder encoder) throws AsnDecodingException {
         Object[] rVals = encoder.parseString(buf, offset);
 
@@ -245,6 +248,7 @@ public class SnmpOctetString extends Object implements SnmpSyntax, Cloneable, Se
      * @return A newly constructed copy of self
      * 
      */
+    @Override
     public SnmpSyntax duplicate() {
         return new SnmpOctetString(this);
     }
@@ -255,6 +259,7 @@ public class SnmpOctetString extends Object implements SnmpSyntax, Cloneable, Se
      * @return A newly constructed copy of self
      * 
      */
+    @Override
     public Object clone() {
         return new SnmpOctetString(this);
     }
@@ -264,6 +269,7 @@ public class SnmpOctetString extends Object implements SnmpSyntax, Cloneable, Se
      * non-printable characters then the contents are printed in hexidecimal.
      * 
      */
+    @Override
     public String toString() {
         //
         // check for non-printable characters. If they
@@ -331,7 +337,7 @@ public class SnmpOctetString extends Object implements SnmpSyntax, Cloneable, Se
             return null;
         }
     
-        byte bytes[] = octetString.getString();
+        byte[] bytes = octetString.getString();
     
         // Sanity check
         if (bytes == null || bytes.length == 0) {
@@ -348,7 +354,7 @@ public class SnmpOctetString extends Object implements SnmpSyntax, Cloneable, Se
         // decimal range 32 - 126 inclusive) with an
         // ASCII period char (decimal 46).
         // 
-        byte newBytes[] = new byte[bytes.length];
+        byte[] newBytes = new byte[bytes.length];
         for (int i = 0; i < bytes.length; i++) {
             newBytes[i] = Character.isISOControl((char)bytes[i]) ? (byte)'.' : bytes[i];
         }
@@ -359,20 +365,20 @@ public class SnmpOctetString extends Object implements SnmpSyntax, Cloneable, Se
     }
 
     // TODO: Move this to common base class
-    public static String toHexString(SnmpOctetString ostr) {
+    public static String toHexString(final SnmpOctetString ostr) {
         if (ostr == null) return null;
         StringBuffer sbuf = new StringBuffer();
-        if (ostr != null && ostr.getLength() > 0) {
+        if (ostr.getLength() > 0) {
             byte[] bytes = ostr.getString();
             for (int i = 0; i < bytes.length; i++) {
                 sbuf.append(Integer.toHexString(((int) bytes[i] >> 4) & 0xf));
                 sbuf.append(Integer.toHexString((int) bytes[i] & 0xf));
             }
         }
-        String physAddr = sbuf.toString().trim();
-        return physAddr;
+        return sbuf.toString().trim();
     }
 
+    @Override
     public boolean equals(Object obj) {
         if (obj instanceof SnmpOctetString) {
             SnmpOctetString str = (SnmpOctetString)obj;
@@ -389,6 +395,7 @@ public class SnmpOctetString extends Object implements SnmpSyntax, Cloneable, Se
         return false;
     }
 
+    @Override
     public int hashCode() {
         return 0;
     }

@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2011 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2011 The OpenNMS Group, Inc.
+ * Copyright (C) 2012-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -31,18 +31,20 @@ package org.opennms.netmgt.notifd;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
+
 import org.apache.commons.lang.StringUtils;
-import org.opennms.core.utils.Argument;
-import org.opennms.core.utils.ThreadCategory;
-import org.opennms.netmgt.EventConstants;
-import org.opennms.netmgt.model.events.EventBuilder;
-import org.opennms.netmgt.xml.eventconf.AlarmData;
-import org.opennms.netmgt.xml.eventconf.Event;
 import org.opennms.core.db.DataSourceFactory;
 import org.opennms.netmgt.config.DefaultEventConfDao;
-import org.opennms.netmgt.model.events.EventIpcManager;
+import org.opennms.netmgt.events.api.EventConstants;
+import org.opennms.netmgt.events.api.EventIpcManager;
+import org.opennms.netmgt.events.api.EventIpcManagerFactory;
+import org.opennms.netmgt.model.events.EventBuilder;
+import org.opennms.netmgt.model.notifd.Argument;
 import org.opennms.netmgt.model.notifd.NotificationStrategy;
-import org.opennms.netmgt.eventd.EventIpcManagerFactory;
+import org.opennms.netmgt.xml.eventconf.AlarmData;
+import org.opennms.netmgt.xml.eventconf.Event;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowCallbackHandler;
 
@@ -54,8 +56,9 @@ import org.springframework.jdbc.core.RowCallbackHandler;
  * @version $Id: $
  */
 public class TicketNotificationStrategy implements NotificationStrategy {
+
+	private static final Logger LOG = LoggerFactory.getLogger(TicketNotificationStrategy.class);
 	private EventIpcManager m_eventManager;
-	private List<Argument> m_arguments;
 	private DefaultEventConfDao m_eventConfDao;
 	
 	enum AlarmType {
@@ -94,11 +97,12 @@ public class TicketNotificationStrategy implements NotificationStrategy {
 		}
 	}
 	
-	protected class AlarmStateRowCallbackHandler implements RowCallbackHandler {
+	protected static class AlarmStateRowCallbackHandler implements RowCallbackHandler {
 		AlarmState m_alarmState;
 		public AlarmStateRowCallbackHandler() {
 			m_alarmState = null;
 		}
+                @Override
         public void processRow(ResultSet rs) throws SQLException {
         	m_alarmState = new AlarmState(rs.getInt(1), rs.getString(2), rs.getInt(3));
         }
@@ -112,16 +116,15 @@ public class TicketNotificationStrategy implements NotificationStrategy {
 	}
 
     /** {@inheritDoc} */
+        @Override
 	public int send(List<Argument> arguments) {
         String eventID = null;
         String eventUEI = null;
         String noticeID = null;
         
-        m_arguments = arguments;
-        
         // Pull the arguments we're interested in from the list.
-        for (Argument arg : m_arguments) {
-        	log().debug("arguments: "+arg.getSwitch() +" = "+arg.getValue());
+        for (Argument arg : arguments) {
+		LOG.debug("arguments: {} = {}", arg.getSwitch(), arg.getValue());
         	
             if ("eventID".equalsIgnoreCase(arg.getSwitch())) {
             	eventID = arg.getValue();
@@ -134,34 +137,31 @@ public class TicketNotificationStrategy implements NotificationStrategy {
         
         // Make sure we have the arguments we need.
         if( StringUtils.isBlank(eventID) ) {
-        	log().error("There is no event-id associated with the notice-id='" + noticeID + "'. Cannot create ticket.");
+		LOG.error("There is no event-id associated with the notice-id='{}'. Cannot create ticket.", noticeID);
         	return 1;
         } else if( StringUtils.isBlank(eventUEI) ) {
-        	log().error("There is no event-uei associated with the notice-id='" + noticeID + "'. Cannot create ticket.");
+		LOG.error("There is no event-uei associated with the notice-id='{}'. Cannot create ticket.", noticeID);
         	return 1;
         }
         
         // Determine the type of alarm based on the UEI.
         AlarmType alarmType = getAlarmTypeFromUEI(eventUEI);
         if( alarmType == AlarmType.NOT_AN_ALARM ) {
-        	log().warn("The event type associated with the notice-id='" + noticeID + "' is not an alarm. Will not create ticket.");
+		LOG.warn("The event type associated with the notice-id='{}' is not an alarm. Will not create ticket.", noticeID);
         	return 0;
         }
         
         // We know the event is an alarm, pull the alarm and current ticket details from the database
         AlarmState alarmState = getAlarmStateFromEvent(Integer.parseInt(eventID));
         if( alarmState.getAlarmID() == 0 ) {
-        	log().error("There is no alarm-id associated with the event-id='" + eventID + "'. Will not create ticket.");
+		LOG.error("There is no alarm-id associated with the event-id='{}'. Will not create ticket.", eventID);
         	return 1;
         }
         
         /* Log everything we know so far.
          * The tticketid and tticketstate are only informational.
          */
-        log().info("Got event-uei='"+ eventUEI +"' with event-id='" + eventID + 
-        			  "', notice-id='" + noticeID + "', alarm-type='" + alarmType +
-        			  "', alarm-id='" + alarmState.getAlarmID() + "', tticket-id='" + alarmState.getTticketID() +
-        			  "'and tticket-state='" + alarmState.getTticketState() + "'");
+        LOG.info("Got event-uei='{}' with event-id='{}', notice-id='{}', alarm-type='{}', alarm-id='{}', tticket-id='{}'and tticket-state='{}'", eventUEI, eventID, noticeID, alarmType, alarmState.getAlarmID(), alarmState.getTticketID(), alarmState.getTticketState());
         
         sendCreateTicketEvent(alarmState.getAlarmID(), eventUEI);
 
@@ -212,9 +212,7 @@ public class TicketNotificationStrategy implements NotificationStrategy {
      * @return
      */
 	public void sendCreateTicketEvent(int alarmID, String alarmUEI) {
-        if (log().isDebugEnabled()) {
-            log().debug("Sending create ticket for alarm '" + alarmUEI + "' with id=" + alarmID);
-        }
+        LOG.debug("Sending create ticket for alarm '{}' with id={}", alarmUEI, alarmID);
         EventBuilder ebldr = new EventBuilder(EventConstants.TROUBLETICKET_CREATE_UEI, getName());
         ebldr.addParam(EventConstants.PARM_ALARM_ID, alarmID);
         // These fields are required by the trouble ticketer, but not used
@@ -222,15 +220,6 @@ public class TicketNotificationStrategy implements NotificationStrategy {
         ebldr.addParam(EventConstants.PARM_USER, "admin");
         m_eventManager.sendNow(ebldr.getEvent());
 	}
-	
-    /**
-     * <p>Helper function to log</p>
-     *
-     * @return a {@link org.opennms.core.utils.ThreadCategory} object.
-     */
-    protected ThreadCategory log() {
-        return ThreadCategory.getInstance(getClass());
-    }
 	
     /**
      * <p>Return an id for this notification strategy</p>

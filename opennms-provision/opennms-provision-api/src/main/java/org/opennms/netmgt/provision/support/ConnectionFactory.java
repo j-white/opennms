@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2011-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2011-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -37,7 +37,8 @@ import org.apache.mina.core.future.ConnectFuture;
 import org.apache.mina.core.service.IoHandler;
 import org.apache.mina.core.session.IoSessionInitializer;
 import org.apache.mina.transport.socket.nio.NioSocketConnector;
-import org.opennms.core.utils.LogUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * <p>
@@ -58,6 +59,7 @@ import org.opennms.core.utils.LogUtils;
  */
 public abstract class ConnectionFactory {
     
+    private static final Logger LOG = LoggerFactory.getLogger(ConnectionFactory.class);
 	/** Map of timeoutInMillis to a ConnectionFactory with that timeout */
     private static final ConcurrentHashMap<Integer, ConnectionFactory> s_connectorPool = new ConcurrentHashMap<Integer, ConnectionFactory>();
 	
@@ -99,7 +101,7 @@ public abstract class ConnectionFactory {
         synchronized (s_connectorPool) {
             ConnectionFactory factory = s_connectorPool.get(timeoutInMillis);
             if (factory == null) {
-                LogUtils.debugf(ConnectionFactoryConnectorPoolImpl.class, "Creating a ConnectionFactory for timeout %d, there are %d factories total", timeoutInMillis, s_connectorPool.size());
+                LOG.debug("Creating a ConnectionFactory for timeout {}, there are {} factories total", timeoutInMillis, s_connectorPool.size());
                 ConnectionFactory newFactory = createConnectionFactory(timeoutInMillis);
                 factory = s_connectorPool.putIfAbsent(timeoutInMillis, newFactory);
                 // If there was no previous value for the factory in the map...
@@ -107,7 +109,7 @@ public abstract class ConnectionFactory {
                     // ...then use the new value.
                     factory = newFactory;
                 } else {
-                    LogUtils.debugf(ConnectionFactoryConnectorPoolImpl.class, "ConnectionFactory for timeout %d was already created in another thread!", timeoutInMillis);
+                    LOG.debug("ConnectionFactory for timeout {} was already created in another thread!", timeoutInMillis);
                     // Dispose of the new unused factory
                     dispose(newFactory);
                 }
@@ -164,7 +166,7 @@ public abstract class ConnectionFactory {
         if (--factory.m_references <= 0) {
             // ... then remove it from the map of available connectors 
             synchronized (s_connectorPool) {
-                LogUtils.debugf(factory, "Disposing of factory %s for interval %d", factory, factory.m_timeout);
+                LOG.debug("Disposing of factory {} for interval {}", factory, factory.m_timeout);
                 Iterator<Entry<Integer, ConnectionFactory>> i = s_connectorPool.entrySet().iterator();
                 while(i.hasNext()) {
                     if(i.next().getValue() == factory) {

@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2007-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2007-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -37,13 +37,14 @@ import java.util.TreeMap;
 
 import org.exolab.castor.xml.ValidationException;
 import org.opennms.core.utils.InetAddressUtils;
-import org.opennms.core.utils.ThreadCategory;
 import org.opennms.netmgt.capsd.CapsdProtocolInfo.Action;
 import org.opennms.netmgt.config.CapsdConfig;
 import org.opennms.netmgt.config.capsd.Property;
 import org.opennms.netmgt.config.capsd.ProtocolConfiguration;
 import org.opennms.netmgt.config.capsd.ProtocolPlugin;
 import org.opennms.netmgt.config.capsd.Range;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.util.Assert;
 
@@ -54,6 +55,9 @@ import org.springframework.util.Assert;
  * @version $Id: $
  */
 public class PluginManager implements InitializingBean {
+    
+    private static final Logger LOG = LoggerFactory.getLogger(PluginManager.class);
+    
     private CapsdConfig m_capsdConfig;
 
     /**
@@ -97,14 +101,10 @@ public class PluginManager implements InitializingBean {
                 }
             } catch (Throwable t) {
                 String message = "CapsdConfigFactory: failed to load plugin for protocol " + plugin.getProtocol() + ", class-name = " + plugin.getClassName() + ", exception = " + t; 
-                log().error(message, t);
+                LOG.error(message, t);
                 throw new ValidationException(message, t);
             }
         }
-    }
-
-    private ThreadCategory log() {
-        return ThreadCategory.getInstance(getClass());
     }
 
     /**
@@ -157,14 +157,14 @@ public class PluginManager implements InitializingBean {
                     InetAddress start = null;
                     start = InetAddressUtils.addr(rng.getBegin());
                     if (start == null) {
-                        log().warn("CapsdConfigFactory: failed to convert address " + rng.getBegin() + " to InetAddress");
+                        LOG.warn("CapsdConfigFactory: failed to convert address {} to InetAddress", rng.getBegin());
                         continue;
                     }
     
                     InetAddress stop = null;
                     stop = InetAddressUtils.addr(rng.getEnd());
                     if (stop == null) {
-                        log().warn("CapsdConfigFactory: failed to convert address " + rng.getEnd() + " to InetAddress");
+                        LOG.warn("CapsdConfigFactory: failed to convert address {} to InetAddress", rng.getEnd());
                         continue;
                     }
     

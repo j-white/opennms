@@ -1,48 +1,42 @@
-/*
- * This file is part of the OpenNMS(R) Application.
+/*******************************************************************************
+ * This file is part of OpenNMS(R).
  *
- * OpenNMS(R) is Copyright (C) 2008 The OpenNMS Group, Inc.  All rights reserved.
- * OpenNMS(R) is a derivative work, containing both original code, included code and modified
- * code that was published under the GNU General Public License. Copyrights for modified
- * and included code are below.
+ * Copyright (C) 2012-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
- * Modifications:
- * 
- * Created: December 16, 2008
+ * OpenNMS(R) is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published
+ * by the Free Software Foundation, either version 3 of the License,
+ * or (at your option) any later version.
  *
- * Copyright (C) 2008 The OpenNMS Group, Inc.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
+ * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ * You should have received a copy of the GNU Affero General Public License
+ * along with OpenNMS(R).  If not, see:
+ *      http://www.gnu.org/licenses/
  *
  * For more information contact:
- *      OpenNMS Licensing       <license@opennms.org>
- *      http://www.opennms.org/
- *      http://www.opennms.com/
- */
+ *     OpenNMS(R) Licensing <license@opennms.org>
+ *     http://www.opennms.org/
+ *     http://www.opennms.com/
+ *******************************************************************************/
+
 package org.opennms.netmgt.provision;
 
 import java.util.Date;
 
 import org.apache.commons.lang.StringUtils;
 
-import org.opennms.core.utils.ThreadCategory;
-import org.opennms.netmgt.EventConstants;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.opennms.netmgt.events.api.EventConstants;
+import org.opennms.netmgt.events.api.EventForwarder;
 import org.opennms.netmgt.model.events.EventBuilder;
-import org.opennms.netmgt.model.events.EventForwarder;
 import org.opennms.netmgt.xml.event.Event;
 
 import org.springframework.beans.factory.InitializingBean;
@@ -63,6 +57,7 @@ import org.xbill.DNS.Update;
  * @version $Id: $
  */
 public class ReverseDnsProvisioningAdapter extends SimpleQueuedProvisioningAdapter implements InitializingBean {
+    private static final Logger LOG = LoggerFactory.getLogger(ReverseDnsProvisioningAdapter.class);
     
     /*
      * A read-only DAO will be set by the Provisioning Daemon.
@@ -81,10 +76,11 @@ public class ReverseDnsProvisioningAdapter extends SimpleQueuedProvisioningAdapt
      *
      * @throws java.lang.Exception if any.
      */
+    @Override
     public void afterPropertiesSet() throws Exception {        
         String dnsServer = System.getProperty("importer.adapter.dns.server");
         if (!StringUtils.isBlank(dnsServer)) {
-            log().info("DNS property found: "+dnsServer);
+            LOG.info("DNS property found: {}", dnsServer);
             if (dnsServer.contains(":")) {
                 final String[] serverAddress = dnsServer.split(":");
                 m_resolver = new SimpleResolver(serverAddress[0]);
@@ -100,7 +96,7 @@ public class ReverseDnsProvisioningAdapter extends SimpleQueuedProvisioningAdapt
                 m_resolver.setTSIGKey(TSIG.fromString(m_signature));
             }
         } else {
-            log().warn("no DNS server configured, ReverseDnsProvisioningAdapter will not do anything!");
+            LOG.warn("no DNS server configured, ReverseDnsProvisioningAdapter will not do anything!");
         }
     }
     
@@ -116,7 +112,7 @@ public class ReverseDnsProvisioningAdapter extends SimpleQueuedProvisioningAdapt
     /**
      * <p>setEventForwarder</p>
      *
-     * @param eventForwarder a {@link org.opennms.netmgt.model.events.EventForwarder} object.
+     * @param eventForwarder a {@link org.opennms.netmgt.events.api.EventForwarder} object.
      */
     public void setEventForwarder(EventForwarder eventForwarder) {
         m_eventForwarder = eventForwarder;
@@ -125,7 +121,7 @@ public class ReverseDnsProvisioningAdapter extends SimpleQueuedProvisioningAdapt
     /**
      * <p>getEventForwarder</p>
      *
-     * @return a {@link org.opennms.netmgt.model.events.EventForwarder} object.
+     * @return a {@link org.opennms.netmgt.events.api.EventForwarder} object.
      */
     public EventForwarder getEventForwarder() {
         return m_eventForwarder;
@@ -136,6 +132,7 @@ public class ReverseDnsProvisioningAdapter extends SimpleQueuedProvisioningAdapt
      *
      * @return a {@link java.lang.String} object.
      */
+    @Override
     public String getName() {
         return ADAPTER_NAME;
     }
@@ -152,7 +149,7 @@ public class ReverseDnsProvisioningAdapter extends SimpleQueuedProvisioningAdapt
         if (m_resolver == null) {
             return;
         }
-        log().info("processPendingOperationForNode: Handling Operation: "+op);
+        LOG.info("processPendingOperationForNode: Handling Operation: {}", op);
         if (op.getType() == AdapterOperationType.ADD || op.getType() == AdapterOperationType.UPDATE) {
             doUpdate(op);
         } else if (op.getType() == AdapterOperationType.DELETE) {
@@ -160,14 +157,14 @@ public class ReverseDnsProvisioningAdapter extends SimpleQueuedProvisioningAdapt
         } else if (op.getType() == AdapterOperationType.CONFIG_CHANGE) {
             //do nothing in this adapter
         } else {
-            log().warn("unknown operation: " + op.getType());
+            LOG.warn("unknown operation: {}", op.getType());
         }
     }
 
     private void doUpdate(AdapterOperation op) {
-        log().debug("doUpdate: operation: " + op.getType().name());
+        LOG.debug("doUpdate: operation: {}", op.getType().name());
         for (ReverseDnsRecord record : m_reverseDnsProvisioningAdapterService.get(op.getNodeId()) ) {
-            log().debug("doUpdate: ReverseDnsRecord: hostname: " + record.getHostname() + " zone: " + record.getZone() + " ip address: " + record.getIp().getHostAddress());
+            LOG.debug("doUpdate: ReverseDnsRecord: hostname: {} zone: {} ip address: {}", record.getIp().getHostAddress(), record.getHostname(), record.getZone());
             try {
                 Update update = new Update(Name.fromString(record.getZone()));
                 Name ptrRecord=ReverseMap.fromAddress(record.getIp());
@@ -175,7 +172,7 @@ public class ReverseDnsProvisioningAdapter extends SimpleQueuedProvisioningAdapt
                 m_resolver.send(update);
                 m_reverseDnsProvisioningAdapterService.update(op.getNodeId(),record);
             } catch (Exception e) {
-                log().error("updateNode: Error handling updated event.", e);
+                LOG.error("updateNode: Error handling updated event.", e);
                 sendAndThrow(op.getNodeId(), e);
             }
         }
@@ -192,9 +189,4 @@ public class ReverseDnsProvisioningAdapter extends SimpleQueuedProvisioningAdapt
         builder.setNodeid(nodeId);
         return builder;
     }
-
-    private static ThreadCategory log() {
-        return ThreadCategory.getInstance(ReverseDnsProvisioningAdapter.class);
-    }
-
 }

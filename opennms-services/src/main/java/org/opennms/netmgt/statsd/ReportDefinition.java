@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2007-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2007-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -28,10 +28,10 @@
 
 package org.opennms.netmgt.statsd;
 
-import org.opennms.netmgt.dao.NodeDao;
-import org.opennms.netmgt.dao.ResourceDao;
-import org.opennms.netmgt.dao.RrdDao;
-import org.opennms.netmgt.dao.castor.statsd.PackageReport;
+import org.opennms.netmgt.config.statsd.model.PackageReport;
+import org.opennms.netmgt.dao.api.NodeDao;
+import org.opennms.netmgt.dao.api.ResourceDao;
+import org.opennms.netmgt.dao.api.RrdDao;
 import org.opennms.netmgt.filter.FilterDao;
 import org.opennms.netmgt.model.AttributeStatisticVisitorWithResults;
 import org.springframework.beans.factory.InitializingBean;
@@ -161,7 +161,7 @@ public class ReportDefinition implements InitializingBean {
     /**
      * <p>getReport</p>
      *
-     * @return a {@link org.opennms.netmgt.dao.castor.statsd.PackageReport} object.
+     * @return a {@link org.opennms.netmgt.config.statsd.model.PackageReport} object.
      */
     public PackageReport getReport() {
         return m_report;
@@ -169,7 +169,7 @@ public class ReportDefinition implements InitializingBean {
     /**
      * <p>setReport</p>
      *
-     * @param report a {@link org.opennms.netmgt.dao.castor.statsd.PackageReport} object.
+     * @param report a {@link org.opennms.netmgt.config.statsd.model.PackageReport} object.
      */
     public void setReport(PackageReport report) {
         m_report = report;
@@ -245,8 +245,8 @@ public class ReportDefinition implements InitializingBean {
     /**
      * <p>createReport</p>
      *
-     * @param resourceDao a {@link org.opennms.netmgt.dao.ResourceDao} object.
-     * @param rrdDao a {@link org.opennms.netmgt.dao.RrdDao} object.
+     * @param resourceDao a {@link org.opennms.netmgt.dao.api.ResourceDao} object.
+     * @param rrdDao a {@link org.opennms.netmgt.dao.api.RrdDao} object.
      * @param filterDao a {@link org.opennms.netmgt.filter.FilterDao} object.
      * @return a {@link org.opennms.netmgt.statsd.ReportInstance} object.
      * @throws java.lang.Exception if any.

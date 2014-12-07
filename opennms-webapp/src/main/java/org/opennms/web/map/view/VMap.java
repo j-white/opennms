@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2006-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -43,7 +43,7 @@ import org.opennms.web.map.db.DbMap;
  *
  * @since 1.8.1
  */
-final public class VMap extends DbMap {
+public final class VMap extends DbMap {
     private final Map<String, VElement> elements = new ConcurrentHashMap<String, VElement>();
     
     private final List<VLink> links = new ArrayList<VLink>();
@@ -231,6 +231,9 @@ final public class VMap extends DbMap {
     	return elements.get(getElementId(id, type));
     }
 
+    public VElement getElement(String elementid) {
+        return elements.get(elementid);
+    }
     /**
      * <p>Getter for the field <code>elements</code>.</p>
      *
@@ -303,66 +306,79 @@ final public class VMap extends DbMap {
     }
     
     /** {@inheritDoc} */
+    @Override
     public  void setAccessMode(String accessMode) {
     	super.setAccessMode(accessMode);
     }
     
     /** {@inheritDoc} */
+    @Override
     public  void setBackground(String background) {
     	super.setBackground(background);
     }
     
     /** {@inheritDoc} */
+    @Override
     public void setCreateTime(Timestamp createTime) {
     	super.setCreateTime(createTime);
     }
     
     /** {@inheritDoc} */
+    @Override
     public void setLastModifiedTime(Timestamp lastModifiedTime) {
     	super.setLastModifiedTime(lastModifiedTime);
     }
     
     /** {@inheritDoc} */
+    @Override
     public void setName(String name) {
     	super.setName(name);
     }
     
     /** {@inheritDoc} */
+    @Override
     public void setOffsetX(int offsetX) {
     	super.setOffsetX(offsetX);
     }
     
     /** {@inheritDoc} */
+    @Override
     public void setOffsetY(int offsetY) {
     	super.setOffsetY(offsetY);
     }
     
     /** {@inheritDoc} */
+    @Override
     public void setOwner(String owner) {
     	super.setOwner(owner);
     }
     
     /** {@inheritDoc} */
+    @Override
     public void setScale(float scale) {
     	super.setScale(scale);
     }
     
     /** {@inheritDoc} */
+    @Override
     public void setType(String type) {
     	super.setType(type);
     }
     
     /** {@inheritDoc} */
+    @Override
     public void setWidth(int width) {
     	super.setWidth(width);
     }
     
     /** {@inheritDoc} */
+    @Override
     public void setHeight(int height) {
     	super.setHeight(height);
     }
     
     /** {@inheritDoc} */
+    @Override
     public void setUserLastModifies(String userLastModifies) {
     	super.setUserLastModifies(userLastModifies);
     }
@@ -372,6 +388,7 @@ final public class VMap extends DbMap {
      *
      * @return a boolean.
      */
+    @Override
     public boolean isNew() {
     	return super.isNew();
     }

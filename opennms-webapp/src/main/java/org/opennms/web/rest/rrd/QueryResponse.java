@@ -1,7 +1,5 @@
 package org.opennms.web.rest.rrd;
 
-import org.codehaus.jackson.annotate.JsonProperty;
-
 import javax.xml.bind.annotation.*;
 import java.util.List;
 import java.util.Map;

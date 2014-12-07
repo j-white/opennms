@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2006-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -28,13 +28,6 @@
 
 package org.opennms.netmgt.dao.hibernate;
 
-import java.io.Serializable;
-import java.sql.SQLException;
-import java.util.Collection;
-import java.util.List;
-
-import javax.persistence.Table;
-
 import org.hibernate.Criteria;
 import org.hibernate.EntityMode;
 import org.hibernate.HibernateException;
@@ -43,12 +36,19 @@ import org.hibernate.Query;
 import org.hibernate.Session;
 import org.hibernate.criterion.Projections;
 import org.hibernate.metadata.ClassMetadata;
-import org.opennms.core.utils.LogUtils;
-import org.opennms.netmgt.dao.OnmsDao;
+import org.opennms.netmgt.dao.api.OnmsDao;
 import org.opennms.netmgt.model.OnmsCriteria;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataAccessException;
 import org.springframework.orm.hibernate3.HibernateCallback;
 import org.springframework.orm.hibernate3.support.HibernateDaoSupport;
+
+import javax.persistence.Table;
+import java.io.Serializable;
+import java.sql.SQLException;
+import java.util.Collection;
+import java.util.List;
 
 /**
  * <p>Abstract AbstractDaoHibernate class.</p>
@@ -58,76 +58,47 @@ import org.springframework.orm.hibernate3.support.HibernateDaoSupport;
  */
 public abstract class AbstractDaoHibernate<T, K extends Serializable> extends HibernateDaoSupport implements OnmsDao<T, K> {
     
+    private static final Logger LOG = LoggerFactory.getLogger(AbstractDaoHibernate.class);
     Class<T> m_entityClass;
     private String m_lockName;
     private final HibernateCriteriaConverter m_criteriaConverter = new HibernateCriteriaConverter();
     
-    /**
-     * <p>Constructor for AbstractDaoHibernate.</p>
-     *
-     * @param entityClass a {@link java.lang.Class} object.
-     * @param <T> a T object.
-     * @param <K> a K object.
-     */
     public AbstractDaoHibernate(final Class<T> entityClass) {
         super();
         m_entityClass = entityClass;
         Table table = m_entityClass.getAnnotation(Table.class);
         m_lockName = (table == null || "".equals(table.name()) ? m_entityClass.getSimpleName() : table.name()).toUpperCase() + "_ACCESS";
-        
-        
     }
-    
-    
-    
+
     @Override
     protected void initDao() throws Exception {
         getHibernateTemplate().saveOrUpdate(new AccessLock(m_lockName));
     }
 
-
-
-    /**
-     * This is used to lock the table in order to implement upsert type operations
-     */
+    /** {@inheritDoc} */
+    @Override
     public void lock() {
-        getHibernateTemplate().get(AccessLock.class, m_lockName, LockMode.UPGRADE);
+        getHibernateTemplate().get(AccessLock.class, m_lockName, LockMode.PESSIMISTIC_WRITE);
     }
 
-
     /** {@inheritDoc} */
+    @Override
     public void initialize(final Object obj) {
         getHibernateTemplate().initialize(obj);
     }
 
-    /**
-     * <p>flush</p>
-     */
+    /** {@inheritDoc} */
+    @Override
     public void flush() {
         getHibernateTemplate().flush();
     }
 
-    /**
-     * <p>clear</p>
-     */
+    /** {@inheritDoc} */
+    @Override
     public void clear() {
         getHibernateTemplate().clear();
     }
 
-    /**
-     * <p>evict</p>
-     *
-     * @param entity a T object.
-     */
-    public void evict(final T entity) {
-        getHibernateTemplate().evict(entity);
-    }
-
-    /**
-     * <p>merge</p>
-     *
-     * @param entity a T object.
-     */
     public void merge(final T entity) {
         getHibernateTemplate().merge(entity);
     }
@@ -164,9 +135,9 @@ public abstract class AbstractDaoHibernate<T, K extends Serializable> extends Hi
      * @param <S> a S object.
      * @return a {@link java.util.List} object.
      */
-    @SuppressWarnings("unchecked")
     public <S> List<S> findObjects(final Class<S> clazz, final String query, final Object... values) {
-    	final List<S> notifs = getHibernateTemplate().find(query, values);
+        @SuppressWarnings("unchecked")
+        final List<S> notifs = getHibernateTemplate().find(query, values);
         return notifs;
     }
 
@@ -178,6 +149,7 @@ public abstract class AbstractDaoHibernate<T, K extends Serializable> extends Hi
      */
     protected int queryInt(final String query) {
     	final HibernateCallback<Number> callback = new HibernateCallback<Number>() {
+            @Override
             public Number doInHibernate(final Session session) throws HibernateException {
                 return (Number)session.createQuery(query).uniqueResult();
             }
@@ -195,6 +167,7 @@ public abstract class AbstractDaoHibernate<T, K extends Serializable> extends Hi
      */
     protected int queryInt(final String queryString, final Object... args) {
     	final HibernateCallback<Number> callback = new HibernateCallback<Number>() {
+            @Override
             public Number doInHibernate(final Session session) throws HibernateException, SQLException {
             	final Query query = session.createQuery(queryString);
                 for (int i = 0; i < args.length; i++) {
@@ -208,40 +181,15 @@ public abstract class AbstractDaoHibernate<T, K extends Serializable> extends Hi
         return getHibernateTemplate().execute(callback).intValue();
     }
 
-    //TODO: This method duplicates below impl, delete this
     /**
-     * <p>findUnique</p>
-     *
-     * @param query a {@link java.lang.String} object.
-     * @return a T object.
-     */
-    protected T findUnique(final String query) {
-        return findUnique(m_entityClass, query);
-    }
-
-    /**
-     * <p>findUnique</p>
-     *
-     * @param queryString a {@link java.lang.String} object.
-     * @param args a {@link java.lang.Object} object.
-     * @return a T object.
+     * Return a single instance that matches the query string, 
+     * or null if the query returns no results.
      */
     protected T findUnique(final String queryString, final Object... args) {
-        return findUnique(m_entityClass, queryString, args);
-    }
-    
-    /**
-     * <p>findUnique</p>
-     *
-     * @param type a {@link java.lang.Class} object.
-     * @param queryString a {@link java.lang.String} object.
-     * @param args a {@link java.lang.Object} object.
-     * @param <S> a S object.
-     * @return a S object.
-     */
-    protected <S> S findUnique(final Class <? extends S> type, final String queryString, final Object... args) {
-    	final HibernateCallback<S> callback = new HibernateCallback<S>() {
-            public S doInHibernate(final Session session) throws HibernateException, SQLException {
+        final Class <? extends T> type = m_entityClass;
+    	final HibernateCallback<T> callback = new HibernateCallback<T>() {
+            @Override
+            public T doInHibernate(final Session session) throws HibernateException, SQLException {
             	final Query query = session.createQuery(queryString);
                 for (int i = 0; i < args.length; i++) {
                     query.setParameter(i, args[i]);
@@ -251,17 +199,15 @@ public abstract class AbstractDaoHibernate<T, K extends Serializable> extends Hi
             }
 
         };
-//      logger.debug(String.format("findUnique(%s, %s, %s) = %s", type, queryString, Arrays.toString(args), result));
-//      Assert.isTrue(result == null || type.isInstance(result), "Expected "+result+" to an instance of "+type+" but is "+(result == null ? null : result.getClass()));
         return getHibernateTemplate().execute(callback);
     }
-
 
     /**
      * <p>countAll</p>
      *
      * @return a int.
      */
+    @Override
     public int countAll() {
         return queryInt("select count(*) from " + m_entityClass.getName());
     }
@@ -272,6 +218,7 @@ public abstract class AbstractDaoHibernate<T, K extends Serializable> extends Hi
      * @param entity a T object.
      * @throws org.springframework.dao.DataAccessException if any.
      */
+    @Override
     public void delete(final T entity) throws DataAccessException {
         getHibernateTemplate().delete(entity);
     }
@@ -282,6 +229,7 @@ public abstract class AbstractDaoHibernate<T, K extends Serializable> extends Hi
      * @param key a K object.
      * @throws org.springframework.dao.DataAccessException if any.
      */
+    @Override
     public void delete(final K key) throws DataAccessException {
         delete(get(key));
     }
@@ -302,6 +250,7 @@ public abstract class AbstractDaoHibernate<T, K extends Serializable> extends Hi
      * @return a {@link java.util.List} object.
      * @throws org.springframework.dao.DataAccessException if any.
      */
+    @Override
     public List<T> findAll() throws DataAccessException {
         return getHibernateTemplate().loadAll(m_entityClass);
     }
@@ -319,6 +268,7 @@ public abstract class AbstractDaoHibernate<T, K extends Serializable> extends Hi
         onmsCrit.resultsOfType(type);
         
         final HibernateCallback<S> callback = new HibernateCallback<S>() {
+            @Override
             public S doInHibernate(final Session session) throws HibernateException, SQLException {
             	final Criteria attachedCrit = onmsCrit.getDetachedCriteria().getExecutableCriteria(session);
                 if (onmsCrit.getFirstResult() != null) attachedCrit.setFirstResult(onmsCrit.getFirstResult());
@@ -331,10 +281,12 @@ public abstract class AbstractDaoHibernate<T, K extends Serializable> extends Hi
     }
     
     @SuppressWarnings("unchecked")
+    @Override
 	public List<T> findMatching(final org.opennms.core.criteria.Criteria criteria) {
     	final HibernateCallback<List<T>> callback = new HibernateCallback<List<T>>() {
+                        @Override
 			public List<T> doInHibernate(final Session session) throws HibernateException, SQLException {
-				LogUtils.debugf(this, "criteria = %s", criteria);
+				LOG.debug("criteria = {}", criteria);
             	final Criteria hibernateCriteria = m_criteriaConverter.convert(criteria, session);
 				return (List<T>)(hibernateCriteria.list());
             }
@@ -343,13 +295,18 @@ public abstract class AbstractDaoHibernate<T, K extends Serializable> extends Hi
     }
     
     /** {@inheritDoc} */
+    @Override
     public int countMatching(final org.opennms.core.criteria.Criteria criteria) throws DataAccessException {
     	final HibernateCallback<Integer> callback = new HibernateCallback<Integer>() {
+            @Override
             public Integer doInHibernate(final Session session) throws HibernateException, SQLException {
                 
             	final Criteria hibernateCriteria = m_criteriaConverter.convertForCount(criteria, session);
             	hibernateCriteria.setProjection(Projections.rowCount());
-                return (Integer)hibernateCriteria.uniqueResult();
+                Long retval = (Long)hibernateCriteria.uniqueResult();
+                hibernateCriteria.setProjection(null);
+                hibernateCriteria.setResultTransformer(Criteria.ROOT_ENTITY);
+                return retval.intValue();
             }
         };
         Integer retval = getHibernateTemplate().execute(callback);
@@ -362,6 +319,7 @@ public abstract class AbstractDaoHibernate<T, K extends Serializable> extends Hi
         onmsCrit.resultsOfType(m_entityClass); //FIXME: why is this here?
         
         final HibernateCallback<List<T>> callback = new HibernateCallback<List<T>>() {
+            @Override
             public List<T> doInHibernate(final Session session) throws HibernateException, SQLException {
             	final Criteria attachedCrit = onmsCrit.getDetachedCriteria().getExecutableCriteria(session);
                 if (onmsCrit.getFirstResult() != null) attachedCrit.setFirstResult(onmsCrit.getFirstResult());
@@ -374,10 +332,14 @@ public abstract class AbstractDaoHibernate<T, K extends Serializable> extends Hi
     
     /** {@inheritDoc} */
     public int countMatching(final OnmsCriteria onmsCrit) throws DataAccessException {
-    	final HibernateCallback<Integer> callback = new HibernateCallback<Integer>() {
+        final HibernateCallback<Integer> callback = new HibernateCallback<Integer>() {
+            @Override
             public Integer doInHibernate(final Session session) throws HibernateException, SQLException {
-            	final Criteria attachedCrit = onmsCrit.getDetachedCriteria().getExecutableCriteria(session).setProjection(Projections.rowCount());
-                return (Integer)attachedCrit.uniqueResult();
+                final Criteria attachedCrit = onmsCrit.getDetachedCriteria().getExecutableCriteria(session).setProjection(Projections.rowCount());
+                Long retval = (Long)attachedCrit.uniqueResult();
+                attachedCrit.setProjection(null);
+                attachedCrit.setResultTransformer(Criteria.ROOT_ENTITY);
+                return retval.intValue();
             }
         };
         Integer retval = getHibernateTemplate().execute(callback);
@@ -403,6 +365,7 @@ public abstract class AbstractDaoHibernate<T, K extends Serializable> extends Hi
      * @return a T object.
      * @throws org.springframework.dao.DataAccessException if any.
      */
+    @Override
     public T get(final K id) throws DataAccessException {
         return m_entityClass.cast(getHibernateTemplate().get(m_entityClass, id));
     }
@@ -414,6 +377,7 @@ public abstract class AbstractDaoHibernate<T, K extends Serializable> extends Hi
      * @return a T object.
      * @throws org.springframework.dao.DataAccessException if any.
      */
+    @Override
     public T load(final K id) throws DataAccessException {
         return m_entityClass.cast(getHibernateTemplate().load(m_entityClass, id));
     }
@@ -424,8 +388,14 @@ public abstract class AbstractDaoHibernate<T, K extends Serializable> extends Hi
      * @param entity a T object.
      * @throws org.springframework.dao.DataAccessException if any.
      */
+    @Override
     public void save(final T entity) throws DataAccessException {
-        getHibernateTemplate().save(entity);
+        try {
+            getHibernateTemplate().save(entity);
+        } catch (final DataAccessException e) {
+            logExtraSaveOrUpdateExceptionInformation(entity, e);
+            throw e;
+        }
     }
 
     /**
@@ -434,12 +404,12 @@ public abstract class AbstractDaoHibernate<T, K extends Serializable> extends Hi
      * @param entity a T object.
      * @throws org.springframework.dao.DataAccessException if any.
      */
+    @Override
     public void saveOrUpdate(final T entity) throws DataAccessException {
         try {
             getHibernateTemplate().saveOrUpdate(entity);
         } catch (final DataAccessException e) {
             logExtraSaveOrUpdateExceptionInformation(entity, e);
-            // Rethrow the exception
             throw e;
         }
     }
@@ -450,6 +420,7 @@ public abstract class AbstractDaoHibernate<T, K extends Serializable> extends Hi
      * @param entity a T object.
      * @throws org.springframework.dao.DataAccessException if any.
      */
+    @Override
     public void update(final T entity) throws DataAccessException {
         try {
             getHibernateTemplate().update(entity);
@@ -469,16 +440,14 @@ public abstract class AbstractDaoHibernate<T, K extends Serializable> extends Hi
     private void logExtraSaveOrUpdateExceptionInformation(final T entity, final DataAccessException e) {
     	Throwable cause = e;
         while (cause.getCause() != null) {
-            //if (cause.getCause().getClass().getName().equals(PSQLException.class.getName())) {
             if (cause.getMessage().contains("duplicate key value violates unique constraint")) {
             	final ClassMetadata meta = getSessionFactory().getClassMetadata(m_entityClass);
-                LogUtils.warnf(this, "Duplicate key constraint violation, class: %s, key value: %s", m_entityClass.getName(), meta.getPropertyValue(entity, meta.getIdentifierPropertyName(), EntityMode.POJO));
+                LOG.warn("Duplicate key constraint violation, class: {}, key value: {}", m_entityClass.getName(), meta.getPropertyValue(entity, meta.getIdentifierPropertyName(), EntityMode.POJO));
                 break;
             } else if (cause.getMessage().contains("given object has a null identifier")) {
-                LogUtils.warnf(this, "Null identifier on object, class: %s: %s", m_entityClass.getName(), entity.toString());
+                LOG.warn("Null identifier on object, class: {}: {}", m_entityClass.getName(), entity.toString());
                 break;
             }
-            //}
             cause = cause.getCause();
         }
     }

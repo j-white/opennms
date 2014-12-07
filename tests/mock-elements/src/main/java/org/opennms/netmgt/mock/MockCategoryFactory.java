@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2005-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -100,10 +100,12 @@ public class MockCategoryFactory implements CatFactory {
         m_config = CastorUtils.unmarshal(Catinfo.class, new ByteArrayInputStream(config.getBytes()));
     }
 
+    @Override
     public Lock getReadLock() {
         return m_readLock;
     }
     
+    @Override
     public Lock getWriteLock() {
         return m_writeLock;
     }
@@ -113,10 +115,12 @@ public class MockCategoryFactory implements CatFactory {
      * 
      * @return the categories configuration
      */
+    @Override
     public synchronized Catinfo getConfig() {
         return m_config;
     }
 	
+    @Override
 	   public synchronized Category getCategory(final String name) {
 	       for (final Categorygroup cg : m_config.getCategorygroupCollection()) {
 	           for (final Category cat : cg.getCategories().getCategoryCollection()) {
@@ -129,6 +133,7 @@ public class MockCategoryFactory implements CatFactory {
 	        return null;
 	    }
 	   
+    @Override
 	   public synchronized String getEffectiveRule(final String catlabel) {
 	       for (final Categorygroup cg : m_config.getCategorygroupCollection()) {
 	           for (final Category cat : cg.getCategories().getCategoryCollection()) {
@@ -141,11 +146,13 @@ public class MockCategoryFactory implements CatFactory {
 	        return null;
 	    }
 
+    @Override
 	public double getNormal(String catlabel) {
 		// TODO Auto-generated method stub
 		return 0;
 	}
 
+    @Override
 	public double getWarning(String catlabel) {
 		// TODO Auto-generated method stub
 		return 0;

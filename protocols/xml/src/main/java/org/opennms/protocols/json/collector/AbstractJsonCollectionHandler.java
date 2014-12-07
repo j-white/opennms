@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2011-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2013-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -49,8 +49,8 @@ import org.joda.time.DateTime;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 
-import org.opennms.netmgt.collectd.CollectionAgent;
-import org.opennms.netmgt.config.collector.AttributeGroupType;
+import org.opennms.netmgt.collection.api.AttributeGroupType;
+import org.opennms.netmgt.collection.api.CollectionAgent;
 import org.opennms.protocols.xml.collector.AbstractXmlCollectionHandler;
 import org.opennms.protocols.xml.collector.UrlFactory;
 import org.opennms.protocols.xml.collector.XmlCollectionAttributeType;
@@ -62,6 +62,9 @@ import org.opennms.protocols.xml.config.XmlGroup;
 import org.opennms.protocols.xml.config.XmlObject;
 import org.opennms.protocols.xml.config.XmlSource;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  * The Abstract Class JSON Collection Handler.
  * <p>All JsonCollectionHandler should extend this class.</p>
@@ -70,6 +73,7 @@ import org.opennms.protocols.xml.config.XmlSource;
  * @author <a href="mailto:agalue@opennms.org">Alejandro Galue</a>
  */
 public abstract class AbstractJsonCollectionHandler extends AbstractXmlCollectionHandler {
+    private static final Logger LOG = LoggerFactory.getLogger(AbstractJsonCollectionHandler.class);
 
     /**
      * Fill collection set.
@@ -84,13 +88,13 @@ public abstract class AbstractJsonCollectionHandler extends AbstractXmlCollectio
     protected void fillCollectionSet(CollectionAgent agent, XmlCollectionSet collectionSet, XmlSource source, JSONObject json) throws ParseException {
         JXPathContext context = JXPathContext.newContext(json);
         for (XmlGroup group : source.getXmlGroups()) {
-            log().debug("fillCollectionSet: getting resources for XML group " + group.getName() + " using XPATH " + group.getResourceXpath());
+            LOG.debug("fillCollectionSet: getting resources for XML group {} using XPATH {}", group.getName(), group.getResourceXpath());
             Date timestamp = getTimeStamp(context, group);
             Iterator<Pointer> itr = context.iteratePointers(group.getResourceXpath());
             while (itr.hasNext()) {
                 JXPathContext relativeContext = context.getRelativeContext(itr.next());
                 String resourceName = getResourceName(relativeContext, group);
-                log().debug("fillCollectionSet: processing XML resource " + resourceName);
+                LOG.debug("fillCollectionSet: processing XML resource {}", resourceName);
                 XmlCollectionResource collectionResource = getCollectionResource(agent, resourceName, group.getResourceType(), timestamp);
                 AttributeGroupType attribGroupType = new AttributeGroupType(group.getName(), group.getIfType());
                 for (XmlObject object : group.getXmlObjects()) {
@@ -116,7 +120,7 @@ public abstract class AbstractJsonCollectionHandler extends AbstractXmlCollectio
         if (group.hasMultipleResourceKey()) {
             List<String> keys = new ArrayList<String>();
             for (String key : group.getXmlResourceKey().getKeyXpathList()) {
-                log().debug("getResourceName: getting key for resource's name using " + key);
+                LOG.debug("getResourceName: getting key for resource's name using {}", key);
                 String keyName = (String)context.getValue(key);
                 keys.add(keyName);
             }
@@ -127,9 +131,8 @@ public abstract class AbstractJsonCollectionHandler extends AbstractXmlCollectio
             return "node";
         }
         // Processing single-key resource name.
-        log().debug("getResourceName: getting key for resource's name using " + group.getKeyXpath());
-        String keyName = (String)context.getValue(group.getKeyXpath());
-        return keyName;
+        LOG.debug("getResourceName: getting key for resource's name using {}", group.getKeyXpath());
+        return (String)context.getValue(group.getKeyXpath());
     }
 
     /**
@@ -144,7 +147,7 @@ public abstract class AbstractJsonCollectionHandler extends AbstractXmlCollectio
             return null;
         }
         String pattern = group.getTimestampFormat() == null ? "yyyy-MM-dd HH:mm:ss" : group.getTimestampFormat();
-        log().debug("getTimeStamp: retrieving custom timestamp to be used when updating RRDs using XPATH " + group.getTimestampXpath() + " and pattern " + pattern);
+        LOG.debug("getTimeStamp: retrieving custom timestamp to be used when updating RRDs using XPATH {} and pattern {}", group.getTimestampXpath(), pattern);
         Date date = null;
         String value = (String)context.getValue(group.getTimestampXpath());
         try {
@@ -152,7 +155,7 @@ public abstract class AbstractJsonCollectionHandler extends AbstractXmlCollectio
             DateTime dateTime = dtf.parseDateTime(value);
             date = dateTime.toDate();
         } catch (Exception e) {
-            log().warn("getTimeStamp: can't convert custom timetime " + value + " using pattern " + pattern);
+            LOG.warn("getTimeStamp: can't convert custom timestamp {} using pattern {}", value, pattern);
         }
         return date;
     }

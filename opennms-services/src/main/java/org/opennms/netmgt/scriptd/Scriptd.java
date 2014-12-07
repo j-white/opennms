@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2002-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -33,14 +33,16 @@ import java.lang.reflect.UndeclaredThrowableException;
 
 import org.exolab.castor.xml.MarshalException;
 import org.exolab.castor.xml.ValidationException;
-import org.opennms.core.utils.BeanUtils;
+import org.opennms.core.spring.BeanUtils;
 import org.opennms.core.queue.FifoQueue;
 import org.opennms.core.queue.FifoQueueImpl;
 import org.opennms.netmgt.config.ScriptdConfigFactory;
 import org.opennms.netmgt.daemon.AbstractServiceDaemon;
-import org.opennms.netmgt.dao.NodeDao;
+import org.opennms.netmgt.dao.api.NodeDao;
 import org.opennms.netmgt.xml.event.Event;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.access.BeanFactoryReference;
 
 /**
@@ -54,9 +56,10 @@ import org.springframework.beans.factory.access.BeanFactoryReference;
  * @author <a href="http://www.opennms.org/">OpenNMS.org </a>
  */
 public final class Scriptd extends AbstractServiceDaemon {
-
-    /** Constant <code>NAME="OpenNMS.Scriptd"</code> */
-    public static final String NAME = "OpenNMS.Scriptd";
+    
+    private static final Logger LOG = LoggerFactory.getLogger(Scriptd.class);
+    
+    public static final String NAME = "scriptd";
 
     /**
      * The singleton instance.
@@ -85,6 +88,7 @@ public final class Scriptd extends AbstractServiceDaemon {
     /**
      * Initialize the <em>Scriptd</em> service.
      */
+    @Override
     protected void onInit() {
 
         // Load the configuration information
@@ -95,13 +99,13 @@ public final class Scriptd extends AbstractServiceDaemon {
             ScriptdConfigFactory.reload();
             aFactory = ScriptdConfigFactory.getInstance();
         } catch (MarshalException ex) {
-            log().error("Failed to load scriptd configuration", ex);
+            LOG.error("Failed to load scriptd configuration", ex);
             throw new UndeclaredThrowableException(ex);
         } catch (ValidationException ex) {
-            log().error("Failed to load scriptd configuration", ex);
+            LOG.error("Failed to load scriptd configuration", ex);
             throw new UndeclaredThrowableException(ex);
         } catch (IOException ex) {
-            log().error("Failed to load scriptd configuration", ex);
+            LOG.error("Failed to load scriptd configuration", ex);
             throw new UndeclaredThrowableException(ex);
         }
 
@@ -114,7 +118,7 @@ public final class Scriptd extends AbstractServiceDaemon {
         try {
             m_eventReader = new BroadcastEventProcessor(execQ);
         } catch (Throwable ex) {
-            log().error("Failed to setup event reader", ex);
+            LOG.error("Failed to setup event reader", ex);
             throw new UndeclaredThrowableException(ex);
         }
 
@@ -128,18 +132,20 @@ public final class Scriptd extends AbstractServiceDaemon {
     /**
      * <p>onStart</p>
      */
+    @Override
     protected void onStart() {
 		if (m_execution == null) {
 		    init();
 		}
 
 		m_execution.start();
-		log().info("Scriptd running");
+		LOG.info("Scriptd running");
 	}
 
     /**
      * <p>onStop</p>
      */
+    @Override
     protected void onStop() {
 		try {
             if (m_execution != null) {
@@ -159,6 +165,7 @@ public final class Scriptd extends AbstractServiceDaemon {
     /**
      * <p>onPause</p>
      */
+    @Override
     protected void onPause() {
 		m_execution.pause();
 	}
@@ -166,6 +173,7 @@ public final class Scriptd extends AbstractServiceDaemon {
     /**
      * <p>onResume</p>
      */
+    @Override
     protected void onResume() {
 		m_execution.resume();
 	}

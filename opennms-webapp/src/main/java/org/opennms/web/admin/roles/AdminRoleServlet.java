@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2002-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -83,13 +83,15 @@ public class AdminRoleServlet extends HttpServlet implements Servlet {
         public String execute(HttpServletRequest request, HttpServletResponse response) throws ServletException;
     }
     
-    private class ListAction implements Action {
+    private static class ListAction implements Action {
+        @Override
         public String execute(HttpServletRequest request, HttpServletResponse response) {
             return LIST;
         }
     }
     
     private class DeleteAction implements Action {
+        @Override
         public String execute(HttpServletRequest request, HttpServletResponse response) throws ServletException {
             getRoleManager().deleteRole(request.getParameter("role"));
             Action list = new ListAction();
@@ -99,6 +101,7 @@ public class AdminRoleServlet extends HttpServlet implements Servlet {
     
     private class ViewAction implements Action {
         
+        @Override
         public String execute(HttpServletRequest request, HttpServletResponse response) throws ServletException {
             try {
                 WebRole role = (WebRole)request.getAttribute("role");
@@ -120,6 +123,7 @@ public class AdminRoleServlet extends HttpServlet implements Servlet {
     
     private class AddEntryAction implements Action {
         
+        @Override
         public String execute(HttpServletRequest request, HttpServletResponse response) throws ServletException {
             try {
                 WebRole role = getRoleManager().getRole(request.getParameter("role"));
@@ -140,6 +144,7 @@ public class AdminRoleServlet extends HttpServlet implements Servlet {
     
     private class EditEntryAction implements Action {
         
+        @Override
         public String execute(HttpServletRequest request, HttpServletResponse response) throws ServletException {
             WebRole role = getRoleManager().getRole(request.getParameter("role"));
             request.setAttribute("role", role);
@@ -174,6 +179,7 @@ public class AdminRoleServlet extends HttpServlet implements Servlet {
     
     private class SaveEntryAction implements Action {
         
+        @Override
         public String execute(HttpServletRequest request, HttpServletResponse response) throws ServletException {
             try {
                 WebRole role = getRoleManager().getRole(request.getParameter("role"));
@@ -242,6 +248,7 @@ public class AdminRoleServlet extends HttpServlet implements Servlet {
     
     private class EditDetailsAction implements Action {
         
+        @Override
         public String execute(HttpServletRequest request, HttpServletResponse response) throws ServletException {
             WebRole role = getRoleManager().getRole(request.getParameter("role"));
             request.setAttribute("role", role);
@@ -252,6 +259,7 @@ public class AdminRoleServlet extends HttpServlet implements Servlet {
     
     private class NewAction implements Action {
         
+        @Override
         public String execute(HttpServletRequest request, HttpServletResponse response) throws ServletException {
             WebRole role = getRoleManager().createRole();
             role.setName("NewRole");
@@ -263,6 +271,7 @@ public class AdminRoleServlet extends HttpServlet implements Servlet {
     
     private class SaveDetailsAction implements Action {
         
+        @Override
         public String execute(HttpServletRequest request, HttpServletResponse response) throws ServletException {
             if (request.getParameter("save") != null) {
                 String roleName = request.getParameter("role");
@@ -328,6 +337,7 @@ public class AdminRoleServlet extends HttpServlet implements Servlet {
 	 * @see javax.servlet.http.HttpServlet#doGet(HttpServletRequest request, HttpServletResponse response)
 	 */
 	/** {@inheritDoc} */
+    @Override
 	protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         doIt(request, response);
 	}  	
@@ -336,6 +346,7 @@ public class AdminRoleServlet extends HttpServlet implements Servlet {
 	 * @see javax.servlet.http.HttpServlet#doPost(HttpServletRequest request, HttpServletResponse response)
 	 */
 	/** {@inheritDoc} */
+    @Override
 	protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         doIt(request, response);
 	}
@@ -345,6 +356,7 @@ public class AdminRoleServlet extends HttpServlet implements Servlet {
      *
      * @throws javax.servlet.ServletException if any.
      */
+    @Override
     public void init() throws ServletException {
         super.init();
 

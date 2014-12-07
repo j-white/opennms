@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2011-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2011-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -36,78 +36,90 @@ import com.google.gwt.core.client.JsArray;
 import com.google.gwt.json.client.JSONArray;
 import com.google.gwt.json.client.JSONObject;
 import com.google.gwt.json.client.JSONParser;
+import com.google.gwt.json.client.JSONValue;
 
-public class NodeRestResponseMapper {
-
-    /**
-     * 
-     * @param jsonString
-     * @return
-     */
+public abstract class NodeRestResponseMapper {
     public static List<IpInterface> createIpInterfaceData(String jsonString){
-        List<IpInterface> ipIfaceList = new ArrayList<IpInterface>();
-        JSONObject jsonObject = JSONParser.parseStrict(jsonString).isObject();
-        
-        if(jsonObject != null && jsonObject.containsKey("ipInterface")) {
-            
-            if(jsonObject.get("ipInterface").isObject() != null) {
-                JSONObject jObj = jsonObject.get("ipInterface").isObject();
-                ipIfaceList.add(createIpInterfaceOverlay(jObj.getJavaScriptObject()));
-                
-            }else if(jsonObject.get("ipInterface").isArray() != null) {
-                JSONArray jArray = jsonObject.get("ipInterface").isArray();
-                JsArray<IpInterface> ipFaces = createIpInterfaceData(jArray.getJavaScriptObject());
-                for(int i = 0; i < ipFaces.length(); i++) {
-                    ipIfaceList.add(ipFaces.get(i));
-                }
+        final List<IpInterface> ipIfaceList = new ArrayList<IpInterface>();
+        final JSONValue value = JSONParser.parseStrict(jsonString);
+
+        JSONObject obj = value.isObject();
+        JSONArray arr = value.isArray();
+        JsArray<IpInterface> ipIfaces = null;
+        if (obj != null) {
+            ipIfaces = createIpInterfaceData(obj.getJavaScriptObject());
+        } else if (arr != null) {
+            ipIfaces = createIpInterfaceData(arr.getJavaScriptObject());
+        } else {
+            doLog(jsonString + " did not parse as an object or array!", value);
+        }
+
+        if (ipIfaces != null) {
+            for(int i = 0; i < ipIfaces.length(); i++) {
+                ipIfaceList.add(ipIfaces.get(i));
             }
         }
-        
+        doLog("ip interfaces:", ipIfaceList);
         return ipIfaceList;
     }
     
-    public static native IpInterface createIpInterfaceOverlay(JavaScriptObject jso)/*-{
-        return jso;
-    }-*/;
-    
-    public static native JsArray<IpInterface> createIpInterfaceData(JavaScriptObject jso) /*-{
-        return jso;
-    }-*/;
-    
-    /**
-     * 
-     * @param jsonString
-     * @return
-     */
-    public static List<PhysicalInterface> createSnmpInterfaceData(String jsonString){
-        List<PhysicalInterface> physIfaceList = new ArrayList<PhysicalInterface>();
-        JSONObject jsonObject = JSONParser.parseStrict(jsonString).isObject();
-        
-        if(jsonObject != null && jsonObject.containsKey("snmpInterface")) {
-            
-            if(jsonObject.get("snmpInterface").isObject() != null) {
-                JSONObject jObj = jsonObject.get("snmpInterface").isObject();
-                physIfaceList.add(createSnmpInterfaceOverlay(jObj.getJavaScriptObject()));
-                
-            }else if(jsonObject.get("snmpInterface").isArray() != null) {
-                JSONArray jArray = jsonObject.get("snmpInterface").isArray();
-                JsArray<PhysicalInterface> ipFaces = createSnmpInterfaceData(jArray.getJavaScriptObject());
-                for(int i = 0; i < ipFaces.length(); i++) {
-                    physIfaceList.add(ipFaces.get(i));
-                }
+    public static native JsArray<IpInterface> createIpInterfaceData(final JavaScriptObject jso) /*-{
+        if (jso.ipInterface) {
+            if( Object.prototype.toString.call( jso.ipInterface ) === '[object Array]' ) {
+                return jso.ipInterface;
+            } else {
+                return [ jso.ipInterface ];
+            }
+        } else {
+            if( Object.prototype.toString.call( jso ) === '[object Array]' ) {
+                return jso;
+            } else {
+                return [ jso ];
             }
         }
-        
+    }-*/;
+
+    public static List<PhysicalInterface> createSnmpInterfaceData(String jsonString){
+        final List<PhysicalInterface> physIfaceList = new ArrayList<PhysicalInterface>();
+        final JSONValue value = JSONParser.parseStrict(jsonString);
+        final JSONObject obj = value.isObject();
+        final JSONArray arr = value.isArray();
+        JsArray<PhysicalInterface> snmpIfaces = null;
+        if (obj != null) {
+            snmpIfaces = createSnmpInterfaceData(obj.getJavaScriptObject());
+        } else if (arr != null) {
+            snmpIfaces = createSnmpInterfaceData(arr.getJavaScriptObject());
+        } else {
+            doLog(jsonString + " did not parse as an object or array!", value);
+        }
+
+        if (snmpIfaces != null) {
+            for(int i = 0; i < snmpIfaces.length(); i++) {
+                physIfaceList.add(snmpIfaces.get(i));
+            }
+        }
+
+        doLog("physical interfaces:", physIfaceList);
         return physIfaceList;
     }
     
-    public static native PhysicalInterface createSnmpInterfaceOverlay(JavaScriptObject jso) /*-{
-        return jso;
+    public static native JsArray<PhysicalInterface> createSnmpInterfaceData(final JavaScriptObject jso) /*-{
+        if (jso.snmpInterface) {
+            if( Object.prototype.toString.call( jso.snmpInterface ) === '[object Array]' ) {
+                return jso.snmpInterface;
+            } else {
+                return [ jso.snmpInterface ];
+            }
+        } else {
+            if( Object.prototype.toString.call( jso ) === '[object Array]' ) {
+                return jso;
+            } else {
+                return [ jso ];
+            }
+        }
     }-*/;
     
-    public static native JsArray<PhysicalInterface> createSnmpInterfaceData(JavaScriptObject jso) /*-{
-        return jso;
+    public static native void doLog(final String message, final Object o) /*-{
+        console.log(message,o);
     }-*/;
-    
-    
 }

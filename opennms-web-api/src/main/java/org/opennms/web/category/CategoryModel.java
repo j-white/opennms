@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2010-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2002-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -46,12 +46,12 @@ import java.util.TreeMap;
 
 import org.exolab.castor.xml.MarshalException;
 import org.exolab.castor.xml.ValidationException;
-import org.opennms.core.resource.Vault;
+import org.opennms.core.db.DataSourceFactory;
 import org.opennms.core.utils.DBUtils;
-import org.opennms.core.utils.LogUtils;
-import org.opennms.core.utils.ThreadCategory;
 import org.opennms.netmgt.config.CategoryFactory;
 import org.opennms.netmgt.config.categories.CatFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * <p>CategoryModel class.</p>
@@ -60,6 +60,10 @@ import org.opennms.netmgt.config.categories.CatFactory;
  * @version $Id: $
  */
 public class CategoryModel extends Object {
+	
+	
+	private static final Logger LOG = LoggerFactory.getLogger(CategoryModel.class);
+
     /** The name of the category that includes all services and nodes. */
     public static final String OVERALL_AVAILABILITY_CATEGORY = "Overall Service Availability";
 
@@ -74,7 +78,7 @@ public class CategoryModel extends Object {
      * @throws org.exolab.castor.xml.MarshalException if any.
      * @throws org.exolab.castor.xml.ValidationException if any.
      */
-    public synchronized static CategoryModel getInstance() throws IOException, MarshalException, ValidationException {
+    public static synchronized CategoryModel getInstance() throws IOException, MarshalException, ValidationException {
         if (CategoryModel.m_instance == null) {
             CategoryModel.m_instance = new CategoryModel();
         }
@@ -83,13 +87,12 @@ public class CategoryModel extends Object {
     }
 
     /** A mapping of category names to category instances. */
-    private HashMap<String, Category> m_categoryMap = new HashMap<String, Category>();
+    private Map<String, Category> m_categoryMap = new HashMap<String, Category>();
 
     /** A reference to the CategoryFactory to get to category definitions. */
     private CatFactory m_factory = null;
 
     /** The Log4J category for logging status and debug messages. */
-    private ThreadCategory m_log = org.opennms.core.utils.ThreadCategory.getInstance("RTC");
 
     /**
      * Create the instance of the CategoryModel.
@@ -98,7 +101,7 @@ public class CategoryModel extends Object {
         CategoryFactory.init();
         m_factory = CategoryFactory.getInstance();
 
-        m_log.debug("The CategoryModel object was created");
+        LOG.debug("The CategoryModel object was created");
     }
 
     /**
@@ -205,7 +208,7 @@ public class CategoryModel extends Object {
             m_factory.getWriteLock().unlock();
         }
 
-        m_log.debug(categoryName + " was updated");
+        LOG.debug("{} was updated", categoryName);
     }
 
     /**
@@ -254,7 +257,7 @@ public class CategoryModel extends Object {
 
         final DBUtils d = new DBUtils(getClass());
         try {
-            Connection conn = Vault.getDbConnection();
+            Connection conn = DataSourceFactory.getInstance().getConnection();
             d.watch(conn);
             
             PreparedStatement stmt = conn.prepareStatement("select getManagePercentAvailNodeWindow(?, ?, ?) as avail");
@@ -272,7 +275,7 @@ public class CategoryModel extends Object {
                 avail = rs.getDouble("avail");
             }
         } catch (final SQLException e) {
-            LogUtils.warnf(this, e, "Failed to get node availability for nodeId %d", nodeId);
+            LOG.warn("Failed to get node availability for nodeId {}", nodeId, e);
         } finally {
             d.cleanUp();
         }
@@ -330,7 +333,7 @@ public class CategoryModel extends Object {
 
         final DBUtils d = new DBUtils(getClass());
         try {
-            Connection conn = Vault.getDbConnection();
+            Connection conn = DataSourceFactory.getInstance().getConnection();
             d.watch(conn);
         	StringBuffer sb = new StringBuffer("select nodeid, getManagePercentAvailNodeWindow(nodeid, ?, ?)  from node where nodeid in (");
         	Iterator<Integer> it = nodeIds.iterator();
@@ -357,7 +360,7 @@ public class CategoryModel extends Object {
                 retMap.put(Integer.valueOf(nodeid), Double.valueOf(avail));
             }
         } catch (final SQLException e) {
-            LogUtils.warnf(this, e, "Failed to get node availability for nodeIds %s", nodeIds);
+            LOG.warn("Failed to get node availability for nodeIds {}", nodeIds, e);
         } finally {
             d.cleanUp();
         }
@@ -418,7 +421,7 @@ public class CategoryModel extends Object {
 
         final DBUtils d = new DBUtils(getClass());
         try {
-            Connection conn = Vault.getDbConnection();
+            Connection conn = DataSourceFactory.getInstance().getConnection();
             d.watch(conn);
 
             PreparedStatement stmt = conn.prepareStatement("select getManagePercentAvailIntfWindow(?, ?, ?, ?) as avail");
@@ -437,7 +440,7 @@ public class CategoryModel extends Object {
                 avail = rs.getDouble("avail");
             }
         } catch (final SQLException e) {
-            LogUtils.warnf(this, e, "Failed to get interface availability for nodeId %d, interface %s", nodeId, ipAddr);
+            LOG.warn("Failed to get interface availability for nodeId {}, interface {}", nodeId, ipAddr, e);
         } finally {
             d.cleanUp();
         }
@@ -498,7 +501,7 @@ public class CategoryModel extends Object {
 
         final DBUtils d = new DBUtils(getClass());
         try {
-            Connection conn = Vault.getDbConnection();
+            Connection conn = DataSourceFactory.getInstance().getConnection();
             d.watch(conn);
             
             PreparedStatement stmt = conn.prepareStatement("select getPercentAvailabilityInWindow(?, ?, ?, ?, ?) as avail from ifservices, ipinterface where ifservices.ipaddr = ipinterface.ipaddr and ifservices.nodeid = ipinterface.nodeid and ipinterface.ismanaged='M' and ifservices.nodeid=? and ifservices.ipaddr=? and serviceid=?");
@@ -521,7 +524,7 @@ public class CategoryModel extends Object {
                 avail = rs.getDouble("avail");
             }
         } catch (final SQLException e) {
-            LogUtils.warnf(this, e, "Failed to get service availability for nodeId %d, interface %s, serviceId %d", nodeId, ipAddr, serviceId);
+            LOG.warn("Failed to get service availability for nodeId {}, interface {}, serviceId {}", nodeId, ipAddr, serviceId, e);
         } finally {
             d.cleanUp();
         }

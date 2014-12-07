@@ -2,22 +2,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2008-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2008-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -45,19 +45,20 @@ import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.UriInfo;
 
 import org.opennms.core.criteria.CriteriaBuilder;
-import org.opennms.core.utils.LogUtils;
-import org.opennms.netmgt.EventConstants;
-import org.opennms.netmgt.dao.NodeDao;
-import org.opennms.netmgt.dao.SnmpInterfaceDao;
+import org.opennms.netmgt.dao.api.NodeDao;
+import org.opennms.netmgt.dao.api.SnmpInterfaceDao;
+import org.opennms.netmgt.events.api.EventConstants;
+import org.opennms.netmgt.events.api.EventProxy;
+import org.opennms.netmgt.events.api.EventProxyException;
 import org.opennms.netmgt.model.OnmsEntity;
 import org.opennms.netmgt.model.OnmsIpInterface;
 import org.opennms.netmgt.model.OnmsNode;
 import org.opennms.netmgt.model.OnmsSnmpInterface;
 import org.opennms.netmgt.model.OnmsSnmpInterfaceList;
 import org.opennms.netmgt.model.events.EventBuilder;
-import org.opennms.netmgt.model.events.EventProxy;
-import org.opennms.netmgt.model.events.EventProxyException;
 import org.opennms.netmgt.xml.event.Event;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeanWrapper;
 import org.springframework.beans.PropertyAccessorFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -79,6 +80,9 @@ import com.sun.jersey.spi.resource.PerRequest;
 @Scope("prototype")
 @Transactional
 public class OnmsSnmpInterfaceResource extends OnmsRestService {
+	
+	private static final Logger LOG = LoggerFactory.getLogger(OnmsSnmpInterfaceResource.class);
+
 
     @Autowired
     private NodeDao m_nodeDao;
@@ -159,7 +163,7 @@ public class OnmsSnmpInterfaceResource extends OnmsRestService {
             if (node == null) throw getException(Status.BAD_REQUEST, "addSnmpInterface: can't find node " + nodeCriteria);
             if (snmpInterface == null) throw getException(Status.BAD_REQUEST, "addSnmpInterface: SNMP interface object cannot be null");
             
-            LogUtils.debugf(this, "addSnmpInterface: adding interface %s", snmpInterface);
+            LOG.debug("addSnmpInterface: adding interface {}", snmpInterface);
             node.addSnmpInterface(snmpInterface);
             if (snmpInterface.getPrimaryIpInterface() != null) {
                 final OnmsIpInterface iface = snmpInterface.getPrimaryIpInterface();
@@ -193,7 +197,7 @@ public class OnmsSnmpInterfaceResource extends OnmsRestService {
             final OnmsEntity snmpInterface = node.getSnmpInterfaceWithIfIndex(ifIndex);
             if (snmpInterface == null) throw getException(Status.BAD_REQUEST, "deleteSnmpInterface: can't find SNMP interface with ifIndex " + ifIndex + " for node " + nodeCriteria);
     
-            LogUtils.debugf(this, "deletSnmpInterface: deleting interface with ifIndex %d from node %s", ifIndex, nodeCriteria);
+            LOG.debug("deletSnmpInterface: deleting interface with ifIndex {} from node {}", ifIndex, nodeCriteria);
             node.getSnmpInterfaces().remove(snmpInterface);
             m_nodeDao.saveOrUpdate(node);
             // TODO Add important events here
@@ -225,10 +229,16 @@ public class OnmsSnmpInterfaceResource extends OnmsRestService {
             final OnmsSnmpInterface snmpInterface = node.getSnmpInterfaceWithIfIndex(ifIndex);
             if (snmpInterface == null) throw getException(Status.BAD_REQUEST, "deleteSnmpInterface: can't find SNMP interface with ifIndex " + ifIndex + " for node " + nodeCriteria);
     
-            LogUtils.debugf(this, "updateSnmpInterface: updating SNMP interface %s", snmpInterface);
+            LOG.debug("updateSnmpInterface: updating SNMP interface {}", snmpInterface);
     
             final BeanWrapper wrapper = PropertyAccessorFactory.forBeanPropertyAccess(snmpInterface);
             for(final String key : params.keySet()) {
+                // don't try setting the node data
+                if ("nodeId".equals(key)) continue;
+
+                // don't try setting ipinterface data
+                if ("ipInterface".equals(key) || "ipInterfaces".equals(key)) continue;
+
                 if (wrapper.isWritableProperty(key)) {
                     final String stringValue = params.getFirst(key);
                     final Object value = wrapper.convertIfNecessary(stringValue, (Class<?>)wrapper.getPropertyType(key));
@@ -245,13 +255,13 @@ public class OnmsSnmpInterfaceResource extends OnmsRestService {
                 // so we need to check for that before we set the interface
                 final OnmsIpInterface iface = node.getPrimaryInterface();
                 if (iface == null) {
-                    LogUtils.warnf(this, "updateSnmpInterface: Cannot send %s event because node %d has no primary SNMP interface", EventConstants.REINITIALIZE_PRIMARY_SNMP_INTERFACE_EVENT_UEI, node.getId());
+                    LOG.warn("updateSnmpInterface: Cannot send {} event because node {} has no primary SNMP interface", EventConstants.REINITIALIZE_PRIMARY_SNMP_INTERFACE_EVENT_UEI, node.getId());
                 } else {
                     bldr.setInterface(iface.getIpAddress());
                     e = bldr.getEvent();
                 }
             }
-            LogUtils.debugf(this, "updateSnmpInterface: SNMP interface %s updated", snmpInterface);
+            LOG.debug("updateSnmpInterface: SNMP interface {} updated", snmpInterface);
             m_snmpInterfaceDao.saveOrUpdate(snmpInterface);
             
             if (e != null) {

@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2011-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2011-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -32,13 +32,15 @@ import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.nio.ByteBuffer;
 
-import org.opennms.core.utils.LogUtils;
+import org.opennms.core.logging.Logging;
 import org.opennms.jicmp.ip.ICMPEchoPacket;
 import org.opennms.jicmp.ip.ICMPPacket;
 import org.opennms.jicmp.ip.IPPacket;
 import org.opennms.jicmp.ip.ICMPPacket.Type;
 import org.opennms.jicmp.jna.NativeDatagramPacket;
 import org.opennms.jicmp.jna.NativeDatagramSocket;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.sun.jna.Platform;
 
@@ -48,6 +50,7 @@ import com.sun.jna.Platform;
  * @author brozow
  */
 public class V4Pinger extends AbstractPinger<Inet4Address> {
+    private static final Logger LOG = LoggerFactory.getLogger(V4Pinger.class);
     
 
     public V4Pinger(final int pingerId) throws Exception {
@@ -66,7 +69,9 @@ public class V4Pinger extends AbstractPinger<Inet4Address> {
         }
     }
     
+    @Override
     public void run() {
+        Logging.putPrefix("icmp");
         try {
             final int pingerId = getPingerId();
             final NativeDatagramPacket datagram = new NativeDatagramPacket(65535);
@@ -83,7 +88,7 @@ public class V4Pinger extends AbstractPinger<Inet4Address> {
             }
         } catch(final Throwable t) {
             setThrowable(t);
-            LogUtils.debugf(this, t, "Error caught while processing ping packets: %s", t.getMessage());
+            LOG.debug("Error caught while processing ping packets: {}", t.getMessage(), t);
         }
     }
 
@@ -91,6 +96,7 @@ public class V4Pinger extends AbstractPinger<Inet4Address> {
         return new IPPacket(datagram.getContent()).getPayload();
     }
     
+    @Override
     public void ping(final Inet4Address addr, final int identifier, final int sequenceNumber, final long threadId, final long count, final long interval, final int packetSize) throws InterruptedException {
         final NativeDatagramSocket socket = getPingSocket();
         for(int i = sequenceNumber; i < sequenceNumber + count; i++) {

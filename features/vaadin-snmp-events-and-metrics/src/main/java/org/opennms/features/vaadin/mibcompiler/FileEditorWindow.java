@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2012-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -25,6 +25,7 @@
  *     http://www.opennms.org/
  *     http://www.opennms.com/
  *******************************************************************************/
+
 package org.opennms.features.vaadin.mibcompiler;
 
 import java.io.File;
@@ -32,14 +33,14 @@ import java.io.File;
 import org.opennms.features.vaadin.api.Logger;
 
 import com.vaadin.data.util.TextFileProperty;
-import com.vaadin.ui.Button;
-import com.vaadin.ui.Button.ClickEvent;
-import com.vaadin.ui.themes.Runo;
 import com.vaadin.ui.Alignment;
+import com.vaadin.ui.Button;
 import com.vaadin.ui.HorizontalLayout;
+import com.vaadin.ui.Notification;
 import com.vaadin.ui.TextArea;
 import com.vaadin.ui.VerticalLayout;
 import com.vaadin.ui.Window;
+import com.vaadin.ui.Button.ClickEvent;
 
 /**
  * The File Editor Window.
@@ -76,7 +77,7 @@ public class FileEditorWindow extends Window implements Button.ClickListener {
         this.logger = logger;
 
         setCaption((readOnly ? "View" : "Edit") + " MIB");
-        addStyleName(Runo.WINDOW_DIALOG);
+        addStyleName("dialog");
         setModal(true);
         setClosable(false);
         setWidth("800px");
@@ -84,7 +85,6 @@ public class FileEditorWindow extends Window implements Button.ClickListener {
 
         editor = new TextArea();
         editor.setPropertyDataSource(new TextFileProperty(file));
-        editor.setWriteThrough(false);
         editor.setImmediate(false);
         editor.setSizeFull();
         editor.setRows(30);
@@ -92,30 +92,32 @@ public class FileEditorWindow extends Window implements Button.ClickListener {
 
         cancel = new Button(readOnly ? "Close" : "Cancel");
         cancel.setImmediate(false);
-        cancel.addListener(this);
+        cancel.addClickListener(this);
         save = new Button("Save");
         save.setImmediate(false);
-        save.addListener(this);
+        save.addClickListener(this);
 
         HorizontalLayout toolbar = new HorizontalLayout();
         toolbar.addComponent(cancel);
         if (!readOnly)
             toolbar.addComponent(save);
 
-        addComponent(editor);
-        addComponent(toolbar);
-
-        ((VerticalLayout) getContent()).setExpandRatio(editor, 1.0f);
-        ((VerticalLayout) getContent()).setComponentAlignment(toolbar, Alignment.BOTTOM_RIGHT);
+        VerticalLayout layout = new VerticalLayout();
+        layout.addComponent(editor);
+        layout.addComponent(toolbar);
+        layout.setExpandRatio(editor, 1.0f);
+        layout.setComponentAlignment(toolbar, Alignment.BOTTOM_RIGHT);
+        setContent(layout);
     }
 
     /* (non-Javadoc)
      * @see com.vaadin.ui.Button.ClickListener#buttonClick(com.vaadin.ui.Button.ClickEvent)
      */
+    @Override
     public void buttonClick(ClickEvent event) {
         if (event.getButton().equals(save)) {
             if (editor.isReadOnly()) {
-                showNotification("Unsupported action for readOnly viewer.", Notification.TYPE_WARNING_MESSAGE);
+                Notification.show("Unsupported action for readOnly viewer.", Notification.Type.WARNING_MESSAGE);
             } else {
                 editor.commit();
                 logger.info("The file " + file + " has been changed.");

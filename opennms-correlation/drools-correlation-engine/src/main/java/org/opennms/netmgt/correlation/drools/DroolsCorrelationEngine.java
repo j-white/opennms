@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2007-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2007-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -47,7 +47,8 @@ import org.drools.WorkingMemory;
 import org.drools.compiler.DroolsParserException;
 import org.drools.compiler.PackageBuilder;
 import org.drools.compiler.PackageBuilderConfiguration;
-import org.opennms.core.utils.LogUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.opennms.netmgt.correlation.AbstractCorrelationEngine;
 import org.opennms.netmgt.xml.event.Event;
 import org.springframework.core.io.Resource;
@@ -59,6 +60,7 @@ import org.springframework.core.io.Resource;
  * @version $Id: $
  */
 public class DroolsCorrelationEngine extends AbstractCorrelationEngine {
+    private static final Logger LOG = LoggerFactory.getLogger(DroolsCorrelationEngine.class);
 
     private WorkingMemory m_workingMemory;
     private List<String> m_interestingEvents;
@@ -70,20 +72,20 @@ public class DroolsCorrelationEngine extends AbstractCorrelationEngine {
     /** {@inheritDoc} */
     @Override
     public synchronized void correlate(final Event e) {
-    	LogUtils.debugf(this, "Begin correlation for Event %d uei: %s", e.getDbid(), e.getUei());
+	LOG.debug("Begin correlation for Event {} uei: {}", e.getDbid(), e.getUei());
         m_workingMemory.insert(e);
         m_workingMemory.fireAllRules();
-    	LogUtils.debugf(this, "End correlation for Event %d uei: %s", e.getDbid(), e.getUei());
+	LOG.debug("End correlation for Event {} uei: {}", e.getDbid(), e.getUei());
     }
 
     /** {@inheritDoc} */
     @Override
     protected synchronized void timerExpired(final Integer timerId) {
-    	LogUtils.infof(this, "Begin correlation for Timer %d", timerId);
+	LOG.info("Begin correlation for Timer {}", timerId);
         TimerExpired expiration  = new TimerExpired(timerId);
         m_workingMemory.insert(expiration);
         m_workingMemory.fireAllRules();
-    	LogUtils.debugf(this, "Begin correlation for Timer %d", timerId);
+	LOG.debug("Begin correlation for Timer {}", timerId);
     }
 
     /** {@inheritDoc} */
@@ -140,7 +142,7 @@ public class DroolsCorrelationEngine extends AbstractCorrelationEngine {
         final RuleBase ruleBase = RuleBaseFactory.newRuleBase( config );
 
         if (builder.hasErrors()) {
-            LogUtils.warnf(this, "Unable to initialize Drools engine: %s", builder.getErrors());
+            LOG.warn("Unable to initialize Drools engine: {}", builder.getErrors());
             throw new IllegalStateException("Unable to initialize Drools engine: " + builder.getErrors());
         }
 
@@ -160,7 +162,7 @@ public class DroolsCorrelationEngine extends AbstractCorrelationEngine {
         for (final Resource rulesFile : m_rules) {
             Reader rdr = null;
             try {
-                LogUtils.debugf(this, "Loading rules file: %s", rulesFile);
+                LOG.debug("Loading rules file: {}", rulesFile);
                 rdr = new InputStreamReader( rulesFile.getInputStream(), "UTF-8" );
                 builder.addPackageFromDrl( rdr );
             } finally {
@@ -213,6 +215,7 @@ public class DroolsCorrelationEngine extends AbstractCorrelationEngine {
      *
      * @return a {@link java.lang.String} object.
      */
+    @Override
     public String getName() {
         return m_name;
     }

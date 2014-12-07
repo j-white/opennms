@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2011-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2005-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -33,6 +33,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import java.io.InputStream;
 import java.sql.Connection;
@@ -41,29 +42,34 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 
 import org.apache.commons.io.IOUtils;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.opennms.core.db.DataSourceFactory;
 import org.opennms.core.fiber.Fiber;
 import org.opennms.core.fiber.PausableFiber;
+import org.opennms.core.spring.BeanUtils;
 import org.opennms.core.test.ConfigurationTestUtils;
 import org.opennms.core.test.OpenNMSJUnit4ClassRunner;
 import org.opennms.core.test.db.MockDatabase;
 import org.opennms.core.test.db.TemporaryDatabaseAware;
 import org.opennms.core.test.db.annotations.JUnitTemporaryDatabase;
-import org.opennms.core.utils.BeanUtils;
-import org.opennms.netmgt.EventConstants;
 import org.opennms.netmgt.alarmd.Alarmd;
 import org.opennms.netmgt.config.VacuumdConfigFactory;
 import org.opennms.netmgt.config.vacuumd.Automation;
 import org.opennms.netmgt.config.vacuumd.Trigger;
-import org.opennms.netmgt.dao.NodeDao;
-import org.opennms.netmgt.eventd.mock.MockEventIpcManager;
+import org.opennms.netmgt.dao.api.NodeDao;
+import org.opennms.netmgt.dao.mock.EventAnticipator;
+import org.opennms.netmgt.dao.mock.MockEventIpcManager;
+import org.opennms.netmgt.dao.mock.MockEventIpcManager.EmptyEventConfDao;
+import org.opennms.netmgt.eventd.EventExpander;
+import org.opennms.netmgt.events.api.EventConstants;
 import org.opennms.netmgt.mock.MockNetwork;
 import org.opennms.netmgt.mock.MockNode;
 import org.opennms.netmgt.model.OnmsNode;
@@ -92,10 +98,12 @@ import org.springframework.test.context.ContextConfiguration;
         "classpath:/META-INF/opennms/applicationContext-daemon.xml",
         "classpath:/META-INF/opennms/mockEventIpcManager.xml",
         "classpath:/META-INF/opennms/applicationContext-alarmd.xml",
-        "classpath:/META-INF/opennms/applicationContext-minimal-conf.xml"
+        "classpath:/META-INF/opennms/applicationContext-minimal-conf.xml",
+        "classpath:/META-INF/opennms/applicationContext-commonConfigs.xml"
 })
 @JUnitConfigurationEnvironment
-@JUnitTemporaryDatabase(dirtiesContext=false,tempDbClass=MockDatabase.class)
+@JUnitTemporaryDatabase(dirtiesContext=true,tempDbClass=MockDatabase.class)
+@Ignore
 public class VacuumdTest implements TemporaryDatabaseAware<MockDatabase>, InitializingBean {
     private static final long TEAR_DOWN_WAIT_MILLIS = 1000;
 
@@ -117,6 +125,7 @@ public class VacuumdTest implements TemporaryDatabaseAware<MockDatabase>, Initia
 
     private MockDatabase m_database;
 
+    @Override
     public void setTemporaryDatabase(MockDatabase database) {
         m_database = database;
     }
@@ -138,7 +147,11 @@ public class VacuumdTest implements TemporaryDatabaseAware<MockDatabase>, Initia
         }
 
         m_eventdIpcMgr.setEventWriter(m_database);
+        EventExpander expander = new EventExpander();
+        expander.setEventConfDao(new EmptyEventConfDao());
+        m_eventdIpcMgr.setEventExpander(expander);
 
+        Vacuumd.destroySingleton();
         m_vacuumd = Vacuumd.getSingleton();
         m_vacuumd.setEventManager(m_eventdIpcMgr);
         m_vacuumd.init();
@@ -153,6 +166,7 @@ public class VacuumdTest implements TemporaryDatabaseAware<MockDatabase>, Initia
         node.setId(2);
         node.setLabel("default-2");
         m_nodeDao.save(node);
+        m_nodeDao.flush();
 
         MockUtil.println("------------ Finished setup for: "+ this.getClass().getName() +" --------------------------");
     }
@@ -160,6 +174,13 @@ public class VacuumdTest implements TemporaryDatabaseAware<MockDatabase>, Initia
     @After
     public void tearDown() throws Exception {
         m_alarmd.destroy();
+
+        final List<OnmsNode> nodes = m_nodeDao.findAll();
+        for (final OnmsNode node : nodes) {
+            m_nodeDao.delete(node);
+        }
+        m_nodeDao.flush();
+
         MockUtil.println("Sleeping for "+TEAR_DOWN_WAIT_MILLIS+" millis in tearDown...");
         Thread.sleep(TEAR_DOWN_WAIT_MILLIS);
     }
@@ -176,7 +197,9 @@ public class VacuumdTest implements TemporaryDatabaseAware<MockDatabase>, Initia
      * This is an attempt at testing scheduled automations.
      * @throws InterruptedException
      */
-    @Test
+    @Test(timeout=90000)
+    @JUnitTemporaryDatabase(dirtiesContext=true,tempDbClass=MockDatabase.class)
+    @Ignore // TODO Figure out how to make this test more reliable before enabling it
     public final void testConcurrency() throws InterruptedException {
         try {
         /*
@@ -190,7 +213,9 @@ public class VacuumdTest implements TemporaryDatabaseAware<MockDatabase>, Initia
          */
         m_vacuumd.start();
         assertTrue(m_vacuumd.getStatus() >= 1);
-        Thread.sleep(200);
+        while(m_vacuumd.getScheduler().getStatus() != PausableFiber.RUNNING) {
+            Thread.sleep(20);
+        }
         assertEquals(Fiber.RUNNING, m_vacuumd.getStatus());
         assertEquals(Fiber.RUNNING, m_vacuumd.getScheduler().getStatus());
         
@@ -198,26 +223,38 @@ public class VacuumdTest implements TemporaryDatabaseAware<MockDatabase>, Initia
          * Testing the pause
          */
         m_vacuumd.pause();
-        Thread.sleep(200);
+        while(m_vacuumd.getScheduler().getStatus() != PausableFiber.PAUSED) {
+            Thread.sleep(20);
+        }
         assertEquals(PausableFiber.PAUSED, m_vacuumd.getStatus());
         assertEquals(PausableFiber.PAUSED, m_vacuumd.getScheduler().getStatus());
 
         m_vacuumd.resume();
-        Thread.sleep(200);
+        while(m_vacuumd.getScheduler().getStatus() != PausableFiber.RUNNING) {
+            Thread.sleep(20);
+        }
         assertEquals(PausableFiber.RUNNING, m_vacuumd.getStatus());
         assertEquals(PausableFiber.RUNNING, m_vacuumd.getScheduler().getStatus());
         
         // Get an alarm in the DB
         bringNodeDownCreatingEvent(1);
+
         // There should be one node down alarm
+        while(countAlarms() < 1) {
+            Thread.sleep(20);
+        }
         assertEquals("count of nodeDown events", 1, m_jdbcTemplate.queryForInt("select count(*) from events where eventuei = '" + EventConstants.NODE_DOWN_EVENT_UEI + "'"));
         assertEquals("alarm count", 1, countAlarms());
         assertEquals("counter in the alarm", 1, m_jdbcTemplate.queryForInt("select counter from alarms where eventuei = '" + EventConstants.NODE_DOWN_EVENT_UEI + "'"));
         // Fetch the initial severity of the alarm
         int currentSeverity = m_jdbcTemplate.queryForInt("select severity from alarms");
+        assertEquals(OnmsSeverity.MAJOR.getId(), currentSeverity);
 
         // Create another node down event
         bringNodeDownCreatingEvent(1);
+        while( m_jdbcTemplate.queryForInt("select counter from alarms") < 2) {
+            Thread.sleep(20);
+        }
         assertEquals("count of nodeDown events", 2, m_jdbcTemplate.queryForInt("select count(*) from events where eventuei = '" + EventConstants.NODE_DOWN_EVENT_UEI + "'"));
         // Make sure there's still one alarm...
         assertEquals("alarm count", 1, countAlarms());
@@ -225,19 +262,48 @@ public class VacuumdTest implements TemporaryDatabaseAware<MockDatabase>, Initia
         assertEquals("counter in the alarm", 2, m_jdbcTemplate.queryForInt("select counter from alarms"));
 
         // Sleep long enough for the escalation automation to run, then check that it was escalated
-        Thread.sleep(VacuumdConfigFactory.getInstance().getAutomation("autoEscalate").getInterval() + 500);
+        while(verifyAlarmEscalated() < (currentSeverity + 1)) {
+            Thread.sleep(1000);
+        }
         assertEquals("alarm severity wrong, should have been escalated", currentSeverity+1, verifyAlarmEscalated());
+        } catch (Throwable e) {
+            e.printStackTrace();
+            fail("Unexpected exception caught: " + e.getMessage());
         } finally {
         // Stop what you start
         m_vacuumd.stop();
         }
     }
 
-    public final void testConfigReload() {
-        // TODO: Check configuration before and after
-        EventBuilder builder = new EventBuilder(EventConstants.RELOAD_VACUUMD_CONFIG_UEI, "test");
-        Event e = builder.getEvent();
-        m_eventdIpcMgr.sendNow(e);
+    @Test
+    public final void testConfigReload() throws Exception {
+        // Start vacuumd
+        m_vacuumd.start();
+
+        // Setup our event anticipator
+        EventAnticipator eventAnticipator = new EventAnticipator();
+        eventAnticipator.setDiscardUnanticipated(true);
+        m_eventdIpcMgr.setEventAnticipator(eventAnticipator);
+
+        // Build and anticipate the request reload event
+        EventBuilder builder = new EventBuilder(EventConstants.RELOAD_DAEMON_CONFIG_UEI, "test");
+        builder.addParam(EventConstants.PARM_DAEMON_NAME, m_vacuumd.getName());
+        Event requestReloadEvent = builder.getEvent();
+        eventAnticipator.anticipateEvent(requestReloadEvent);
+
+        // Build and anticipate the reload confirmation event
+        builder = new EventBuilder(EventConstants.RELOAD_DAEMON_CONFIG_SUCCESSFUL_UEI, m_vacuumd.getName());
+        Event reloadSuccesfulEvent = builder.getEvent();
+        eventAnticipator.anticipateEvent(reloadSuccesfulEvent);
+
+        // Send the reload event
+        m_eventdIpcMgr.sendNow(requestReloadEvent);
+        Thread.sleep(1000);
+
+        // Stop the daemon and verify that the configuration reload was confirmed
+        m_vacuumd.stop();
+        m_eventdIpcMgr.setEventAnticipator(null);
+        eventAnticipator.verifyAnticipated();
     }
 
     /**
@@ -344,20 +410,28 @@ public class VacuumdTest implements TemporaryDatabaseAware<MockDatabase>, Initia
      * @throws SQLException
      * @throws InterruptedException 
      */
-    @Test
+    @Test(timeout=30000)
     @JUnitTemporaryDatabase(tempDbClass=MockDatabase.class) // Relies on records created in @Before so we need a fresh database
     public final void testRunAutomation() throws SQLException, InterruptedException {
         final int major = OnmsSeverity.MAJOR.getId();
-        
+
+        assertEquals(0, countAlarms());
+
         bringNodeDownCreatingEvent(1);
-        Thread.sleep(1000);
-        
+
+        while(countAlarms() != 1) {
+            Thread.sleep(100);
+        }
+
         assertEquals(1, countAlarms());
         assertEquals(major, getSingleResultSeverity());
         assertEquals("counter in the alarm", 1, m_jdbcTemplate.queryForInt("select counter from alarms"));
 
         bringNodeDownCreatingEvent(1);
-        Thread.sleep(1000);
+
+        while(m_jdbcTemplate.queryForInt("select counter from alarms") < 2) {
+            Thread.sleep(100);
+        }
 
         assertEquals(1, countAlarms());
         assertEquals(major, getSingleResultSeverity());
@@ -365,15 +439,25 @@ public class VacuumdTest implements TemporaryDatabaseAware<MockDatabase>, Initia
 
         AutomationProcessor ap = new AutomationProcessor(VacuumdConfigFactory.getInstance().getAutomation("autoEscalate"));
         assertTrue(ap.runAutomation());
-        Thread.sleep(1000);
+
+        while(getSingleResultSeverity() != (major + 1)) {
+            Thread.sleep(100);
+        }
+
         assertEquals(major+1, getSingleResultSeverity());
     }
     
-    @Test
+    @Test(timeout=30000)
+    @JUnitTemporaryDatabase(dirtiesContext=true,tempDbClass=MockDatabase.class)
     public final void testRunAutomationWithNoTrigger() throws InterruptedException, SQLException {
+        assertEquals(0, countAlarms());
+
         bringNodeDownCreatingEvent(1);
-        Thread.sleep(1000);
-        
+
+        while(countAlarms() < 1) {
+            Thread.sleep(100);
+        }
+
         assertEquals(1, countAlarms());
 
         AutomationProcessor ap = new AutomationProcessor(VacuumdConfigFactory.getInstance().getAutomation("cleanUpAlarms"));
@@ -381,21 +465,30 @@ public class VacuumdTest implements TemporaryDatabaseAware<MockDatabase>, Initia
         assertTrue(ap.runAutomation());
     }
     
-    @Test
+    @Test(timeout=30000)
+    @JUnitTemporaryDatabase(dirtiesContext=true,tempDbClass=MockDatabase.class)
     public final void testRunAutomationWithZeroResultsFromTrigger() throws InterruptedException, SQLException {
+        assertEquals(0, countAlarms());
+
         bringNodeDownCreatingEvent(1);
-        Thread.sleep(1000);
+
+        while(countAlarms() < 1) {
+            Thread.sleep(100);
+        }
+
         assertEquals(1, countAlarms());
+
         AutomationProcessor ap = new AutomationProcessor(VacuumdConfigFactory.getInstance().getAutomation("testZeroResults"));
         Thread.sleep(1000);
-        assertTrue(ap.runAutomation());        
+        assertTrue(ap.runAutomation());
     }
     
     /**
      * This tests the capabilities of the cosmicClear automation as shipped in the standard build.
      * @throws InterruptedException 
      */
-    @Test
+    @Test(timeout=30000)
+    @JUnitTemporaryDatabase(dirtiesContext=true,tempDbClass=MockDatabase.class)
     public final void testCosmicClearAutomation() throws InterruptedException {
         // create node down events with severity 6
         bringNodeDownCreatingEvent(1);
@@ -403,15 +496,21 @@ public class VacuumdTest implements TemporaryDatabaseAware<MockDatabase>, Initia
         Thread.sleep(1000);
         // create node up event with severity 3
         bringNodeUpCreatingEvent(1);
-        Thread.sleep(1000);
-        
+
+        while (m_jdbcTemplate.queryForLong("select count(*) from alarms") != 3) {
+            Thread.sleep(100);
+        }
+
         // should have three alarms, one for each event
         assertEquals("should have one alarm for each event", 3, m_jdbcTemplate.queryForLong("select count(*) from alarms"));
 
         AutomationProcessor ap = new AutomationProcessor(VacuumdConfigFactory.getInstance().getAutomation("cosmicClear"));
         ap.run();
-        Thread.sleep(1000);
-        
+
+        while(m_jdbcTemplate.queryForLong("select count(*) from alarms where severity = 2") < 1) {
+            Thread.sleep(100);
+        }
+
         // the automation should have cleared the nodeDown for node 1 so it should now have severity CLEARED == 2
         assertEquals("alarms with severity == 2", 1, m_jdbcTemplate.queryForLong("select count(*) from alarms where severity = 2"));
 
@@ -421,8 +520,9 @@ public class VacuumdTest implements TemporaryDatabaseAware<MockDatabase>, Initia
         // run this automation again and make sure nothing happens since we've already processed the clear
         ap = new AutomationProcessor(VacuumdConfigFactory.getInstance().getAutomation("cosmicClear"));
         ap.run();
+
         Thread.sleep(1000);
-        
+
         // same as above
         assertEquals("alarms with severity == 2", 1, m_jdbcTemplate.queryForLong("select count(*) from alarms where severity = 2"));
 
@@ -433,14 +533,18 @@ public class VacuumdTest implements TemporaryDatabaseAware<MockDatabase>, Initia
     /**
      * @throws InterruptedException 
      */
-    @Test
+    @Test(timeout=30000)
     @JUnitTemporaryDatabase(tempDbClass=MockDatabase.class) // Relies on records created in @Before so we need a fresh database
     public final void testSendEventWithParms() throws InterruptedException {
         // create node down events with severity 6
         bringNodeDownCreatingEventWithReason(1, "Testing node1");
         Thread.sleep(1000);
         new AutomationProcessor(VacuumdConfigFactory.getInstance().getAutomation("escalate")).run();
-        Thread.sleep(1000);
+
+        while(m_jdbcTemplate.queryForMap("SELECT eventuei, eventparms FROM events WHERE eventuei = 'uei.opennms.org/vacuumd/alarmEscalated'").size() < 1) {
+            Thread.sleep(100);
+        }
+
         Map<String, Object> queryResult = m_jdbcTemplate.queryForMap("SELECT eventuei, eventparms FROM events WHERE eventuei = 'uei.opennms.org/vacuumd/alarmEscalated'");
         // If the add-all-parms="true" is set on the action-event, the parms will turn out like this
         // assertEquals("Parameter list sent from action event doesn't match", "eventReason=Testing node1(string,text);alarmId=1(string,text);alarmEventUei=uei.opennms.org/nodes/nodeDown(string,text)", queryResult.get("eventParms"));
@@ -465,13 +569,14 @@ public class VacuumdTest implements TemporaryDatabaseAware<MockDatabase>, Initia
      */
     @Test
     public final void testGetName() {
-        assertEquals("OpenNMS.Vacuumd", m_vacuumd.getName());
+        assertEquals("vacuumd", m_vacuumd.getName());
     }
 
     /**
      * 
      */
     @Test
+    @Ignore
     public final void testRunUpdate() {
         //TODO Implement runUpdate().
     }

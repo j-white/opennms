@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2012-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -25,6 +25,7 @@
  *     http://www.opennms.org/
  *     http://www.opennms.com/
  *******************************************************************************/
+
 package org.opennms.features.vaadin.mibcompiler.services;
 
 import java.io.File;
@@ -52,8 +53,6 @@ import org.jsmiparser.smi.SmiPrimitiveType;
 import org.jsmiparser.smi.SmiRow;
 import org.jsmiparser.smi.SmiTrapType;
 import org.jsmiparser.smi.SmiVariable;
-
-import org.opennms.core.utils.LogUtils;
 import org.opennms.features.namecutter.NameCutter;
 import org.opennms.features.vaadin.mibcompiler.api.MibParser;
 import org.opennms.netmgt.config.datacollection.DatacollectionGroup;
@@ -72,6 +71,8 @@ import org.opennms.netmgt.xml.eventconf.Logmsg;
 import org.opennms.netmgt.xml.eventconf.Mask;
 import org.opennms.netmgt.xml.eventconf.Maskelement;
 import org.opennms.netmgt.xml.eventconf.Varbindsdecode;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * JSMIParser implementation of the interface MibParser.
@@ -80,6 +81,9 @@ import org.opennms.netmgt.xml.eventconf.Varbindsdecode;
  */
 @SuppressWarnings("serial")
 public class JsmiMibParser implements MibParser, Serializable {
+
+    /** The Constant LOG. */
+    private static final Logger LOG = LoggerFactory.getLogger(JsmiMibParser.class);
 
     /** The Constant MIB_SUFFIXES. */
     private static final String[] MIB_SUFFIXES = new String[] { "", ".txt", ".mib", ".my" };
@@ -113,6 +117,7 @@ public class JsmiMibParser implements MibParser, Serializable {
     /* (non-Javadoc)
      * @see org.opennms.features.vaadin.mibcompiler.MibParser#setMibDirectory(java.io.File)
      */
+    @Override
     public void setMibDirectory(File mibDirectory) {
         this.mibDirectory = mibDirectory;
     }
@@ -120,9 +125,10 @@ public class JsmiMibParser implements MibParser, Serializable {
     /* (non-Javadoc)
      * @see org.opennms.features.vaadin.mibcompiler.MibParser#parseMib(java.io.File)
      */
+    @Override
     public boolean parseMib(File mibFile) {
         // Validate MIB Directory
-        if (mibDirectory == null) {
+        if (mibDirectory == null || !mibDirectory.isDirectory()) {
             errorHandler.addError("MIB directory has not been set.");
             return false;
         }
@@ -141,7 +147,7 @@ public class JsmiMibParser implements MibParser, Serializable {
         }
 
         // Parse MIB
-        LogUtils.debugf(this, "Parsing %s", mibFile.getAbsolutePath());
+        LOG.debug("Parsing {}", mibFile.getAbsolutePath());
         SmiMib mib = null;
         addFileToQueue(queue, mibFile);
         while (true) {
@@ -149,7 +155,7 @@ public class JsmiMibParser implements MibParser, Serializable {
             try {
                 mib = parser.parse();
             } catch (Exception e) {
-                LogUtils.errorf(this, e, "Can't compile %s", mibFile);
+                LOG.error("Can't compile {}", mibFile, e);
                 errorHandler.addError(e.getMessage());
                 return false;
             }
@@ -168,7 +174,7 @@ public class JsmiMibParser implements MibParser, Serializable {
             return false;
 
         // Extracting the module from compiled MIB.
-        LogUtils.infof(this, "The MIB %s has been parsed successfully.", mibFile.getAbsolutePath());
+        LOG.info("The MIB {} has been parsed successfully.", mibFile.getAbsolutePath());
         module = getModule(mib, mibFile);
         return module != null;
     }
@@ -176,6 +182,7 @@ public class JsmiMibParser implements MibParser, Serializable {
     /* (non-Javadoc)
      * @see org.opennms.features.vaadin.mibcompiler.MibParser#getFormattedErrors()
      */
+    @Override
     public String getFormattedErrors() {
         return errorHandler.getMessages();
     }
@@ -183,6 +190,7 @@ public class JsmiMibParser implements MibParser, Serializable {
     /* (non-Javadoc)
      * @see org.opennms.features.vaadin.mibcompiler.MibParser#getMissingDependencies()
      */
+    @Override
     public List<String> getMissingDependencies() {
         return missingDependencies;
     }
@@ -198,18 +206,19 @@ public class JsmiMibParser implements MibParser, Serializable {
     /* (non-Javadoc)
      * @see org.opennms.features.vaadin.mibcompiler.services.MibParser#getEvents(java.lang.String)
      */
+    @Override
     public Events getEvents(String ueibase) {
         if (module == null) {
             return null;
         }
-        LogUtils.infof(this, "Generating events for %s using the following UEI Base: %s", module.getId(), ueibase);
+        LOG.info("Generating events for {} using the following UEI Base: {}", module.getId(), ueibase);
         try {
             return convertMibToEvents(module, ueibase);
         } catch (Throwable e) {
             String errors = e.getMessage();
             if (errors == null || errors.trim().equals(""))
                 errors = "An unknown error accured when generating events objects from the MIB " + module.getId();
-            LogUtils.errorf(this, e, "Event parsing error: %s", errors);
+            LOG.error("Event parsing error: {}", errors, e);
             errorHandler.addError(errors);
             return null;
         }
@@ -218,11 +227,12 @@ public class JsmiMibParser implements MibParser, Serializable {
     /* (non-Javadoc)
      * @see org.opennms.features.vaadin.mibcompiler.api.MibParser#getDataCollection()
      */
+    @Override
     public DatacollectionGroup getDataCollection() {
         if (module == null) {
             return null;
         }
-        LogUtils.infof(this, "Generating data collection configuration for %s", module.getId());
+        LOG.info("Generating data collection configuration for {}", module.getId());
         DatacollectionGroup dcGroup = new DatacollectionGroup();
         dcGroup.setName(module.getId());
         NameCutter cutter = new NameCutter();
@@ -241,7 +251,7 @@ public class JsmiMibParser implements MibParser, Serializable {
                     mibObj.setType(typeName);
                     group.addMibObj(mibObj);
                     if (typeName.equals("string") && resourceType != null) {
-                        for (ResourceType rs : dcGroup.getResourceTypeCollection()) {
+                        for (ResourceType rs : dcGroup.getResourceTypes()) {
                             if (rs.getName().equals(resourceType) && rs.getResourceLabel().equals("${index}")) {
                                 rs.setResourceLabel("${" + v.getId() + "} (${index})");
                             }
@@ -253,7 +263,7 @@ public class JsmiMibParser implements MibParser, Serializable {
             String errors = e.getMessage();
             if (errors == null || errors.trim().equals(""))
                 errors = "An unknown error accured when generating data collection objects from the MIB " + module.getId();
-            LogUtils.errorf(this, e, "Data Collection parsing error: %s", errors);
+            LOG.error("Data Collection parsing error: {}", errors, e);
             errorHandler.addError(errors);
             return null;
         }
@@ -270,7 +280,7 @@ public class JsmiMibParser implements MibParser, Serializable {
             return null;
         }
         List<PrefabGraph> graphs = new ArrayList<PrefabGraph>();
-        LogUtils.infof(this, "Generating graph templates for %s", module.getId());
+        LOG.info("Generating graph templates for {}", module.getId());
         NameCutter cutter = new NameCutter();
         try {
             for (SmiVariable v : module.getVariables()) {
@@ -293,7 +303,7 @@ public class JsmiMibParser implements MibParser, Serializable {
                     sb.append(" LINE1:var#0000ff:\"").append(v.getId()).append("\" \\\n");
                     sb.append(" GPRINT:var:AVERAGE:\"Avg\\\\: %8.2lf %s\" \\\n");
                     sb.append(" GPRINT:var:MIN:\"Min\\\\: %8.2lf %s\" \\\n");
-                    sb.append(" GPRINT:var:MAX:\"Max\\\\: %8.2lf %s\\n\"");
+                    sb.append(" GPRINT:var:MAX:\"Max\\\\: %8.2lf %s\\\\n\"");
                     sb.append("\n\n");
                     PrefabGraph graph = new PrefabGraph(name, descr, new String[] { alias }, sb.toString(), new String[0], new String[0], order++, new String[] { resourceType }, descr, null, null, new String[0]);
                     graphs.add(graph);
@@ -303,7 +313,7 @@ public class JsmiMibParser implements MibParser, Serializable {
             String errors = e.getMessage();
             if (errors == null || errors.trim().equals(""))
                 errors = "An unknown error accured when generating graph templates from the MIB " + module.getId();
-            LogUtils.errorf(this, e, "Graph templates parsing error: %s", errors);
+            LOG.error("Graph templates parsing error: {}", errors, e);
             errorHandler.addError(errors);
             return null;
         }
@@ -346,11 +356,11 @@ public class JsmiMibParser implements MibParser, Serializable {
         try {
             URL url = mibFile.toURI().toURL();
             if (!queue.contains(url)) {
-                LogUtils.debugf(this, "Adding %s to queue ", url);
+                LOG.debug("Adding {} to queue ", url);
                 queue.add(url);
             }
         } catch (Exception e) {
-            LogUtils.warnf(this, "Can't generate URL from %s", mibFile.getAbsolutePath());
+            LOG.warn("Can't generate URL from {}", mibFile.getAbsolutePath());
         }
     }
 
@@ -358,7 +368,7 @@ public class JsmiMibParser implements MibParser, Serializable {
      * Adds the dependency to the queue.
      *
      * @param queue the queue
-     * @param mibDirectoryFiles
+     * @param mibDirectoryFiles the mib directory files
      * @return true, if successful
      */
     private boolean addDependencyToQueue(final List<URL> queue, final Map<String, File> mibDirectoryFiles) {
@@ -370,19 +380,18 @@ public class JsmiMibParser implements MibParser, Serializable {
                 final String fileName = (dependency+suffix).toLowerCase();
                 if (mibDirectoryFiles.containsKey(fileName)) {
                     File f = mibDirectoryFiles.get(fileName);
-                    LogUtils.debugf(this, "Checking dependency file %s", f.getAbsolutePath());
+                    LOG.debug("Checking dependency file {}", f.getAbsolutePath());
                     if (f.exists()) {
-                        LogUtils.infof(this, "Adding dependency file %s", f.getAbsolutePath());
+                        LOG.info("Adding dependency file {}", f.getAbsolutePath());
                         addFileToQueue(queue, f);
                         missingDependencies.remove(dependency);
                         found = true;
                         break;
                     }
                 }
-                LogUtils.debugf(this, "Dependency file %s doesn't exist", fileName);
             }
             if (!found) {
-                LogUtils.warnf(this, "Couldn't find dependency %s on %s", dependency, mibDirectory);
+                LOG.warn("Couldn't find dependency {} on {}", dependency, mibDirectory);
                 ok = false;
             }
         }
@@ -398,10 +407,20 @@ public class JsmiMibParser implements MibParser, Serializable {
      */
     private SmiModule getModule(SmiMib mibObject, File mibFile) {
         for (SmiModule m : mibObject.getModules()) {
-            if (m.getIdToken().getLocation().getSource().contains(mibFile.getAbsolutePath())) {
-                return m;
+            URL source = null;
+            try {
+                source = new URL(m.getIdToken().getLocation().getSource());
+            } catch (Exception e) {}
+            if (source != null) {
+                try {
+                    File srcFile = new File(source.toURI());
+                    if (srcFile.getAbsolutePath().equals(mibFile.getAbsolutePath())) {
+                        return m;
+                    }
+                } catch (Exception e) {}
             }
         }
+        LOG.error("Can't find the MIB module for " + mibFile);
         errorHandler.addError("Can't find the MIB module for " + mibFile);
         return null;
     }
@@ -438,7 +457,7 @@ public class JsmiMibParser implements MibParser, Serializable {
      * @return the group
      */
     protected Group getGroup(DatacollectionGroup data, String groupName, String resourceType) {
-        for (Group group : data.getGroupCollection()) {
+        for (Group group : data.getGroups()) {
             if (group.getName().equals(groupName))
                 return group;
         }
@@ -654,7 +673,7 @@ public class JsmiMibParser implements MibParser, Serializable {
      */
     private String getTrapEnterprise(Notification trap) {
         String trapOid = getMatcherForOid(getTrapOid(trap)).group(1);
-        
+
         /* RFC3584 sec 3.2 (1) bullet 2 sub-bullet 1 states:
          * 
          * "If the next-to-last sub-identifier of the snmpTrapOID value
@@ -664,7 +683,7 @@ public class JsmiMibParser implements MibParser, Serializable {
          * Issue SPC-592 boils down to the fact that we were not doing the above.
          * 
          */
-        
+
         if (trapOid.endsWith(".0")) {
             trapOid = trapOid.substring(0, trapOid.length() - 2);
         }

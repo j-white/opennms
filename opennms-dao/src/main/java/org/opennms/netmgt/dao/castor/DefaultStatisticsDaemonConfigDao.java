@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2007-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2007-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -31,10 +31,10 @@ package org.opennms.netmgt.dao.castor;
 import java.util.List;
 
 import org.opennms.netmgt.config.statsd.StatisticsDaemonConfiguration;
-import org.opennms.netmgt.dao.StatisticsDaemonConfigDao;
-import org.opennms.netmgt.dao.castor.statsd.Report;
-import org.opennms.netmgt.dao.castor.statsd.StatsdConfig;
-import org.opennms.netmgt.dao.castor.statsd.StatsdPackage;
+import org.opennms.netmgt.config.statsd.model.Report;
+import org.opennms.netmgt.config.statsd.model.StatsdConfig;
+import org.opennms.netmgt.config.statsd.model.StatsdPackage;
+import org.opennms.netmgt.dao.api.StatisticsDaemonConfigDao;
 import org.springframework.dao.DataAccessResourceFailureException;
 
 /**
@@ -70,6 +70,7 @@ public class DefaultStatisticsDaemonConfigDao extends AbstractCastorConfigDao<St
      *
      * @return a {@link java.util.List} object.
      */
+    @Override
     public List<Report> getReports() {
         return getConfig().getReports();
     }
@@ -79,6 +80,7 @@ public class DefaultStatisticsDaemonConfigDao extends AbstractCastorConfigDao<St
      *
      * @return a {@link java.util.List} object.
      */
+    @Override
     public List<StatsdPackage> getPackages() {
         return getConfig().getPackages();
     }
@@ -88,6 +90,7 @@ public class DefaultStatisticsDaemonConfigDao extends AbstractCastorConfigDao<St
      *
      * @throws org.springframework.dao.DataAccessResourceFailureException if any.
      */
+    @Override
     public void reloadConfiguration() throws DataAccessResourceFailureException {
         getContainer().reload();
         this.verifyMarshaledConfiguration();

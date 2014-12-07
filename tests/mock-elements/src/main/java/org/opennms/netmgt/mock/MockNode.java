@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2010-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2004-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -30,7 +30,7 @@ package org.opennms.netmgt.mock;
 
 
 import org.apache.commons.lang.builder.ToStringBuilder;
-import org.opennms.netmgt.EventConstants;
+import org.opennms.netmgt.events.api.EventConstants;
 import org.opennms.netmgt.model.events.EventBuilder;
 import org.opennms.netmgt.xml.event.Event;
 
@@ -43,13 +43,13 @@ import org.opennms.netmgt.xml.event.Event;
  * Preferences - Java - Code Style - Code Templates
  * @version $Id: $
  */
-public class MockNode extends MockContainer<MockNetwork,MockInterface> {
+public class MockNode extends MockContainer<MockNetwork, MockElement> {
 
     String m_label;
 
     int m_nodeid;
     int m_nextIfIndex = 1;
-
+    
     /**
      * <p>Constructor for MockNode.</p>
      *
@@ -86,8 +86,9 @@ public class MockNode extends MockContainer<MockNetwork,MockInterface> {
     }
 
     // impl
+    @Override
     Object getKey() {
-        return new Integer(m_nodeid);
+        return Integer.valueOf(m_nodeid);
     }
 
     // model
@@ -115,6 +116,7 @@ public class MockNode extends MockContainer<MockNetwork,MockInterface> {
      *
      * @return a {@link org.opennms.netmgt.mock.MockNetwork} object.
      */
+    @Override
     public MockNetwork getNetwork() {
         return (MockNetwork) getParent();
     }
@@ -154,6 +156,7 @@ public class MockNode extends MockContainer<MockNetwork,MockInterface> {
      *
      * @return a {@link java.lang.String} object.
      */
+    @Override
     public String toString() {
     	return new ToStringBuilder(this)
     		.append("id", m_nodeid)
@@ -163,6 +166,7 @@ public class MockNode extends MockContainer<MockNetwork,MockInterface> {
 
     // impl
     /** {@inheritDoc} */
+    @Override
     public void visit(MockVisitor v) {
         super.visit(v);
         v.visitNode(this);
@@ -174,6 +178,7 @@ public class MockNode extends MockContainer<MockNetwork,MockInterface> {
      *
      * @return a {@link org.opennms.netmgt.xml.event.Event} object.
      */
+    @Override
     public Event createUpEvent() {
         return MockEventUtil.createNodeUpEvent("Test", this);
     }
@@ -183,6 +188,7 @@ public class MockNode extends MockContainer<MockNetwork,MockInterface> {
      *
      * @return a {@link org.opennms.netmgt.xml.event.Event} object.
      */
+    @Override
     public Event createDownEvent() {
         return MockEventUtil.createNodeDownEvent("Test", this);
     }
@@ -202,6 +208,7 @@ public class MockNode extends MockContainer<MockNetwork,MockInterface> {
      *
      * @return a {@link org.opennms.netmgt.xml.event.Event} object.
      */
+    @Override
     public Event createNewEvent() {
         return MockEventUtil.createNodeAddedEvent("Test", this);
     }
@@ -211,6 +218,7 @@ public class MockNode extends MockContainer<MockNetwork,MockInterface> {
      *
      * @return a {@link org.opennms.netmgt.xml.event.Event} object.
      */
+    @Override
     public Event createDeleteEvent() {
         return MockEventUtil.createNodeDeletedEvent("Test", this);
     }
@@ -226,4 +234,5 @@ public class MockNode extends MockContainer<MockNetwork,MockInterface> {
         event.addParam(EventConstants.PARM_NODE_LABEL, newLabel);
         return event.getEvent();
     }
+    
 }

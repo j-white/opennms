@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2002-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -33,17 +33,21 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.opennms.netmgt.dao.IpInterfaceDao;
+import org.opennms.netmgt.dao.api.IpInterfaceDao;
 import org.opennms.netmgt.model.OnmsIpInterface;
 import org.opennms.netmgt.model.OnmsNode;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.util.Assert;
+
 /**
  * <p>IpInterfaceDaoHibernate class.</p>
  *
  * @author david
  */
 public class IpInterfaceDaoHibernate extends AbstractDaoHibernate<OnmsIpInterface, Integer>  implements IpInterfaceDao {
-    
+    private static final Logger LOG = LoggerFactory.getLogger(IpInterfaceDaoHibernate.class);
+
     String m_findByServiceTypeQuery = null;
 
     /**
@@ -59,22 +63,26 @@ public class IpInterfaceDaoHibernate extends AbstractDaoHibernate<OnmsIpInterfac
     }
 
     /** {@inheritDoc} */
+    @Override
     public OnmsIpInterface get(OnmsNode node, String ipAddress) {
         return findUnique("from OnmsIpInterface as ipInterface where ipInterface.node = ? and ipInterface.ipAddress = ?", node, ipAddress);
     }
 
     /** {@inheritDoc} */
+    @Override
     public List<OnmsIpInterface> findByIpAddress(String ipAddress) {
         return find("from OnmsIpInterface ipInterface where ipInterface.ipAddress = ?", ipAddress);
     }
     
     /** {@inheritDoc} */
+    @Override
     public List<OnmsIpInterface> findByNodeId(Integer nodeId) {
         Assert.notNull(nodeId, "nodeId cannot be null");
         return find("from OnmsIpInterface ipInterface where ipInterface.node.id = ?", nodeId);
     }
 
     /** {@inheritDoc} */
+    @Override
     public OnmsIpInterface findByNodeIdAndIpAddress(Integer nodeId, String ipAddress) {
         return findUnique("select ipInterface from OnmsIpInterface as ipInterface where ipInterface.node.id = ? and ipInterface.ipAddress = ?", 
                           nodeId, 
@@ -83,6 +91,7 @@ public class IpInterfaceDaoHibernate extends AbstractDaoHibernate<OnmsIpInterfac
     }
 
     /** {@inheritDoc} */
+    @Override
     public OnmsIpInterface findByForeignKeyAndIpAddress(String foreignSource, String foreignId, String ipAddress) {
         return findUnique("select ipInterface from OnmsIpInterface as ipInterface join ipInterface.node as node where node.foreignSource = ? and node.foreignId = ? and ipInterface.ipAddress = ?", 
                           foreignSource, 
@@ -92,12 +101,14 @@ public class IpInterfaceDaoHibernate extends AbstractDaoHibernate<OnmsIpInterfac
     }
 
     /** {@inheritDoc} */
+    @Override
     public List<OnmsIpInterface> findByServiceType(String svcName) {
         
         return find(m_findByServiceTypeQuery, svcName);
     }
 
     /** {@inheritDoc} */
+    @Override
     public List<OnmsIpInterface> findHierarchyByServiceType(String svcName) {
         return find("select distinct ipInterface " +
                     "from OnmsIpInterface as ipInterface " +
@@ -114,6 +125,7 @@ public class IpInterfaceDaoHibernate extends AbstractDaoHibernate<OnmsIpInterfac
      *
      * @return a {@link java.util.Map} object.
      */
+    @Override
     public Map<InetAddress, Integer> getInterfacesForNodes() {
         Map<InetAddress, Integer> map = new HashMap<InetAddress, Integer>();
 
@@ -161,6 +173,9 @@ public class IpInterfaceDaoHibernate extends AbstractDaoHibernate<OnmsIpInterfac
         }
     }
 
+    /**
+     * This function should be kept similar to {@link OnmsNode#getPrimaryInterface()}.
+     */
     @Override
     public OnmsIpInterface findPrimaryInterfaceByNodeId(final Integer nodeId) {
         Assert.notNull(nodeId, "nodeId cannot be null");
@@ -172,7 +187,7 @@ public class IpInterfaceDaoHibernate extends AbstractDaoHibernate<OnmsIpInterfac
         } else {
             OnmsIpInterface retval = primaryInterfaces.iterator().next();
             if (primaryInterfaces.size() > 1) {
-                logger.warn("Multiple primary SNMP interfaces for node " + nodeId + ", returning most recently scanned interface: " + retval.getInterfaceId());
+                LOG.warn("Multiple primary SNMP interfaces for node {}, returning most recently scanned interface: {}", nodeId, retval.getInterfaceId());
             }
             return retval;
         }

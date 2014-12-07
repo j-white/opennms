@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2008-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2008-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -71,6 +71,7 @@ public class SmtpDetectorTest implements ApplicationContextAware {
         m_server.startServer();
         
         m_detector = getDetector(SmtpDetector.class);
+        m_detector.setTimeout(500);
         m_detector.init();
         m_detector.setPort(m_server.getLocalPort());
     }
@@ -87,6 +88,7 @@ public class SmtpDetectorTest implements ApplicationContextAware {
     public void testDetectorFailWrongCodeExpectedMultilineRequest() throws Exception {
         SimpleServer tempServer = new SimpleServer() {
             
+            @Override
             public void onInit() {
                 String[] multiLine = {"600 First line"};
                 
@@ -107,6 +109,7 @@ public class SmtpDetectorTest implements ApplicationContextAware {
     public void testDetectorFailIncompleteMultilineResponseFromServer() throws Exception {
         SimpleServer tempServer = new SimpleServer() {
             
+            @Override
             public void onInit() {
                 String[] multiLine = {"250-First line", "400-Bogus second line"};
                 
@@ -127,6 +130,7 @@ public class SmtpDetectorTest implements ApplicationContextAware {
     public void testDetectorFailBogusSecondLine() throws Exception {
         SimpleServer tempServer = new SimpleServer() {
             
+            @Override
             public void onInit() {
                 String[] multiLine = {"250-First line", "400-Bogus second line", "250 Requested mail action completed"};
                 
@@ -178,6 +182,7 @@ public class SmtpDetectorTest implements ApplicationContextAware {
     private SimpleServer getServer() {
         return new SimpleServer() {
              
+            @Override
             public void onInit() {
                 String[] multiLine = {"250-First line", "250-Second line", "250 Requested mail action completed"};
                 
@@ -191,6 +196,7 @@ public class SmtpDetectorTest implements ApplicationContextAware {
     /* (non-Javadoc)
      * @see org.springframework.context.ApplicationContextAware#setApplicationContext(org.springframework.context.ApplicationContext)
      */
+    @Override
     public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
         m_applicationContext = applicationContext;
     }

@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2005-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -47,10 +47,10 @@ import java.util.Map;
 import org.exolab.castor.xml.MarshalException;
 import org.exolab.castor.xml.Marshaller;
 import org.exolab.castor.xml.ValidationException;
+import org.opennms.core.network.IpListFromUrl;
 import org.opennms.core.utils.ByteArrayComparator;
-import org.opennms.core.utils.IpListFromUrl;
-import org.opennms.core.utils.LogUtils;
-import org.opennms.core.utils.ThreadCategory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.opennms.core.xml.CastorUtils;
 import org.opennms.netmgt.config.threshd.ExcludeRange;
 import org.opennms.netmgt.config.threshd.IncludeRange;
@@ -66,6 +66,7 @@ import org.opennms.netmgt.filter.FilterDaoFactory;
  * @version $Id: $
  */
 public abstract class ThreshdConfigManager {
+    private static final Logger LOG = LoggerFactory.getLogger(ThreshdConfigManager.class);
 
     /**
      * The config class loaded from the config file
@@ -123,7 +124,7 @@ public abstract class ThreshdConfigManager {
     
         for (Package pkg : m_config.getPackageCollection()) {
             for (String urlname : pkg.getIncludeUrlCollection()) {
-                java.util.List<String> iplist = IpListFromUrl.parse(urlname);
+                java.util.List<String> iplist = IpListFromUrl.fetch(urlname);
                 if (iplist.size() > 0) {
                     m_urlIPMap.put(urlname, iplist);
                 }
@@ -137,7 +138,6 @@ public abstract class ThreshdConfigManager {
      * rules from the database.
      */
     protected void createPackageIpListMap() {
-        ThreadCategory log = ThreadCategory.getInstance(this.getClass());
     
         m_pkgIpMap = new HashMap<Package, List<InetAddress>>();
     
@@ -160,15 +160,16 @@ public abstract class ThreshdConfigManager {
                     filterRules.append(")");
                 }
     
-                if (log.isDebugEnabled())
-                    log.debug("createPackageIpMap: package is " + pkg.getName() + ". filer rules are  " + filterRules.toString());
+
+                LOG.debug("createPackageIpMap: package is {}. filer rules are {}", filterRules, pkg.getName());
     
+                FilterDaoFactory.getInstance().flushActiveIpAddressListCache();
                 List<InetAddress> ipList = FilterDaoFactory.getInstance().getActiveIPAddressList(filterRules.toString());
                 if (ipList.size() > 0) {
                     m_pkgIpMap.put(pkg, ipList);
                 }
             } catch (Throwable t) {
-                LogUtils.errorf(this, t, "createPackageIpMap: failed to map package: %s to an IP List with filter \"%s\"", pkg.getName(), pkg.getFilter().getContent());
+                LOG.error("createPackageIpMap: failed to map package: {} to an IP List with filter \"{}\"", pkg.getName(), pkg.getFilter().getContent(), t);
             }
         }
     }
@@ -303,7 +304,6 @@ public abstract class ThreshdConfigManager {
      *         otherwise.
      */
     public synchronized boolean interfaceInPackage(String iface, org.opennms.netmgt.config.threshd.Package pkg) {
-        ThreadCategory log = ThreadCategory.getInstance(this.getClass());
     
         final InetAddress ifaceAddr = addr(iface);
         boolean filterPassed = false;
@@ -314,8 +314,8 @@ public abstract class ThreshdConfigManager {
 			filterPassed = ipList.contains(ifaceAddr);
         }
     
-        if (log.isDebugEnabled())
-            log.debug("interfaceInPackage: Interface " + iface + " passed filter for package " + pkg.getName() + "?: " + filterPassed);
+
+        LOG.debug("interfaceInPackage: Interface {} passed filter for package {}?: {}", filterPassed, iface, pkg.getName());
     
         if (!filterPassed)
             return false;

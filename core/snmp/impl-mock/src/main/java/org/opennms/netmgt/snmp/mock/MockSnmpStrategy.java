@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2011-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2011-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -35,10 +35,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.commons.lang.ArrayUtils;
-import org.opennms.core.utils.InetAddressUtils;
-import org.opennms.core.utils.LogUtils;
 import org.opennms.netmgt.snmp.CollectionTracker;
+import org.opennms.netmgt.snmp.InetAddrUtils;
 import org.opennms.netmgt.snmp.SnmpAgentAddress;
 import org.opennms.netmgt.snmp.SnmpAgentConfig;
 import org.opennms.netmgt.snmp.SnmpObjId;
@@ -53,10 +51,14 @@ import org.opennms.netmgt.snmp.SnmpValueFactory;
 import org.opennms.netmgt.snmp.SnmpWalker;
 import org.opennms.netmgt.snmp.TrapNotificationListener;
 import org.opennms.netmgt.snmp.TrapProcessorFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.core.io.Resource;
 
 public class MockSnmpStrategy implements SnmpStrategy {
-    public static final SnmpAgentAddress ALL_AGENTS = new SnmpAgentAddress(InetAddressUtils.addr("0.0.0.0"), 161);
+	private static final transient Logger LOG = LoggerFactory.getLogger(MockSnmpStrategy.class);
+	
+    public static final SnmpAgentAddress ALL_AGENTS = new SnmpAgentAddress(InetAddrUtils.addr("0.0.0.0"), 161);
     private static final SnmpValue[] EMPTY_SNMP_VALUE_ARRAY = new SnmpValue[0];
 
     // TOG's enterprise ID
@@ -80,7 +82,7 @@ public class MockSnmpStrategy implements SnmpStrategy {
 
     @Override
     public SnmpWalker createWalker(final SnmpAgentConfig agentConfig, final String name, final CollectionTracker tracker) {
-        LogUtils.debugf(this, "createWalker(%s/%d, %s, %s)", InetAddressUtils.str(agentConfig.getAddress()), agentConfig.getPort(), name, tracker.getClass().getName());
+        LOG.debug("createWalker({}/{}, {}, {})", InetAddrUtils.str(agentConfig.getAddress()), agentConfig.getPort(), name, tracker.getClass().getName());
         final SnmpAgentAddress aa = new SnmpAgentAddress(agentConfig.getAddress(), agentConfig.getPort());
         final PropertyOidContainer oidContainer = getOidContainer(aa);
         return new MockSnmpWalker(aa, agentConfig.getVersion(), oidContainer, name, tracker, agentConfig.getMaxVarsPerPdu());
@@ -150,17 +152,17 @@ public class MockSnmpStrategy implements SnmpStrategy {
 
     @Override
     public void registerForTraps(final TrapNotificationListener listener, final TrapProcessorFactory processorFactory, final InetAddress address, final int snmpTrapPort) throws IOException {
-        LogUtils.warnf(this, "Can't register for traps.  No network in the MockSnmpStrategy!");
+        LOG.warn("Can't register for traps.  No network in the MockSnmpStrategy!");
     }
 
     @Override
     public void registerForTraps(final TrapNotificationListener listener, final TrapProcessorFactory processorFactory, final int snmpTrapPort) throws IOException {
-        LogUtils.warnf(this, "Can't register for traps.  No network in the MockSnmpStrategy!");
+        LOG.warn("Can't register for traps.  No network in the MockSnmpStrategy!");
     }
 
     @Override
     public void registerForTraps(TrapNotificationListener listener, TrapProcessorFactory processorFactory, InetAddress address, int snmpTrapPort, List<SnmpV3User> snmpv3Users) throws IOException {
-        LogUtils.warnf(this, "Can't register for traps.  No network in the MockSnmpStrategy!");
+        LOG.warn("Can't register for traps.  No network in the MockSnmpStrategy!");
     }
 
     @Override
@@ -214,9 +216,7 @@ public class MockSnmpStrategy implements SnmpStrategy {
         engineID[1] = (byte) ((s_enterpriseId >> 16) & 0xFF);
         engineID[2] = (byte) ((s_enterpriseId >> 8) & 0xFF);
         engineID[3] = (byte) (s_enterpriseId & 0xFF);
-        byte[] ip = new byte[0];
-
-        ip = InetAddressUtils.getLocalHostAddress().getAddress();
+        final byte[] ip = InetAddrUtils.getLocalHostAddress().getAddress();
 
         if (ip.length == 4) {
             // IPv4
@@ -228,7 +228,12 @@ public class MockSnmpStrategy implements SnmpStrategy {
             // Text
             engineID[4] = 4;
         }
-        return ArrayUtils.addAll(engineID, ip);
+        
+        final byte[] bytes = new byte[engineID.length+ip.length];
+        System.arraycopy(engineID, 0, bytes, 0, engineID.length);
+        System.arraycopy(ip, 0, bytes, engineID.length, ip.length);
+        
+        return bytes;
     }
 
     public static void setDataForAddress(final SnmpAgentAddress agentAddress, final Resource resource) throws IOException {

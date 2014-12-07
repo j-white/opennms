@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2004-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -43,8 +43,9 @@ import java.net.InetAddress;
 import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Properties;
+import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Properties;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -55,13 +56,11 @@ import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.PosixParser;
-import org.apache.log4j.BasicConfigurator;
-import org.apache.log4j.Level;
-import org.apache.log4j.Logger;
 import org.opennms.bootstrap.Bootstrap;
-import org.opennms.core.db.ConnectionFactoryUtil;
+import org.opennms.core.db.DataSourceConfigurationFactory;
 import org.opennms.core.db.install.InstallerDb;
 import org.opennms.core.db.install.SimpleDataSource;
+import org.opennms.core.logging.Logging;
 import org.opennms.core.schema.ExistingResourceAccessor;
 import org.opennms.core.schema.Migration;
 import org.opennms.core.schema.Migrator;
@@ -70,6 +69,8 @@ import org.opennms.core.utils.ProcessExec;
 import org.opennms.netmgt.config.opennmsDataSources.JdbcDataSource;
 import org.opennms.netmgt.icmp.Pinger;
 import org.opennms.netmgt.icmp.PingerFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.support.GenericApplicationContext;
 import org.springframework.core.io.Resource;
 import org.springframework.util.StringUtils;
@@ -89,6 +90,9 @@ import org.springframework.util.StringUtils;
  * @version $Id: $
  */
 public class Installer {
+
+	private static final Logger LOG = LoggerFactory.getLogger(Installer.class);
+	
     static final String LIBRARY_PROPERTY_FILE = "libraries.properties";
 
     String m_opennms_home = null;
@@ -160,12 +164,12 @@ public class Installer {
         	final File cfgFile = ConfigFileConstants.getFile(ConfigFileConstants.OPENNMS_DATASOURCE_CONFIG_FILE_NAME);
             
             InputStream is = new FileInputStream(cfgFile);
-            final JdbcDataSource adminDsConfig = ConnectionFactoryUtil.marshalDataSourceFromConfig(is, ADMIN_DATA_SOURCE_NAME);
+            final JdbcDataSource adminDsConfig = new DataSourceConfigurationFactory(is).getJdbcDataSource(ADMIN_DATA_SOURCE_NAME);
             final DataSource adminDs = new SimpleDataSource(adminDsConfig);
             is.close();
 
             is = new FileInputStream(cfgFile);
-            final JdbcDataSource dsConfig = ConnectionFactoryUtil.marshalDataSourceFromConfig(is, OPENNMS_DATA_SOURCE_NAME);
+            final JdbcDataSource dsConfig = new DataSourceConfigurationFactory(is).getJdbcDataSource(OPENNMS_DATA_SOURCE_NAME);
             final DataSource ds = new SimpleDataSource(dsConfig);
             is.close();
 
@@ -355,7 +359,9 @@ public class Installer {
      */
     public void createConfiguredFile() throws IOException {
         File f = new File(m_opennms_home + File.separator + "etc" + File.separator + "configured");
-        f.createNewFile();
+        if (!f.createNewFile()) {
+        	LOG.warn("Could not create file: {}", f.getPath());
+        }
     }
 
     /**
@@ -872,8 +878,10 @@ public class Installer {
         }
         r.close();
 
-        f.renameTo(new File(m_tomcat_conf + ".before-opennms-"
-                + System.currentTimeMillis()));
+        if(!f.renameTo(new File(m_tomcat_conf + ".before-opennms-"
+                + System.currentTimeMillis()))) {
+        	LOG.warn("Could not rename file: {}", f.getPath());
+        }
 
         f = new File(m_tomcat_conf);
         PrintWriter w = new PrintWriter(new FileOutputStream(f));
@@ -954,10 +962,10 @@ public class Installer {
      * @throws java.lang.Exception if any.
      */
     public static void main(String[] argv) throws Exception {
-        BasicConfigurator.configure();
-        Logger.getRootLogger().setLevel(Level.WARN);
-        
+        final Map<String,String> mdc = Logging.getCopyOfContextMap();
+        Logging.putPrefix("install");
         new Installer().install(argv);
+        Logging.setContextMap(mdc);
     }
 
     /**
@@ -1041,8 +1049,8 @@ public class Installer {
             for (final Object k : p.keySet()) {
                 String key = (String)k;
                 if (key.startsWith("opennms.library")) {
-                    final String value = p.getProperty(key);
-                    value.replaceAll(File.separator + "[^" + File.separator + "]*$", "");
+                    String value = p.getProperty(key);
+                    value = value.replaceAll(File.separator + "[^" + File.separator + "]*$", "");
                     searchPaths.add(value);
                 }
             }
@@ -1157,7 +1165,9 @@ public class Installer {
         File f = null;
         try {
             f = new File(m_opennms_home + File.separator + "etc" + File.separator + LIBRARY_PROPERTY_FILE);
-            f.createNewFile();
+            if(!f.createNewFile()) {
+            	LOG.warn("Could not create file: {}", f.getPath());
+            }
             FileOutputStream os = new FileOutputStream(f);
             libraryProps.store(os, null);
         } catch (IOException e) {
@@ -1215,7 +1225,7 @@ public class Installer {
         if (rtt == null) {
             System.out.println("failed.!");
         } else {
-            System.out.printf("successful.. round trip time: %.3f ms\n", rtt.doubleValue() / 1000.0);
+            System.out.printf("successful.. round trip time: %.3f ms%n", rtt.doubleValue() / 1000.0);
         }
         
     }

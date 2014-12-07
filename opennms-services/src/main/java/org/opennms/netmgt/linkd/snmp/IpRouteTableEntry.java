@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2006-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -28,9 +28,7 @@
 
 package org.opennms.netmgt.linkd.snmp;
 
-import java.net.InetAddress;
-
-import org.opennms.netmgt.capsd.snmp.NamedSnmpVar;
+import org.opennms.netmgt.snmp.NamedSnmpVar;
 
 /**
  *<P>The IpRouteTableEntry class is designed to hold all the MIB-II
@@ -238,145 +236,4 @@ public final class IpRouteTableEntry extends IpRouteCollectorEntry
 		super(ms_elemList);
 	}
 	
-	 /**
-	  * <p>getIpRouteDest</p>
-	  *
-	  * @return a {@link java.net.InetAddress} object.
-	  */
-	 public InetAddress getIpRouteDest() {
-		 return getIPAddress(IpRouteTableEntry.IP_ROUTE_DEST); 
-	 }
-
-	/**
-	 * <p>getIpRouteIfIndex</p>
-	 *
-	 * @return a int.
-	 */
-	public int getIpRouteIfIndex() {
-	    final Integer val = getInt32(IpRouteTableEntry.IP_ROUTE_IFINDEX);
-		if (val == null ) return -1;
-		return val;
-	}
-	
-	/**
-	 * <p>getIpRouteMetric1</p>
-	 *
-	 * @return a int.
-	 */
-	public int getIpRouteMetric1() {
-	    final Integer val = getInt32(IpRouteTableEntry.IP_ROUTE_METRIC1);
-		if (val == null) return -1;
-		return val;
-	}
-
-	/**
-	 * <p>getIpRouteMetric2</p>
-	 *
-	 * @return a int.
-	 */
-	public int getIpRouteMetric2() {
-	    final Integer val = getInt32(IpRouteTableEntry.IP_ROUTE_METRIC2);
-		if (val == null) return -1;
-		return val;
-		
-	}
-
-	/**
-	 * <p>getIpRouteMetric3</p>
-	 *
-	 * @return a int.
-	 */
-	public int getIpRouteMetric3() {
-		final Integer val = getInt32(IpRouteTableEntry.IP_ROUTE_METRIC3);
-		if (val == null) return -1;
-		return val;
-
-	}
-
-	/**
-	 * <p>getIpRouteMetric4</p>
-	 *
-	 * @return a int.
-	 */
-	public int getIpRouteMetric4() {
-		final Integer val = getInt32(IpRouteTableEntry.IP_ROUTE_METRIC4);
-		if (val == null) return -1;
-		return val;
-
-	}
-
-	/**
-	 * <p>getIpRouteNextHop</p>
-	 *
-	 * @return a {@link java.net.InetAddress} object.
-	 */
-	public InetAddress getIpRouteNextHop() {
-		return getIPAddress(IpRouteTableEntry.IP_ROUTE_NXTHOP);
-	}
-
-	/**
-	 * <p>getIpRouteType</p>
-	 *
-	 * @return a int.
-	 */
-	public int getIpRouteType() {
-		final Integer val = getInt32(IpRouteTableEntry.IP_ROUTE_TYPE);
-		if (val == null) return -1;
-		return val;
-		
-	}
-
-	/**
-	 * <p>getIpRouteProto</p>
-	 *
-	 * @return a int.
-	 */
-	public int getIpRouteProto() {
-		final Integer val = getInt32(IpRouteTableEntry.IP_ROUTE_PROTO);
-		if (val == null) return -1;
-		return val;
-		
-	}
-
-	/**
-	 * <p>getIpRouteAge</p>
-	 *
-	 * @return a int.
-	 */
-	public int getIpRouteAge() {
-		final Integer val = getInt32(IpRouteTableEntry.IP_ROUTE_AGE);
-		if (val == null) return -1;
-		return val;
-		
-	}
-
-	/**
-	 * <p>getIpRouteMask</p>
-	 *
-	 * @return a {@link java.net.InetAddress} object.
-	 */
-	public InetAddress getIpRouteMask() {
-		return getIPAddress(IpRouteTableEntry.IP_ROUTE_MASK);
-	}
-
-	/**
-	 * <p>getIpRouteMetric5</p>
-	 *
-	 * @return a int.
-	 */
-	public int getIpRouteMetric5() {
-		final Integer val = getInt32(IpRouteTableEntry.IP_ROUTE_METRIC5);
-		if (val == null) return -1;
-		return val;
-
-	}
-
-	/**
-	 * <p>getIpRouteInfo</p>
-	 *
-	 * @return a {@link java.lang.String} object.
-	 */
-	public String getIpRouteInfo() {
-		return getObjectID(IpRouteTableEntry.IP_ROUTE_INFO);
-	}
 }   

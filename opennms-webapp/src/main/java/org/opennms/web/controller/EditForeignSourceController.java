@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2009-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2006-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -41,9 +41,7 @@ import javax.xml.datatype.XMLGregorianCalendar;
 
 import org.apache.commons.lang.builder.ToStringBuilder;
 import org.joda.time.Duration;
-import org.opennms.core.utils.LogUtils;
-import org.opennms.core.utils.PropertyPath;
-import org.opennms.core.utils.ThreadCategory;
+import org.opennms.core.spring.PropertyPath;
 import org.opennms.netmgt.model.OnmsSeverity;
 import org.opennms.netmgt.model.OnmsSeverityEditor;
 import org.opennms.netmgt.model.PrimaryType;
@@ -54,6 +52,8 @@ import org.opennms.netmgt.provision.persist.StringXmlCalendarPropertyEditor;
 import org.opennms.netmgt.provision.persist.foreignsource.ForeignSource;
 import org.opennms.netmgt.provision.persist.foreignsource.PluginConfig;
 import org.opennms.web.rest.support.InetAddressTypeEditor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeanWrapper;
 import org.springframework.beans.BeanWrapperImpl;
 import org.springframework.stereotype.Controller;
@@ -72,6 +72,9 @@ import org.springframework.web.servlet.mvc.SimpleFormController;
  */
 @SuppressWarnings("deprecation")
 public class EditForeignSourceController extends SimpleFormController {
+	
+	private static final Logger LOG = LoggerFactory.getLogger(EditForeignSourceController.class);
+
 
     private ForeignSourceService m_foreignSourceService;
     private static final Map<String,Set<String>> m_pluginParameters = new HashMap<String,Set<String>>();
@@ -132,6 +135,7 @@ public class EditForeignSourceController extends SimpleFormController {
             m_formPath = "foreignSourceEditForm.formData."+path;
         }
         
+        @Override
         public String toString() {
             return new ToStringBuilder(this)
                 .append("foreign source", m_foreignSourceName)
@@ -159,7 +163,7 @@ public class EditForeignSourceController extends SimpleFormController {
     @Override
     protected ModelAndView onSubmit(HttpServletRequest request, HttpServletResponse response, Object command, BindException errors) throws Exception {
         TreeCommand treeCmd = (TreeCommand)command;
-        LogUtils.debugf(this, "treeCmd = %s", treeCmd);
+        LOG.debug("treeCmd = {}", treeCmd);
         String action = treeCmd.getAction();
         if (action == null) {
             return doShow(request, response, treeCmd, errors);
@@ -307,13 +311,11 @@ public class EditForeignSourceController extends SimpleFormController {
             m_pluginParameters.put(clazz, parameters);
             return parameters;
         } catch (ClassNotFoundException e) {
-            log().warn("unable to wrap class " + clazz, e);
+            LOG.warn("unable to wrap class {}", clazz, e);
         }
         return null;
     }
 
-    private ThreadCategory log() {
-        return ThreadCategory.getInstance(EditForeignSourceController.class);
-    }
+    
     
 }

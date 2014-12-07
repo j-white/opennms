@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2011-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2011-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -246,6 +246,7 @@ public class BerEncoder implements AsnEncoder {
      * @exception AsnEncodingException
      *                Thrown if an error occurs encoding the datatype.
      */
+    @Override
     public int buildLength(byte[] buf, int startOffset, int asnLength) throws AsnEncodingException {
         if (asnLength <= 0x7f) {
             // 
@@ -298,6 +299,7 @@ public class BerEncoder implements AsnEncoder {
      * @exception AsnDecodingException
      *                Thrown if an error occurs decoding the buffer.
      */
+    @Override
     public Object[] parseLength(byte[] buf, int startOffset) throws AsnDecodingException {
         //
         // check the buffer length
@@ -375,6 +377,7 @@ public class BerEncoder implements AsnEncoder {
      *                Thrown if an error occurs encoding the datatype.
      * 
      */
+    @Override
     public int buildHeader(byte[] buf, int startOffset, byte asnType, int asnLength) throws AsnEncodingException {
         if ((buf.length - startOffset) < 1)
             throw new AsnEncodingException("Buffer overflow error");
@@ -404,6 +407,7 @@ public class BerEncoder implements AsnEncoder {
      * @exception AsnDecodingException
      *                Thrown if an error occurs decoding the buffer.
      */
+    @Override
     public Object[] parseHeader(byte[] buf, int startOffset) throws AsnDecodingException {
         if ((buf.length - startOffset) < 1)
             throw new AsnDecodingException("Insufficent buffer length");
@@ -428,7 +432,7 @@ public class BerEncoder implements AsnEncoder {
         //
         Object[] rVals = new Object[3];
         rVals[0] = lenVals[0];
-        rVals[1] = new Byte(asnType);
+        rVals[1] = Byte.valueOf(asnType);
         rVals[2] = lenVals[1];
 
         //
@@ -460,6 +464,7 @@ public class BerEncoder implements AsnEncoder {
      *                Thrown if an error occurs encoding the datatype.
      * 
      */
+    @Override
     public int buildInteger32(byte[] buf, int startOffset, byte asnType, int asnInt32) throws AsnEncodingException {
         //
         // Store a copy of the value to mask off the
@@ -520,6 +525,7 @@ public class BerEncoder implements AsnEncoder {
      * @exception AsnDecodingException
      *                Thrown if an error occurs decoding the buffer.
      */
+    @Override
     public Object[] parseInteger32(byte[] buf, int startOffset) throws AsnDecodingException {
         //
         // parse the header first
@@ -591,6 +597,7 @@ public class BerEncoder implements AsnEncoder {
      *                Thrown if an error occurs encoding the datatype.
      * 
      */
+    @Override
     public int buildUInteger32(byte[] buf, int startOffset, byte asnType, long asnUInt32) throws AsnEncodingException {
         //
         // NOTE: the value is a 'long' which is 64 bits long, but we only use
@@ -689,6 +696,7 @@ public class BerEncoder implements AsnEncoder {
      * @exception AsnDecodingException
      *                Thrown if an error occurs decoding the buffer.
      */
+    @Override
     public Object[] parseUInteger32(byte[] buf, int startOffset) throws AsnDecodingException {
         //
         // parse the header first
@@ -766,6 +774,7 @@ public class BerEncoder implements AsnEncoder {
      *                Thrown if an error occurs encoding the datatype.
      * 
      */
+    @Override
     public int buildUInteger64(byte[] buf, int startOffset, byte asnType, BigInteger asnUInt64) throws AsnEncodingException {
         //
         // compute the number of bits required and the
@@ -813,6 +822,7 @@ public class BerEncoder implements AsnEncoder {
      * @exception AsnDecodingException
      *                Thrown if an error occurs decoding the buffer.
      */
+    @Override
     public Object[] parseUInteger64(byte[] buf, int startOffset) throws AsnDecodingException {
         //
         // parse the header first
@@ -874,6 +884,7 @@ public class BerEncoder implements AsnEncoder {
      *                Thrown if an error occurs encoding the datatype.
      * 
      */
+    @Override
     public int buildNull(byte[] buf, int startOffset, byte asnType) throws AsnEncodingException {
         return buildHeader(buf, startOffset, asnType, 0);
     }
@@ -897,6 +908,7 @@ public class BerEncoder implements AsnEncoder {
      * @exception AsnDecodingException
      *                Thrown if an error occurs decoding the buffer.
      */
+    @Override
     public Object[] parseNull(byte[] buf, int startOffset) throws AsnDecodingException {
         Object[] hdrVals = parseHeader(buf, startOffset);
 
@@ -936,6 +948,7 @@ public class BerEncoder implements AsnEncoder {
      *                Thrown if an error occurs encoding the datatype.
      * 
      */
+    @Override
     public int buildString(byte[] buf, int startOffset, byte asnType, byte[] opaque) throws AsnEncodingException {
         //
         // get the length of the data
@@ -989,6 +1002,7 @@ public class BerEncoder implements AsnEncoder {
      * @exception AsnDecodingException
      *                Thrown if an error occurs decoding the buffer.
      */
+    @Override
     public Object[] parseString(byte[] buf, int startOffset) throws AsnDecodingException {
         Object[] hdrVals = parseHeader(buf, startOffset);
 
@@ -1053,6 +1067,7 @@ public class BerEncoder implements AsnEncoder {
      *                Thrown if an error occurs encoding the datatype.
      * 
      */
+    @Override
     public int buildObjectId(byte[] buf, int startOffset, byte asnType, int[] oids) throws AsnEncodingException {
         if ((buf.length - startOffset) < 1)
             throw new AsnEncodingException("Buffer overflow error");
@@ -1190,6 +1205,7 @@ public class BerEncoder implements AsnEncoder {
      * @exception AsnDecodingException
      *                Thrown if an error occurs decoding the buffer.
      */
+    @Override
     public Object[] parseObjectId(byte[] buf, int startOffset) throws AsnDecodingException {
         Object[] hdrVals = parseHeader(buf, startOffset);
 

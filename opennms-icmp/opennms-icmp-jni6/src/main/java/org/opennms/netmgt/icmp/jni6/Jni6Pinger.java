@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2011-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2007-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -28,17 +28,19 @@
 
 package org.opennms.netmgt.icmp.jni6;
 
+import static org.opennms.netmgt.icmp.PingConstants.DEFAULT_PACKET_SIZE;
 import static org.opennms.netmgt.icmp.PingConstants.DEFAULT_RETRIES;
 import static org.opennms.netmgt.icmp.PingConstants.DEFAULT_TIMEOUT;
-import static org.opennms.netmgt.icmp.PingConstants.DEFAULT_PACKET_SIZE;
 
 import java.io.IOException;
 import java.net.Inet4Address;
 import java.net.Inet6Address;
 import java.net.InetAddress;
+import java.security.SecureRandom;
 import java.util.List;
+import java.util.concurrent.Callable;
 
-import org.opennms.core.utils.LogUtils;
+import org.opennms.core.logging.Logging;
 import org.opennms.netmgt.icmp.LogPrefixPreservingPingResponseCallback;
 import org.opennms.netmgt.icmp.ParallelPingResponseCallback;
 import org.opennms.netmgt.icmp.PingResponseCallback;
@@ -47,6 +49,8 @@ import org.opennms.netmgt.icmp.SinglePingResponseCallback;
 import org.opennms.netmgt.icmp.jni.JniPinger;
 import org.opennms.protocols.rt.IDBasedRequestLocator;
 import org.opennms.protocols.rt.RequestTracker;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * 
@@ -121,8 +125,9 @@ import org.opennms.protocols.rt.RequestTracker;
  * @author <a href="mailto:brozow@opennms.org">Mathew Brozowski</a>
  */
 public class Jni6Pinger implements Pinger {
+    private static final Logger LOG = LoggerFactory.getLogger(Jni6Pinger.class);
 
-    private final int m_pingerId = (int) (Math.random() * Short.MAX_VALUE);
+    private final int m_pingerId = new SecureRandom().nextInt(Short.MAX_VALUE);
 
     private JniPinger m_jniPinger;
     private RequestTracker<Jni6PingRequest, Jni6PingResponse> s_pingTracker;
@@ -132,6 +137,7 @@ public class Jni6Pinger implements Pinger {
 
     public Jni6Pinger() {}
 
+    @Override
     public synchronized void initialize4() throws Exception {
         if (m_jniPinger != null) return;
         try {
@@ -143,44 +149,51 @@ public class Jni6Pinger implements Pinger {
         }
     }
 
+    @Override
     public synchronized void initialize6() throws Exception {
-	    if (s_pingTracker != null) return;
+        if (s_pingTracker != null) return;
 
-	    final String name = "JNI-ICMPv6-"+m_pingerId;
-	    final IDBasedRequestLocator<Jni6PingRequestId, Jni6PingRequest, Jni6PingResponse> requestLocator = new IDBasedRequestLocator<Jni6PingRequestId, Jni6PingRequest, Jni6PingResponse>();
+        final String name = "JNI-ICMPv6-"+m_pingerId;
+        final IDBasedRequestLocator<Jni6PingRequestId, Jni6PingRequest, Jni6PingResponse> requestLocator = new IDBasedRequestLocator<Jni6PingRequestId, Jni6PingRequest, Jni6PingResponse>();
 
-	    try {
-            s_pingTracker = new RequestTracker<Jni6PingRequest, Jni6PingResponse>(name, new Jni6IcmpMessenger(m_pingerId), requestLocator);
+        try {
+            s_pingTracker = Logging.withPrefix("icmp", new Callable<RequestTracker<Jni6PingRequest, Jni6PingResponse>>() {
+                @Override public RequestTracker<Jni6PingRequest, Jni6PingResponse> call() throws Exception {
+                    return new RequestTracker<Jni6PingRequest, Jni6PingResponse>(name, new Jni6IcmpMessenger(m_pingerId), requestLocator);
+                }
+            });
             s_pingTracker.start();
-	    } catch (final IOException ioe) {
-	        m_v6Error = ioe;
-	        throw ioe;
-	    } catch (final RuntimeException rte) {
-	        m_v6Error = rte;
-	        throw rte;
-	    }
-	}
+        } catch (final IOException ioe) {
+            m_v6Error = ioe;
+            throw ioe;
+        } catch (final RuntimeException rte) {
+            m_v6Error = rte;
+            throw rte;
+        }
+    }
 
+    @Override
     public boolean isV4Available() {
         try {
             initialize4();
         } catch (final Throwable t) {
-            LogUtils.tracef(this, t, "Failed to initialize IPv4");
+            LOG.trace("Failed to initialize IPv4", t);
         }
         if (m_jniPinger != null && m_v4Error == null) return m_jniPinger.isV4Available();
         return false;
     }
-    
+
+    @Override
     public boolean isV6Available() {
         try {
             initialize6();
         } catch (final Throwable t) {
-            LogUtils.tracef(this, t, "Failed to initialize IPv6");
+            LOG.trace("Failed to initialize IPv6", t);
         }
         if (s_pingTracker != null && m_v6Error == null) return true;
         return false;
     }
-    
+
     /**
      * <p>ping</p>
      *
@@ -192,6 +205,7 @@ public class Jni6Pinger implements Pinger {
      * @param cb a {@link org.opennms.netmgt.icmp.jni.PingResponseCallback} object.
      * @throws java.lang.Exception if any.
      */
+    @Override
     public void ping(final InetAddress host, final long timeout, final int retries, final int packetsize, final int sequenceId, final PingResponseCallback cb) throws Exception {
         if (host instanceof Inet4Address) {
             initialize4();
@@ -213,6 +227,7 @@ public class Jni6Pinger implements Pinger {
      * @param cb a {@link org.opennms.netmgt.icmp.jni.PingResponseCallback} object.
      * @throws java.lang.Exception if any.
      */
+    @Override
     public void ping(final InetAddress host, final long timeout, final int retries, final int sequenceId, final PingResponseCallback cb) throws Exception {
         if (host instanceof Inet4Address) {
             initialize4();
@@ -240,6 +255,7 @@ public class Jni6Pinger implements Pinger {
      * @throws IOException if any.
      * @throws java.lang.Exception if any.
      */
+    @Override
     public Number ping(final InetAddress host, final long timeout, final int retries, final int packetsize) throws Exception {
         final SinglePingResponseCallback cb = new SinglePingResponseCallback(host);
         ping(host, timeout, retries, packetsize, (short)1, cb);
@@ -247,7 +263,7 @@ public class Jni6Pinger implements Pinger {
         cb.rethrowError();
         return cb.getResponseTime();
     }
-    
+
     /**
      * This method is used to ping a remote host to test for ICMP support. If
      * the remote host responds within the specified period, defined by retries
@@ -264,52 +280,55 @@ public class Jni6Pinger implements Pinger {
      * @throws IOException if any.
      * @throws java.lang.Exception if any.
      */
+    @Override
     public Number ping(final InetAddress host, final long timeout, final int retries) throws Exception {
         return ping(host, timeout, retries, DEFAULT_PACKET_SIZE);
     }
 
-	/**
-	 * Ping a remote host, using the default number of retries and timeouts.
-	 *
-	 * @param host the host to ping
-	 * @return the round-trip time of the packet
-	 * @throws IOException if any.
-	 * @throws InterruptedException if any.
-	 * @throws java.lang.Exception if any.
-	 */
-	public Number ping(final InetAddress host) throws Exception {
+    /**
+     * Ping a remote host, using the default number of retries and timeouts.
+     *
+     * @param host the host to ping
+     * @return the round-trip time of the packet
+     * @throws IOException if any.
+     * @throws InterruptedException if any.
+     * @throws java.lang.Exception if any.
+     */
+    @Override
+    public Number ping(final InetAddress host) throws Exception {
         return ping(host, DEFAULT_TIMEOUT, DEFAULT_RETRIES);
-	}
+    }
 
-	/**
-	 * <p>parallelPing</p>
-	 *
-	 * @param host a {@link java.net.InetAddress} object.
-	 * @param count a int.
-	 * @param timeout a long.
-	 * @param pingInterval a long.
-	 * @return a {@link java.util.List} object.
-	 * @throws java.lang.Exception if any.
-	 */
-	public List<Number> parallelPing(final InetAddress host, final int count, final long timeout, final long pingInterval) throws Exception {
-	    if (host instanceof Inet4Address) {
-	        initialize4();
-	        return m_jniPinger.parallelPing(host, count, timeout, pingInterval);
-	    } else {
-	        initialize6();
-	        final ParallelPingResponseCallback cb = new ParallelPingResponseCallback(count);
+    /**
+     * <p>parallelPing</p>
+     *
+     * @param host a {@link java.net.InetAddress} object.
+     * @param count a int.
+     * @param timeout a long.
+     * @param pingInterval a long.
+     * @return a {@link java.util.List} object.
+     * @throws java.lang.Exception if any.
+     */
+    @Override
+    public List<Number> parallelPing(final InetAddress host, final int count, final long timeout, final long pingInterval) throws Exception {
+        if (host instanceof Inet4Address) {
+            initialize4();
+            return m_jniPinger.parallelPing(host, count, timeout, pingInterval);
+        } else {
+            initialize6();
+            final ParallelPingResponseCallback cb = new ParallelPingResponseCallback(count);
 
-	        final long threadId = Jni6PingRequest.getNextTID();
-	        for (int seqNum = 0; seqNum < count; seqNum++) {
-	            final Jni6PingRequest request = new Jni6PingRequest((Inet6Address)host, m_pingerId, seqNum, threadId, timeout == 0? DEFAULT_TIMEOUT : timeout, 0 , DEFAULT_PACKET_SIZE, cb);
-	            s_pingTracker.sendRequest(request);
-	            Thread.sleep(pingInterval);
-	        }
+            final long threadId = Jni6PingRequest.getNextTID();
+            for (int seqNum = 0; seqNum < count; seqNum++) {
+                final Jni6PingRequest request = new Jni6PingRequest((Inet6Address)host, m_pingerId, seqNum, threadId, timeout == 0? DEFAULT_TIMEOUT : timeout, 0 , DEFAULT_PACKET_SIZE, cb);
+                s_pingTracker.sendRequest(request);
+                Thread.sleep(pingInterval);
+            }
 
-	        cb.waitFor();
-	        return cb.getResponseTimes();
+            cb.waitFor();
+            return cb.getResponseTimes();
 
-	    }
-	}
+        }
+    }
 
 }

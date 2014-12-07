@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2009-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -46,7 +46,6 @@ import org.opennms.core.db.install.ColumnChange;
 import org.opennms.core.db.install.ColumnChangeReplacement;
 
 public class NextValReplacement implements ColumnChangeReplacement {
-        private final String m_sequence;
         
         private final Connection m_connection;
         private final PreparedStatement m_statement;
@@ -59,42 +58,18 @@ public class NextValReplacement implements ColumnChangeReplacement {
          * @throws java.sql.SQLException if any.
          */
         public NextValReplacement(String sequence, DataSource dataSource) throws SQLException {
-            m_sequence = sequence;
-//            m_dataSource = dataSource;
             m_connection = dataSource.getConnection();
             m_statement = m_connection.prepareStatement("SELECT nextval('"
-                                                        + m_sequence
+                                                        + sequence
                                                         + "')");
         }
         
         private PreparedStatement getStatement() {
-            /*
-            if (m_statement == null) {
-                createStatement();
-            }
-            */
             return m_statement;
         }
-
-        /*
-        private void createStatement() throws SQLException {
-            m_statement = getConnection().prepareStatement("SELECT nextval('" + m_sequence + "')");
-        }
         
-        private Connection getConnection() throws SQLException {
-            if (m_connection == null) {
-                createConnection();
-            }
-            
-            return m_connection;
-        }
-        
-        private void createConnection() throws SQLException {
-            m_connection = m_dataSource.getConnection();
-        }
-        */
-
         /** {@inheritDoc} */
+        @Override
         public Integer getColumnReplacement(ResultSet rs, Map<String, ColumnChange> columnChanges) throws SQLException {
             ResultSet r = getStatement().executeQuery();
             
@@ -113,6 +88,7 @@ public class NextValReplacement implements ColumnChangeReplacement {
          *
          * @return a boolean.
          */
+        @Override
         public boolean addColumnIfColumnIsNew() {
             return true;
         }
@@ -122,8 +98,14 @@ public class NextValReplacement implements ColumnChangeReplacement {
          *
          * @throws java.sql.SQLException if any.
          */
+        @Override
         public void close() throws SQLException {
-            finalize();
+            if (m_statement != null) {
+                m_statement.close();
+            }
+            if (m_connection != null) {
+                m_connection.close();
+            }
         }
         
         /**
@@ -131,12 +113,9 @@ public class NextValReplacement implements ColumnChangeReplacement {
          *
          * @throws java.sql.SQLException if any.
          */
-        protected void finalize() throws SQLException {
-            if (m_statement != null) {
-                m_statement.close();
-            }
-            if (m_connection != null) {
-                m_connection.close();
-            }
+        @Override
+        protected void finalize() throws Throwable {
+            close();
+            super.finalize();
         }
     }

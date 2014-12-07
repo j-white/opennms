@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2002-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -106,10 +106,12 @@ public final class CategoryFactory implements CatFactory {
         m_config = CastorUtils.unmarshal(Catinfo.class, resource);
     }
     
+    @Override
     public Lock getReadLock() {
         return m_readLock;
     }
     
+    @Override
     public Lock getWriteLock() {
         return m_writeLock;
     }
@@ -188,9 +190,10 @@ public final class CategoryFactory implements CatFactory {
      *
      * @return the categories configuration
      */
+    @Override
     public Catinfo getConfig() {
-        getReadLock().lock();
         try {
+            getReadLock().lock();
             return m_config;
         } finally {
             getReadLock().unlock();
@@ -204,8 +207,8 @@ public final class CategoryFactory implements CatFactory {
      *            category group to be added
      */
     public void addCategoryGroup(final Categorygroup group) {
-        getWriteLock().lock();
         try {
+            getWriteLock().lock();
             m_config.addCategorygroup(group);
         } finally {
             getWriteLock().unlock();
@@ -220,9 +223,9 @@ public final class CategoryFactory implements CatFactory {
      * @return true if categorygroup is successfully replaced
      */
     public boolean replaceCategoryGroup(final Categorygroup group) {
-        getWriteLock().lock();
-        
         try {
+            getWriteLock().lock();
+
             final String groupname = group.getName();
     
             for (int i = 0; i < m_config.getCategorygroupCount(); i++) {
@@ -246,8 +249,8 @@ public final class CategoryFactory implements CatFactory {
      * @return true if categorygroup is successfully deleted
      */
     public boolean deleteCategoryGroup(final Categorygroup group) {
-        getWriteLock().lock();
         try {
+            getWriteLock().lock();
             return m_config.removeCategorygroup(group);
         } finally {
             getWriteLock().unlock();
@@ -262,9 +265,9 @@ public final class CategoryFactory implements CatFactory {
      * @return true if categorygroup is successfully deleted
      */
     public boolean deleteCategoryGroup(final String groupname) {
-        getWriteLock().lock();
-        
         try {
+            getWriteLock().lock();
+
             boolean deleted = false;
     
             final Enumeration<Categorygroup> enumCG = m_config.enumerateCategorygroup();
@@ -293,8 +296,8 @@ public final class CategoryFactory implements CatFactory {
      *         group
      */
     public boolean addCategory(final String groupname, final Category cat) {
-        getWriteLock().lock();
         try {
+            getWriteLock().lock();
             Enumeration<Categorygroup> enumCG = m_config.enumerateCategorygroup();
             while (enumCG.hasMoreElements()) {
                 Categorygroup cg = enumCG.nextElement();
@@ -322,8 +325,8 @@ public final class CategoryFactory implements CatFactory {
      *         category group
      */
     public boolean replaceCategory(final String groupname, final Category cat) {
-        getWriteLock().lock();
         try {
+            getWriteLock().lock();
             final Enumeration<Categorygroup> enumCG = m_config.enumerateCategorygroup();
             while (enumCG.hasMoreElements()) {
                 final Categorygroup cg = enumCG.nextElement();
@@ -360,8 +363,8 @@ public final class CategoryFactory implements CatFactory {
      *         category group
      */
     public boolean deleteCategory(final String groupname, final Category cat) {
-        getWriteLock().lock();
         try {
+            getWriteLock().lock();
             final Enumeration<Categorygroup> enumCG = m_config.enumerateCategorygroup();
             while (enumCG.hasMoreElements()) {
                 final Categorygroup cg = enumCG.nextElement();
@@ -389,8 +392,8 @@ public final class CategoryFactory implements CatFactory {
      *         category group
      */
     public boolean deleteCategory(final String groupname, final String catlabel) {
-        getWriteLock().lock();
         try {
+            getWriteLock().lock();
             final Enumeration<Categorygroup> enumCG = m_config.enumerateCategorygroup();
             while (enumCG.hasMoreElements()) {
                 final Categorygroup cg = enumCG.nextElement();
@@ -420,9 +423,10 @@ public final class CategoryFactory implements CatFactory {
      *
      * Return the category specified by name.
      */
+    @Override
     public Category getCategory(final String name) {
-        getReadLock().lock();
         try {
+            getReadLock().lock();
             for (final Categorygroup cg: m_config.getCategorygroupCollection()) {
                 for (final Category cat : cg.getCategories().getCategoryCollection()) {
                     if (cat.getLabel().equals(name)) {
@@ -442,6 +446,7 @@ public final class CategoryFactory implements CatFactory {
      *
      * Return the normal value for the specified category.
      */
+    @Override
     public double getNormal(final String catlabel) {
         final Category cat = getCategory(catlabel);
         return (cat == null? -1.0 : cat.getNormal());
@@ -452,6 +457,7 @@ public final class CategoryFactory implements CatFactory {
      *
      * Return the warning value for the specified category.
      */
+    @Override
     public double getWarning(final String catlabel) {
         final Category cat = getCategory(catlabel);
         return (cat == null? -1.0 : cat.getWarning());
@@ -489,14 +495,14 @@ public final class CategoryFactory implements CatFactory {
      * Return the effective rule for the specified category. The category rule
      * ANDed with the rule of the category group that the category belongs to.
      */
+    @Override
     public String getEffectiveRule(final String catlabel) {
-        getReadLock().lock();
         try {
+            getReadLock().lock();
             for (final Categorygroup cg : m_config.getCategorygroupCollection()) {
                 for (final Category cat : cg.getCategories().getCategoryCollection()) {
                     if (cat.getLabel().equals(catlabel)) {
-                        String catRule = "(" + cg.getCommon().getRule() + ") & (" + cat.getRule() + ")";
-                        return catRule;
+                        return "(" + cg.getCommon().getRule() + ") & (" + cat.getRule() + ")";
                     }
                 }
             }

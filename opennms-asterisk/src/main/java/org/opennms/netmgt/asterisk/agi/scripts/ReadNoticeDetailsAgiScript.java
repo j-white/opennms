@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2009-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2009-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -31,6 +31,8 @@ package org.opennms.netmgt.asterisk.agi.scripts;
 import org.asteriskjava.fastagi.AgiChannel;
 import org.asteriskjava.fastagi.AgiException;
 import org.asteriskjava.fastagi.AgiRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * An AGI script that reads the node ID and service name of
@@ -43,8 +45,10 @@ import org.asteriskjava.fastagi.AgiRequest;
  * @version $Id: $
  */
 public class ReadNoticeDetailsAgiScript extends BaseOnmsAgiScript {
+    private static final Logger LOG = LoggerFactory.getLogger(ReadNoticeDetailsAgiScript.class);
 
     /** {@inheritDoc} */
+    @Override
     public void service(AgiRequest req, AgiChannel chan) throws AgiException {
         authenticateUser();
         sayNode();
@@ -61,7 +65,7 @@ public class ReadNoticeDetailsAgiScript extends BaseOnmsAgiScript {
     public void authenticateUser() throws AgiException {
         String actualPin = getVariable(VAR_OPENNMS_USER_PIN);
         if (actualPin == null || "".equals(actualPin)) {
-            log().info("User has no TUI PIN, so proceeding without authentication");
+            LOG.info("User has no TUI PIN, so proceeding without authentication");
             return;
         }
         String inputPin = null;
@@ -76,7 +80,7 @@ public class ReadNoticeDetailsAgiScript extends BaseOnmsAgiScript {
         if (String.valueOf(inputPin).equals(String.valueOf(actualPin))) {
             return;
         } else {
-            log().warn("User " + getVariable(VAR_OPENNMS_USERNAME) + " failed authentication");
+            LOG.warn("User {} failed authentication", getVariable(VAR_OPENNMS_USERNAME));
             streamFile("auth-incorrect");
             streamFile("goodbye");
             hangup();
@@ -96,7 +100,7 @@ public class ReadNoticeDetailsAgiScript extends BaseOnmsAgiScript {
         
         
         if (! "".equals(nodeLabel)) {
-            log().debug("Reading node label to user: " + nodeLabel);
+            LOG.debug("Reading node label to user: {}", nodeLabel);
             streamFileInterruptible("node");
             try {
                 streamFileInterruptible(nodeLabel.toLowerCase());
@@ -104,12 +108,12 @@ public class ReadNoticeDetailsAgiScript extends BaseOnmsAgiScript {
                 sayAlphaInterruptible(nodeLabel);
             }
         } else if (!"".equals(nodeID)) {
-            log().debug("Reading node ID to user: " + nodeID);
+            LOG.debug("Reading node ID to user: {}", nodeID);
             streamFileInterruptible("node");
             streamFileInterruptible("number");
             sayDigitsInterruptible(nodeID);
         } else {
-            log().debug("No node label or node ID available");
+            LOG.debug("No node label or node ID available");
         }
     }
     
@@ -123,7 +127,7 @@ public class ReadNoticeDetailsAgiScript extends BaseOnmsAgiScript {
         ipAddr = getVariable(VAR_OPENNMS_INTERFACE);
         
         if ((ipAddr != null) && (!"".equals(ipAddr))) {
-            log().debug("Reading IP address to user: " + ipAddr);
+            LOG.debug("Reading IP address to user: {}", ipAddr);
             streamFileInterruptible("letters/i");
             streamFileInterruptible("letters/p");
             streamFileInterruptible("address");
@@ -141,7 +145,7 @@ public class ReadNoticeDetailsAgiScript extends BaseOnmsAgiScript {
         svcName = getVariable("OPENNMS_SERVICE");
         
         if ((svcName != null) && (!"".equals(svcName))) {
-            log().debug("Reading service name to user: " + svcName);
+            LOG.debug("Reading service name to user: {}", svcName);
             streamFileInterruptible("service");
             try {
                 streamFileInterruptible(svcName.toLowerCase());
@@ -149,7 +153,7 @@ public class ReadNoticeDetailsAgiScript extends BaseOnmsAgiScript {
                 sayAlphaInterruptible(svcName);
             }
         } else {
-            log().debug("No service name available");
+            LOG.debug("No service name available");
         }
     }
 

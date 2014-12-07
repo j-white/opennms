@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2009-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2009-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -34,14 +34,14 @@ import java.util.List;
 
 import org.hibernate.criterion.Order;
 import org.hibernate.criterion.Restrictions;
-import org.opennms.core.utils.BeanUtils;
+import org.opennms.core.spring.BeanUtils;
 import org.opennms.core.utils.InetAddressUtils;
-import org.opennms.netmgt.dao.NotificationDao;
+import org.opennms.netmgt.dao.api.AcknowledgmentDao;
+import org.opennms.netmgt.dao.api.NotificationDao;
 import org.opennms.netmgt.model.AckAction;
 import org.opennms.netmgt.model.OnmsAcknowledgment;
 import org.opennms.netmgt.model.OnmsCriteria;
 import org.opennms.netmgt.model.OnmsNotification;
-import org.opennms.netmgt.model.acknowledgments.AckService;
 import org.opennms.web.filter.Filter;
 import org.opennms.web.notification.filter.NotificationCriteria;
 import org.opennms.web.notification.filter.NotificationCriteria.NotificationCriteriaVisitor;
@@ -62,7 +62,7 @@ public class DaoWebNotificationRepository implements WebNotificationRepository, 
     NotificationDao m_notificationDao;
     
     @Autowired
-    AckService m_ackService;
+    AcknowledgmentDao m_ackDao;
     
     @Override
     public void afterPropertiesSet() throws Exception {
@@ -73,9 +73,11 @@ public class DaoWebNotificationRepository implements WebNotificationRepository, 
         final OnmsCriteria criteria = new OnmsCriteria(OnmsNotification.class);
         criteria.createAlias("node", "node", OnmsCriteria.LEFT_JOIN);
         criteria.createAlias("serviceType", "serviceType", OnmsCriteria.LEFT_JOIN);
+        criteria.createAlias("event", "event", OnmsCriteria.LEFT_JOIN);
         
         notificationCriteria.visit(new NotificationCriteriaVisitor<RuntimeException>(){
 
+            @Override
             public void visitAckType(AcknowledgeType ackType) throws RuntimeException {
                 if(ackType == AcknowledgeType.ACKNOWLEDGED) {
                     criteria.add(Restrictions.isNotNull("answeredBy"));
@@ -85,16 +87,19 @@ public class DaoWebNotificationRepository implements WebNotificationRepository, 
                 // AcknowledgeType.BOTH just adds no restriction
             }
 
+            @Override
             public void visitFilter(Filter filter) throws RuntimeException {
                 criteria.add(filter.getCriterion());
                 
             }
 
+            @Override
             public void visitLimit(int limit, int offset) throws RuntimeException {
                 criteria.setMaxResults(limit);
                 criteria.setFirstResult(offset);                
             }
 
+            @Override
             public void visitSortStyle(SortStyle sortStyle) throws RuntimeException {
                 switch(sortStyle){
                     case RESPONDER:
@@ -118,6 +123,9 @@ public class DaoWebNotificationRepository implements WebNotificationRepository, 
                     case ID:
                         criteria.addOrder(Order.desc("notifyId"));
                         break;
+                    case SEVERITY:
+                        criteria.addOrder(Order.desc("event.eventSeverity"));
+                        break;
                     case REVERSE_RESPONDER:
                         criteria.addOrder(Order.asc("answeredBy"));            
                         break;
@@ -138,6 +146,9 @@ public class DaoWebNotificationRepository implements WebNotificationRepository, 
                         break;
                     case REVERSE_ID:
                         criteria.addOrder(Order.asc("notifyId"));
+                        break;
+                    case REVERSE_SEVERITY:
+                        criteria.addOrder(Order.asc("event.eventSeverity"));
                         break;
                     
                 }
@@ -172,6 +183,7 @@ public class DaoWebNotificationRepository implements WebNotificationRepository, 
     
     /** {@inheritDoc} */
     @Transactional
+    @Override
     public void acknowledgeMatchingNotification(String user, Date timestamp, NotificationCriteria criteria) {
         List<OnmsNotification> notifs = m_notificationDao.findMatching(getOnmsCriteria(criteria));
         
@@ -180,18 +192,20 @@ public class DaoWebNotificationRepository implements WebNotificationRepository, 
             OnmsAcknowledgment ack = new OnmsAcknowledgment(notif, user);
             ack.setAckAction(AckAction.ACKNOWLEDGE);
             ack.setAckTime(timestamp);
-            m_ackService.processAck(ack);
+            m_ackDao.processAck(ack);
         }
     }
     
     /** {@inheritDoc} */
     @Transactional
+    @Override
     public int countMatchingNotifications(NotificationCriteria criteria) {
         return queryForInt(getOnmsCriteria(criteria));
     }
 
     /** {@inheritDoc} */
     @Transactional
+    @Override
     public Notification[] getMatchingNotifications(NotificationCriteria criteria) {
         List<Notification> notifications = new ArrayList<Notification>();
         List<OnmsNotification> onmsNotifs = m_notificationDao.findMatching(getOnmsCriteria(criteria));
@@ -205,6 +219,7 @@ public class DaoWebNotificationRepository implements WebNotificationRepository, 
     
     /** {@inheritDoc} */
     @Transactional
+    @Override
     public Notification getNotification(int noticeId) {
         return mapOnmsNotificationToNotification(m_notificationDao.get(noticeId));
     }

@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2002-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -39,10 +39,12 @@ import java.util.concurrent.Executors;
 import org.exolab.castor.xml.MarshalException;
 import org.exolab.castor.xml.ValidationException;
 import org.opennms.core.concurrent.LogPreservingThreadFactory;
-import org.opennms.core.utils.ThreadCategory;
+import org.opennms.core.logging.Logging;
 import org.opennms.netmgt.config.RTCConfigFactory;
 import org.opennms.netmgt.daemon.AbstractServiceDaemon;
 import org.opennms.netmgt.rtc.datablock.RTCCategory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Maintains calculations for categories.
@@ -74,14 +76,16 @@ import org.opennms.netmgt.rtc.datablock.RTCCategory;
  *
  * @author <A HREF="mailto:sowmya@opennms.org">Sowmya Kumaraswamy </A>
  * @author <A HREF="http://www.opennms.org">OpenNMS.org </A>
- * @author <A HREF="mailto:sowmya@opennms.org">Sowmya Kumaraswamy </A>
- * @author <A HREF="http://www.opennms.org">OpenNMS.org </A>
+ *
  * @see org.opennms.netmgt.rtc.RTCConstants
  * @see org.opennms.netmgt.rtc.DataSender
  * @see org.opennms.netmgt.rtc.DataManager
- * @version $Id: $
  */
 public final class RTCManager extends AbstractServiceDaemon {
+    
+    private static final Logger LOG = LoggerFactory.getLogger(RTCManager.class);
+    
+    private Logger log() { return LOG; }
 
     /**
      * Singleton instance of this class
@@ -169,7 +173,7 @@ public final class RTCManager extends AbstractServiceDaemon {
     private BroadcastEventProcessor m_eventReceiver;
 
     /**
-     * The RunnableConsumerThreadPool that runs updaters that interpret and
+     * The {@link ExecutorService} that runs updaters that interpret and
      * update the data
      */
     private ExecutorService m_updaterPool;
@@ -217,6 +221,7 @@ public final class RTCManager extends AbstractServiceDaemon {
          * Starts the task. When run, simply inform the manager that this has
          * been called by the timer
          */
+        @Override
         public void run() {
             timerTaskComplete(this);
         }
@@ -240,22 +245,17 @@ public final class RTCManager extends AbstractServiceDaemon {
      *            the task that is finishing.
      */
     private synchronized void timerTaskComplete(RTCTimerTask tt) {
-        ThreadCategory log = ThreadCategory.getInstance(getClass());
-
-        if (log.isDebugEnabled())
-            log.debug("TimerTask \'" + tt.getID() + "\' complete, status: " + getStatus());
+        LOG.debug("TimerTask \'{}\' complete, status: {}", tt.getID(), getStatus());
 
         if (tt.getID().equals(LOWT_TASK)) {
             // cancel user timer
             boolean ret = m_userTask.cancel();
-            if (log.isDebugEnabled())
-                log.debug("timerTaskComplete: " + USERTIMER + " cancelled: " + ret);
+            LOG.debug("timerTaskComplete: {} cancelled: {}", USERTIMER, ret);
 
             // send out the info and reset both timers
             if (m_highTtask != null) {
                 ret = m_highTtask.cancel();
-                if (log.isDebugEnabled())
-                    log.debug("timerTaskComplete: " + HIGHT_TASK + " cancelled: " + ret);
+                LOG.debug("timerTaskComplete: {} cancelled: {}", HIGHT_TASK, ret);
 
                 m_highTtask = null;
             }
@@ -270,19 +270,16 @@ public final class RTCManager extends AbstractServiceDaemon {
 
             // reset the user timer
             m_timer.schedule((m_userTask = new RTCTimerTask(USERTIMER)), 0, m_userRefreshInterval);
-            if (log.isDebugEnabled())
-                log.debug("timerTaskComplete: " + USERTIMER + " scheduled");
+            LOG.debug("timerTaskComplete: {} scheduled", USERTIMER);
         } else if (tt.getID().equals(HIGHT_TASK)) {
             // cancel user timer
             boolean ret = m_userTask.cancel();
-            if (log.isDebugEnabled())
-                log.debug("timerTaskComplete: " + USERTIMER + " cancelled: " + ret);
+            LOG.debug("timerTaskComplete: {} cancelled: {}", USERTIMER, ret);
 
             // send the category information out reset all timers
             if (m_lowTtask != null) {
                 ret = m_lowTtask.cancel();
-                if (log.isDebugEnabled())
-                    log.debug("timerTaskComplete: " + LOWT_TASK + " cancelled: " + ret);
+                LOG.debug("timerTaskComplete: {} cancelled: {}", LOWT_TASK, ret);
 
                 m_lowTtask = null;
             }
@@ -297,8 +294,7 @@ public final class RTCManager extends AbstractServiceDaemon {
 
             // reset the user timer
             m_timer.schedule((m_userTask = new RTCTimerTask(USERTIMER)), 0, m_userRefreshInterval);
-            if (log.isDebugEnabled())
-                log.debug("timerTaskComplete: " + USERTIMER + " scheduled");
+            LOG.debug("timerTaskComplete: {} scheduled", USERTIMER);
         } else if (tt.getID().equals(USERTIMER)) {
             // send if not pasued
             if (isRunning()) {
@@ -312,7 +308,8 @@ public final class RTCManager extends AbstractServiceDaemon {
      * The constructor for the RTCManager
      */
     public RTCManager() {
-    	super("OpenNMS.RTCManager");
+    	super("rtc");
+        Logging.putPrefix("rtc");
     }
 
     /**
@@ -322,15 +319,11 @@ public final class RTCManager extends AbstractServiceDaemon {
      * reset timers
      */
     public synchronized void checkTimerTasksOnEventReceipt() {
-        ThreadCategory log = ThreadCategory.getInstance(getClass());
-
-        if (log.isDebugEnabled())
-            log.debug("checkTimerTasksOnEventReceipt: Checking if timer tasks need to be reset or data needs to be sent out");
+        LOG.debug("checkTimerTasksOnEventReceipt: Checking if timer tasks need to be reset or data needs to be sent out");
 
         // cancel user timer
         boolean ret = m_userTask.cancel();
-        if (log.isDebugEnabled())
-            log.debug("checkTimerTasksOnEventReceipt: " + USERTIMER + " cancelled: " + ret);
+        LOG.debug("checkTimerTasksOnEventReceipt: {} cancelled: {}", USERTIMER, ret);
 
         // Check the counter to see if timers need to be started afresh
         if (m_counter == -1) {
@@ -345,10 +338,9 @@ public final class RTCManager extends AbstractServiceDaemon {
                 try {
 
                     m_timer.schedule((m_lowTtask = new RTCTimerTask(LOWT_TASK)), m_lowThresholdInterval);
-                    if (log.isDebugEnabled())
-                        log.debug("checkTimerTasksOnEventReceipt: " + LOWT_TASK + " scheduled");
+                    LOG.debug("checkTimerTasksOnEventReceipt: {} scheduled", LOWT_TASK);
                 } catch (IllegalStateException isE) {
-                    log.error("checkTimerTasksOnEventReceipt: Illegal State adding new RTCTimerTask", isE);
+                    LOG.error("checkTimerTasksOnEventReceipt: Illegal State adding new RTCTimerTask", isE);
                 }
             }
 
@@ -356,41 +348,35 @@ public final class RTCManager extends AbstractServiceDaemon {
             if (m_highTtask == null) {
                 try {
                     m_timer.schedule((m_highTtask = new RTCTimerTask(HIGHT_TASK)), m_highThresholdInterval);
-                    if (log.isDebugEnabled())
-                        log.debug("checkTimerTasksOnEventReceipt: " + HIGHT_TASK + " scheduled");
+                    LOG.debug("checkTimerTasksOnEventReceipt: {} scheduled", HIGHT_TASK);
                 } catch (IllegalStateException isE) {
-                    log.error("checkTimerTasksOnEventReceipt: Illegal State adding new RTCTimerTask", isE);
+                    LOG.error("checkTimerTasksOnEventReceipt: Illegal State adding new RTCTimerTask", isE);
                 }
             }
         }
 
         if (MAX_EVENTS_BEFORE_RESEND > 0 && m_counter >= MAX_EVENTS_BEFORE_RESEND) {
-            if (log.isDebugEnabled())
-                log.debug("checkTimerTasksOnEventReceipt: max events before resend limit reached, resetting timers");
+            LOG.debug("checkTimerTasksOnEventReceipt: max events before resend limit reached, resetting timers");
 
             // send the category information out and reset all timers
             if (m_lowTtask != null) {
                 ret = m_lowTtask.cancel();
-                if (log.isDebugEnabled())
-                    log.debug("checkTimerTasksOnEventReceipt: " + LOWT_TASK + " cancelled: " + ret);
+                LOG.debug("checkTimerTasksOnEventReceipt: {} cancelled: {}", LOWT_TASK, ret);
 
                 m_lowTtask = null;
             }
 
             if (m_highTtask != null) {
                 ret = m_highTtask.cancel();
-                if (log.isDebugEnabled())
-                    log.debug("checkTimerTasksOnEventReceipt: " + HIGHT_TASK + " cancelled: " + ret);
+                LOG.debug("checkTimerTasksOnEventReceipt: {} cancelled: {}", HIGHT_TASK, ret);
                 m_highTtask = null;
             }
 
-            if (log.isDebugEnabled())
-                log.debug("checkTimerTasksOnEventReceipt: max events before resend limit reached, sending data to listeners");
+            LOG.debug("checkTimerTasksOnEventReceipt: max events before resend limit reached, sending data to listeners");
 
             m_dataSender.notifyToSend();
 
-            if (log.isDebugEnabled())
-                log.debug("checkTimerTasksOnEventReceipt: max events before resend limit reached, datasender notified to send data");
+            LOG.debug("checkTimerTasksOnEventReceipt: max events before resend limit reached, datasender notified to send data");
 
             m_counter = -1;
         } else if (m_counter != 0) {
@@ -399,17 +385,15 @@ public final class RTCManager extends AbstractServiceDaemon {
             // went off
             if (m_lowTtask != null) {
                 ret = m_lowTtask.cancel();
-                if (log.isDebugEnabled())
-                    log.debug("checkTimerTasksOnEventReceipt: " + LOWT_TASK + " cancelled: " + ret);
+                LOG.debug("checkTimerTasksOnEventReceipt: {} cancelled: {}", LOWT_TASK, ret);
                 m_lowTtask = null;
             }
 
             try {
                 m_timer.schedule((m_lowTtask = new RTCTimerTask(LOWT_TASK)), m_lowThresholdInterval);
-                if (log.isDebugEnabled())
-                    log.debug("checkTimerTasksOnEventReceipt: " + LOWT_TASK + " scheduled");
+                LOG.debug("checkTimerTasksOnEventReceipt: {} scheduled", LOWT_TASK);
             } catch (IllegalStateException isE) {
-                log.error("checkTimerTasksOnEventReceipt: Illegal State adding new RTCTimerTask", isE);
+                LOG.error("checkTimerTasksOnEventReceipt: Illegal State adding new RTCTimerTask", isE);
             }
         }
 
@@ -423,14 +407,11 @@ public final class RTCManager extends AbstractServiceDaemon {
         if (m_userTask != null)
             return;
 
-        ThreadCategory log = ThreadCategory.getInstance(getClass());
-
         try {
             m_timer.schedule((m_userTask = new RTCTimerTask(USERTIMER)), 0, m_userRefreshInterval);
-            if (log.isDebugEnabled())
-                log.debug("resetUserTimer: " + USERTIMER + " scheduled");
+            LOG.debug("resetUserTimer: {} scheduled", USERTIMER);
         } catch (IllegalStateException isE) {
-            log.error("dataReceived: Illegal State adding new RTCTimerTask", isE);
+            LOG.error("dataReceived: Illegal State adding new RTCTimerTask", isE);
         }
 
     }
@@ -438,7 +419,8 @@ public final class RTCManager extends AbstractServiceDaemon {
     /**
      * <p>onInit</p>
      */
-    protected void onInit() {
+    @Override
+    protected synchronized void onInit() {
 
         // load the rtc configuration
         RTCConfigFactory rFactory = null;
@@ -514,7 +496,7 @@ public final class RTCManager extends AbstractServiceDaemon {
 
         m_updaterPool = Executors.newFixedThreadPool(
             rFactory.getUpdaters(),
-            new LogPreservingThreadFactory(getClass().getSimpleName(), rFactory.getUpdaters(), false)
+            new LogPreservingThreadFactory(getClass().getSimpleName(), rFactory.getUpdaters())
         );
 
         if (log().isDebugEnabled())
@@ -539,6 +521,7 @@ public final class RTCManager extends AbstractServiceDaemon {
     /**
      * <p>onStart</p>
      */
+    @Override
     protected synchronized void onStart() {
 		//
         // Start all the threads
@@ -589,6 +572,7 @@ public final class RTCManager extends AbstractServiceDaemon {
     /**
      * <p>onStop</p>
      */
+    @Override
     protected synchronized void onStop() {
 		try {
             if (log().isDebugEnabled())

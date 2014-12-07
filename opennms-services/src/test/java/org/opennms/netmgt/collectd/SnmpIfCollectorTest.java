@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2005-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -28,24 +28,38 @@
 
 package org.opennms.netmgt.collectd;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.Arrays;
+import java.util.Collection;
 
-import junit.framework.TestSuite;
-
-import org.opennms.netmgt.config.collector.CollectionResource;
-import org.opennms.netmgt.config.collector.CollectionSet;
-import org.opennms.core.test.snmp.SnmpTestSuiteUtils;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
+import org.junit.runners.Parameterized.Parameters;
+import org.opennms.netmgt.collection.api.CollectionInitializationException;
+import org.opennms.netmgt.collection.api.CollectionResource;
+import org.opennms.netmgt.collection.api.CollectionSet;
 import org.opennms.netmgt.model.OnmsEntity;
 import org.opennms.netmgt.model.OnmsSnmpInterface;
+import org.opennms.netmgt.snmp.SnmpAgentConfig;
 
-
+@RunWith(Parameterized.class)
 public class SnmpIfCollectorTest extends SnmpCollectorTestCase {
-    
+
+	public SnmpIfCollectorTest(int config) {
+		setVersion(config);
+	}
+
     private final class IfInfoVisitor extends ResourceVisitor {
     	
     	public int ifInfoCount = 0;
     	
+            @Override
 		public void visitResource(CollectionResource resource) {
 		    if (!(resource instanceof IfInfo)) return;
 		    
@@ -56,18 +70,17 @@ public class SnmpIfCollectorTest extends SnmpCollectorTestCase {
 		}
 	}
 
-	public static TestSuite suite() {
-        return SnmpTestSuiteUtils.createSnmpVersionTestSuite(SnmpIfCollectorTest.class);
-    }
+	@Parameters
+	public static Collection<Object[]> params() {
+		Object[][] retval = new Object[][] {
+			{ SnmpAgentConfig.VERSION1 },
+			{ SnmpAgentConfig.VERSION2C },
+			{ SnmpAgentConfig.VERSION3 }
+		};
+		return Arrays.asList(retval);
+	}
 
-    protected void setUp() throws Exception {
-        super.setUp();
-    }
-
-    protected void tearDown() throws Exception {
-        super.tearDown();
-    }
-
+    @Test
     public void testZeroVars() throws Exception {
             createSnmpInterface(1, 24, "lo", true);
 
@@ -91,6 +104,7 @@ public class SnmpIfCollectorTest extends SnmpCollectorTestCase {
 		
     }
 
+    @Test
     public void testInvalidVar() throws Exception {
         addAttribute("invalid", "1.3.6.1.2.1.2.2.2.10", "ifIndex", "counter");
         
@@ -105,7 +119,8 @@ public class SnmpIfCollectorTest extends SnmpCollectorTestCase {
         getAttributeList().remove(0);
         assertInterfaceMibObjectsPresent(collector.getCollectionSet(), 1);
     }
-    
+
+    @Test
     public void testBadApple() throws Exception {
 
         addIfSpeed();
@@ -128,6 +143,7 @@ public class SnmpIfCollectorTest extends SnmpCollectorTestCase {
         assertInterfaceMibObjectsPresent(collector.getCollectionSet(), 1);
     }
     
+    @Test
     public void testManyVars() throws Exception {
         addIfTable();
         
@@ -162,6 +178,7 @@ public class SnmpIfCollectorTest extends SnmpCollectorTestCase {
 
     }
 
+    @Test
     public void testManyIfs() throws Exception {
         addIfTable();
         

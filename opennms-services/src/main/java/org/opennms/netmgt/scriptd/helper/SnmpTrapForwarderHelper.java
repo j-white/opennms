@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2011-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2011-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -31,16 +31,18 @@ package org.opennms.netmgt.scriptd.helper;
 import java.net.UnknownHostException;
 
 import org.opennms.core.utils.InetAddressUtils;
-import org.opennms.core.utils.LogUtils;
+import org.opennms.netmgt.events.api.EventConstants;
 import org.opennms.netmgt.snmp.SnmpTrapBuilder;
 import org.opennms.netmgt.snmp.SnmpV2TrapBuilder;
 import org.opennms.netmgt.snmp.SnmpV3TrapBuilder;
 import org.opennms.netmgt.xml.event.Event;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-public abstract class SnmpTrapForwarderHelper extends AbstractEventForwarder implements
-		EventForwarder {
+public abstract class SnmpTrapForwarderHelper extends AbstractEventForwarder implements EventForwarder {
+    private static final Logger LOG = LoggerFactory.getLogger(SnmpTrapForwarderHelper.class);
 
-	String source_ip;
+        String source_ip;
 	
 	String ip;
 	String community;
@@ -388,7 +390,7 @@ public abstract class SnmpTrapForwarderHelper extends AbstractEventForwarder imp
              else
                      snmpTrapHelper.addVarBinding(trap, ".1.3.6.1.4.1.5813.20.1.2.0", "OctetString", "text", "null");
              if (event.getCreationTime() != null)
-                     snmpTrapHelper.addVarBinding(trap, ".1.3.6.1.4.1.5813.20.1.3.0", "OctetString", "text", event.getCreationTime());
+                     snmpTrapHelper.addVarBinding(trap, ".1.3.6.1.4.1.5813.20.1.3.0", "OctetString", "text", EventConstants.formatToString(event.getCreationTime()));
              else
                      snmpTrapHelper.addVarBinding(trap, ".1.3.6.1.4.1.5813.20.1.3.0", "OctetString", "text", "null");
              if (event.getMasterStation() != null)
@@ -410,7 +412,7 @@ public abstract class SnmpTrapForwarderHelper extends AbstractEventForwarder imp
              } else
                      snmpTrapHelper.addVarBinding(trap, ".1.3.6.1.4.1.5813.20.1.8.0", "OctetString", "text", "null");
              if (event.getTime() != null)
-                     snmpTrapHelper.addVarBinding(trap, ".1.3.6.1.4.1.5813.20.1.9.0", "OctetString", "text", event.getTime());
+                     snmpTrapHelper.addVarBinding(trap, ".1.3.6.1.4.1.5813.20.1.9.0", "OctetString", "text", EventConstants.formatToString(event.getTime()));
              else
                      snmpTrapHelper.addVarBinding(trap, ".1.3.6.1.4.1.5813.20.1.9.0", "OctetString", "text", "null");
              if (event.getHost() != null)
@@ -472,11 +474,11 @@ public abstract class SnmpTrapForwarderHelper extends AbstractEventForwarder imp
                      snmpTrapHelper.addVarBinding(trap, ".1.3.6.1.4.1.5813.20.1.22.0", "OctetString", "text", "null");
              
 		} catch (final IllegalArgumentException e) {
-		    LogUtils.warnf(this, e, "Failed to look up host.");
+		    LOG.warn("Failed to look up host.", e);
 		} catch (final SnmpTrapHelperException e) {
-		    LogUtils.warnf(this, e, "An SNMP trap helpre error occurred while parsing traps.");
+		    LOG.warn("An SNMP trap helpre error occurred while parsing traps.", e);
 		} catch (final Throwable t) {
-		    LogUtils.warnf(this, t, "An unknown error occurred while parsing traps.");
+		    LOG.warn("An unknown error occurred while parsing traps.", t);
 		}		
         return trap;
 	}

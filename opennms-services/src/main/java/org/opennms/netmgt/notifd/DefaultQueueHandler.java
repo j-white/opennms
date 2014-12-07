@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2002-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -31,7 +31,8 @@ package org.opennms.netmgt.notifd;
 import java.util.List;
 import java.util.SortedMap;
 
-import org.opennms.core.utils.LogUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.opennms.core.utils.TimeConverter;
 
 /**
@@ -46,6 +47,7 @@ import org.opennms.core.utils.TimeConverter;
  * @author <a href="http://www.opennms.org/>OpenNMS</a>
  */
 public class DefaultQueueHandler implements NotifdQueueHandler {
+    private static final Logger LOG = LoggerFactory.getLogger(DefaultQueueHandler.class);
     /**
      * The input queue of runnable commands.
      */
@@ -74,17 +76,20 @@ public class DefaultQueueHandler implements NotifdQueueHandler {
     }
 
     /** {@inheritDoc} */
+    @Override
     public void setQueueID(final String queueID) {
         m_queueID = queueID;
     }
 
     /** {@inheritDoc} */
+    @Override
     public synchronized void setNoticeQueue(final NoticeQueue noticeQueue) {
         m_noticeQueue = noticeQueue;
     }
 
     /** {@inheritDoc} */
-    public void setInterval(final String interval) {
+    @Override
+    public synchronized void setInterval(final String interval) {
         m_interval = TimeConverter.convertToMillis(interval);
     }
 
@@ -95,6 +100,7 @@ public class DefaultQueueHandler implements NotifdQueueHandler {
      * <code>STOP_PENDING</code> then the method will return as quickly as
      * possible.
      */
+    @Override
     public void run() {
         synchronized (this) {
             m_status = RUNNING;
@@ -147,6 +153,7 @@ public class DefaultQueueHandler implements NotifdQueueHandler {
     /**
      * <p>processQueue</p>
      */
+    @Override
     public void processQueue() {
         if (m_noticeQueue != null) {
             synchronized(m_noticeQueue) {
@@ -161,11 +168,11 @@ public class DefaultQueueHandler implements NotifdQueueHandler {
                     }
                     readyNotices.clear();
         
-                    if (LogUtils.isDebugEnabled(this) && m_noticeQueue != null && m_noticeQueue.size() > 0) {
-                    	LogUtils.debugf(this, "current state of tree: %s", m_noticeQueue);
+                    if (m_noticeQueue != null && m_noticeQueue.size() > 0) {
+			LOG.debug("current state of tree: {}", m_noticeQueue);
                     }
                 } catch (final Throwable e) {
-                    LogUtils.errorf(this, e, "failed to start notification task");
+                    LOG.error("failed to start notification task", e);
                     
                 }
             }
@@ -188,6 +195,7 @@ public class DefaultQueueHandler implements NotifdQueueHandler {
      * @throws java.lang.IllegalStateException
      *             Thrown if the fiber is stopped or has never run.
      */
+    @Override
     public synchronized void start() {
         m_status = STARTING;
 
@@ -203,6 +211,7 @@ public class DefaultQueueHandler implements NotifdQueueHandler {
      * @throws java.lang.IllegalStateException
      *             Thrown if the fiber was never started.
      */
+    @Override
     public synchronized void stop() {
         if (m_status != STOPPED)
             m_status = STOP_PENDING;
@@ -218,6 +227,7 @@ public class DefaultQueueHandler implements NotifdQueueHandler {
      * @throws java.lang.IllegalStateException
      *             Thrown if the fiber is stopped or has never run.
      */
+    @Override
     public synchronized void pause() {
         if (m_status == RUNNING || m_status == RESUME_PENDING) {
             m_status = PAUSE_PENDING;
@@ -233,6 +243,7 @@ public class DefaultQueueHandler implements NotifdQueueHandler {
      * @throws java.lang.IllegalStateException
      *             Thrown if the fiber is stopped or has never run.
      */
+    @Override
     public synchronized void resume() {
         if (m_status == PAUSED || m_status == PAUSE_PENDING) {
             m_status = RESUME_PENDING;
@@ -245,6 +256,7 @@ public class DefaultQueueHandler implements NotifdQueueHandler {
      *
      * @return The name of the fiber.
      */
+    @Override
     public String getName() {
         return m_queueID;
     }
@@ -256,6 +268,7 @@ public class DefaultQueueHandler implements NotifdQueueHandler {
      * @see org.opennms.core.fiber.PausableFiber
      * @see org.opennms.core.fiber.Fiber
      */
+    @Override
     public synchronized int getStatus() {
         return m_status;
     }

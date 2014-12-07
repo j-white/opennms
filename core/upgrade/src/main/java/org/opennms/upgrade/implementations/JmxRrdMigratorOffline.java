@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2013 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2013 The OpenNMS Group, Inc.
+ * Copyright (C) 2013-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -25,6 +25,7 @@
  *     http://www.opennms.org/
  *     http://www.opennms.com/
  *******************************************************************************/
+
 package org.opennms.upgrade.implementations;
 
 import java.io.File;
@@ -51,6 +52,8 @@ import org.opennms.netmgt.config.collectd.Package;
 import org.opennms.netmgt.config.collectd.Service;
 import org.opennms.upgrade.api.AbstractOnmsUpgrade;
 import org.opennms.upgrade.api.OnmsUpgradeException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * The Class RRD/JRB Migrator for JMX Collector.
@@ -72,6 +75,9 @@ import org.opennms.upgrade.api.OnmsUpgradeException;
  * @author <a href="mailto:agalue@opennms.org">Alejandro Galue</a> 
  */
 public class JmxRrdMigratorOffline extends AbstractOnmsUpgrade {
+	
+	private static final Logger LOG = LoggerFactory.getLogger(JmxRrdMigratorOffline.class);
+
 
     /** The JMX resource directories. */
     private List<File> jmxResourceDirectories;
@@ -123,11 +129,6 @@ public class JmxRrdMigratorOffline extends AbstractOnmsUpgrade {
         printMainSettings();
         if (isInstalledVersionGreaterOrEqual(1, 12, 2)) {
             try {
-                CollectdConfigFactory.init();
-            } catch (Exception e) {
-                throw new OnmsUpgradeException("Can't initialize collectd-configuration.xml because " + e.getMessage());
-            }
-            try {
                 JMXDataCollectionConfigFactory.init();
             } catch (Exception e) {
                 throw new OnmsUpgradeException("Can't initialize jmx-datacollection-config.xml because " + e.getMessage());
@@ -169,9 +170,13 @@ public class JmxRrdMigratorOffline extends AbstractOnmsUpgrade {
             for (File jmxResourceDir : getJmxResourceDirectories()) {
                 File zip = new File(jmxResourceDir.getAbsolutePath() + ZIP_EXT);
                 FileUtils.deleteDirectory(jmxResourceDir);
-                jmxResourceDir.mkdirs();
+                if(!jmxResourceDir.mkdirs()) {
+                	LOG.warn("Could not make directory: {}", jmxResourceDir.getPath());
+                }
                 unzipFile(zip, jmxResourceDir);
-                zip.delete();
+                if(!zip.delete()) {
+                	LOG.warn("Could not delete file: {}", zip.getPath());
+                }
             }
             File configDir = new File(ConfigFileConstants.getFilePathString());
             for (File backupFile : backupFiles) {
@@ -361,7 +366,7 @@ public class JmxRrdMigratorOffline extends AbstractOnmsUpgrade {
             jmxResourceDirectories = new ArrayList<File>();
             CollectdConfiguration config;
             try {
-                config = CollectdConfigFactory.getInstance().getCollectdConfig().getConfig();
+                config = new CollectdConfigFactory().getCollectdConfig();
             } catch (Exception e) {
                 throw new OnmsUpgradeException("Can't upgrade the JRBs because " + e.getMessage(), e);
             }
@@ -448,8 +453,11 @@ public class JmxRrdMigratorOffline extends AbstractOnmsUpgrade {
                     File newFile = new File(metaFile.getParentFile(), newName + metaExt);
                     log("Re-creating META into %s\n", newFile);
                     newMeta.store(new FileWriter(newFile), null);
-                    if (!metaFile.equals(newFile))
-                        metaFile.delete();
+                    if (!metaFile.equals(newFile)) {
+                        if (!metaFile.delete()) {
+                        	LOG.warn("Could not delete file {}", metaFile.getPath());
+                        }
+                    }
                 }
             }
         }
@@ -525,8 +533,11 @@ public class JmxRrdMigratorOffline extends AbstractOnmsUpgrade {
                 File newFile = new File(metaFile.getParentFile(), getFixedFileName(metaFile.getName().replaceFirst(metaExt, "")) + metaExt);
                 log("Recreating META into %s\n", newFile);
                 newMeta.store(new FileWriter(newFile), null);
-                if (!metaFile.equals(newFile))
-                    metaFile.delete();
+                if (!metaFile.equals(newFile)) {
+                   if(!metaFile.delete()) {
+                	   LOG.warn("Could not delete file: {}", metaFile.getPath());
+                   }
+                }
             }
         }
         // JRBs
@@ -580,7 +591,7 @@ public class JmxRrdMigratorOffline extends AbstractOnmsUpgrade {
      */
     private List<String> getJmxServices(CollectdConfiguration config) {
         List<String> services = new ArrayList<String>();
-        for (Collector c : config.getCollectorCollection()) {
+        for (Collector c : config.getCollectors()) {
             // The following code has been made that way to avoid a dependency with opennms-services
             // TODO Depends on opennms-services is not that bad, considering that some customers could have different implementations.
             if (c.getClassName().matches(".*(JBoss|JMXSecure|Jsr160|MX4J)Collector$")) {
@@ -598,8 +609,8 @@ public class JmxRrdMigratorOffline extends AbstractOnmsUpgrade {
      * @return the service object
      */
     private Service getServiceObject(CollectdConfiguration config, String service) {
-        for (Package pkg : config.getPackageCollection()) {
-            for (Service svc : pkg.getServiceCollection()) {
+        for (Package pkg : config.getPackages()) {
+            for (Service svc : pkg.getServices()) {
                 if (svc.getName().equals(service)) {
                     return svc;
                 }
@@ -616,10 +627,10 @@ public class JmxRrdMigratorOffline extends AbstractOnmsUpgrade {
      * @return the service property value
      */
     private String getSvcPropertyValue(Service svc, String propertyName) {
-        if (svc.getParameterCollection() == null) {
+        if (svc.getParameters() == null) {
             return null;
         }
-        for (org.opennms.netmgt.config.collectd.Parameter p : svc.getParameterCollection()) {
+        for (org.opennms.netmgt.config.collectd.Parameter p : svc.getParameters()) {
             if (p.getKey().equals(propertyName)) {
                 return p.getValue();
             }
@@ -635,7 +646,7 @@ public class JmxRrdMigratorOffline extends AbstractOnmsUpgrade {
      */
     protected String getFixedDsName(String dsName) {
         if (dsName.contains(".")) {
-            String parts[] = dsName.split("\\.");
+            String[] parts = dsName.split("\\.");
             return parts[0] +  parts[1].substring(0, 1).toUpperCase() + parts[1].substring(1);
         }
         return dsName;

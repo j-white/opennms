@@ -2,22 +2,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2002-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -77,7 +77,7 @@
   <jsp:param name="breadcrumb" value="Choose Path" />
 </jsp:include>
 
-<script language="JAVASCRIPT" >
+<script type="text/javascript" >
   
     function trimString(str) 
     {
@@ -124,7 +124,7 @@
       action="admin/notification/noticeWizard/notificationWizard">
       <input type="hidden" name="userAction" value=""/>
       <input type="hidden" name="sourcePage" value="<%=NotificationWizardServlet.SOURCE_PAGE_PATH%>"/>
-      <table width="100%" cellspacing="2" cellpadding="2" border="0">
+      <table width="100%">
         <tr>
           <td width="10%" valign="top" align="left">
             Name:
@@ -187,7 +187,7 @@
             Special Values:
           </td>
           <td valign="top" align="left">
-            <table width="100%" border="0" cellspacing="0" cellpadding="1">
+            <table width="100%">
               <tr>
                 <td colspan="3">Can be used in both the text message and email subject:</td>
               </tr>
@@ -234,11 +234,8 @@
          Map<String, Path> pathsMap = null;
          
          try {
-            pathsMap = new TreeMap<String, Path>(DestinationPathFactory.getInstance().getPaths());
-         Iterator iterator = pathsMap.keySet().iterator();
-         while(iterator.hasNext())
-         { 
-                 String key = (String)iterator.next();
+             pathsMap = new TreeMap<String, Path>(DestinationPathFactory.getInstance().getPaths());
+             for (String key : pathsMap.keySet()) {
                  if (key.equals(currentPath))
                  {
                     buffer.append("<option SELECTED VALUE=" + key + ">" + key + "</option>");
@@ -247,7 +244,7 @@
                  {
                     buffer.append("<option VALUE=" + key + ">" + key + "</option>");
                  }
-            }
+             }
          } catch (Throwable e)
          {
             throw new ServletException("couldn't get destination path list.", e);

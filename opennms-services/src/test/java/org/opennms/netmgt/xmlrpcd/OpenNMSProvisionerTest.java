@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2005-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -36,7 +36,6 @@ import static org.junit.Assert.fail;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.StringReader;
 import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.List;
@@ -51,8 +50,7 @@ import org.opennms.core.db.DataSourceFactory;
 import org.opennms.core.test.ConfigurationTestUtils;
 import org.opennms.core.test.MockLogAppender;
 import org.opennms.core.test.db.MockDatabase;
-import org.opennms.core.xml.CastorUtils;
-import org.opennms.netmgt.EventConstants;
+import org.opennms.core.xml.JaxbUtils;
 import org.opennms.netmgt.capsd.JdbcCapsdDbSyncer;
 import org.opennms.netmgt.config.CapsdConfigFactory;
 import org.opennms.netmgt.config.CollectdConfigFactory;
@@ -63,7 +61,8 @@ import org.opennms.netmgt.config.PollerConfigManager;
 import org.opennms.netmgt.config.poller.Package;
 import org.opennms.netmgt.config.poller.PollerConfiguration;
 import org.opennms.netmgt.config.poller.Service;
-import org.opennms.netmgt.eventd.mock.MockEventIpcManager;
+import org.opennms.netmgt.dao.mock.MockEventIpcManager;
+import org.opennms.netmgt.events.api.EventConstants;
 import org.opennms.netmgt.mock.MockEventUtil;
 import org.opennms.netmgt.mock.TestCapsdConfigManager;
 import org.opennms.netmgt.rrd.RrdStrategy;
@@ -168,7 +167,7 @@ public class OpenNMSProvisionerTest {
         configStream.close();
 
         configStream = ConfigurationTestUtils.getInputStreamForResource(this, "/org/opennms/netmgt/capsd/collectd-configuration.xml");
-        CollectdConfigFactory.setInstance(new CollectdConfigFactory(configStream, onmsSvrConfig.getServerName(), onmsSvrConfig.verifyServer()));
+        CollectdConfigFactory collectdConfigFactory = new CollectdConfigFactory(configStream, onmsSvrConfig.getServerName(), onmsSvrConfig.verifyServer());
         configStream.close();
 
         JdbcTemplate jdbcTemplate = new JdbcTemplate(db);
@@ -178,7 +177,7 @@ public class OpenNMSProvisionerTest {
         m_syncer.setOpennmsServerConfig(OpennmsServerConfigFactory.getInstance());
         m_syncer.setCapsdConfig(m_capsdConfig);
         m_syncer.setPollerConfig(m_pollerConfig);
-        m_syncer.setCollectdConfig(CollectdConfigFactory.getInstance());
+        m_syncer.setCollectdConfig(collectdConfigFactory);
         m_syncer.setNextSvcIdSql(db.getNextServiceIdStatement());
         m_syncer.afterPropertiesSet();
 
@@ -200,16 +199,18 @@ public class OpenNMSProvisionerTest {
             save();
         }
 
-        @SuppressWarnings("deprecation")
-        public void update() throws IOException, MarshalException, ValidationException {
-            m_config = CastorUtils.unmarshal(PollerConfiguration.class, new StringReader(m_xml));
+        @Override
+        public void update() throws IOException {
+            m_config = JaxbUtils.unmarshal(PollerConfiguration.class, m_xml);
             setUpInternalData();
         }
 
+        @Override
         protected void saveXml(String xml) throws IOException {
             m_xml = xml;
         }
 
+        @Override
         public List<InetAddress> getIpList(Package pkg) {
             return new ArrayList<InetAddress>(0);
         }
@@ -251,7 +252,7 @@ public class OpenNMSProvisionerTest {
         assertNotNull(pkg);
         Service svc = mgr.getServiceInPackage(svcName, pkg);
         assertNotNull(svc);
-        assertEquals(interval, svc.getInterval());
+        assertEquals(Long.valueOf(interval), svc.getInterval());
         assertNotNull("Unables to find monitor for svc "+svcName+" in origonal config", m_pollerConfig.getServiceMonitor(svcName));
         assertNotNull("Unable to find monitor for svc "+svcName, mgr.getServiceMonitor(svcName));
         

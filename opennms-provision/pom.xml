@@ -3,12 +3,12 @@
   <parent>
     <groupId>org.opennms</groupId>
     <artifactId>opennms</artifactId>
-    <version>1.12.9-SNAPSHOT</version>
+    <version>15.0.0-SNAPSHOT</version>
   </parent>
   <modelVersion>4.0.0</modelVersion>
   <artifactId>opennms-provision</artifactId>
   <packaging>pom</packaging>
-  <name>OpenNMS Provisioning</name>
+  <name>OpenNMS Provision</name>
   <modules>
     <module>opennms-provision-api</module>
     <module>opennms-mock-simpleserver</module>

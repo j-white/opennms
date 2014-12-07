@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2011-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2011-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -42,13 +42,14 @@ import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.opennms.core.spring.BeanUtils;
 import org.opennms.core.test.MockLogAppender;
 import org.opennms.core.test.OpenNMSJUnit4ClassRunner;
 import org.opennms.core.test.snmp.annotations.JUnitSnmpAgent;
-import org.opennms.core.utils.BeanUtils;
 import org.opennms.core.utils.InetAddressUtils;
-import org.opennms.core.utils.LogUtils;
 import org.opennms.netmgt.config.SnmpPeerFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.ContextConfiguration;
@@ -59,6 +60,9 @@ import org.springframework.test.context.ContextConfiguration;
 })
 @JUnitSnmpAgent(host="172.20.1.205", resource="classpath:snmpTestData1.properties")
 public class SnmpTrackerTest implements InitializingBean {
+	
+	private static final Logger LOG = LoggerFactory.getLogger(SnmpTrackerTest.class);
+	
 	@Autowired
 	private SnmpPeerFactory m_snmpPeerFactory;
 
@@ -105,7 +109,7 @@ public class SnmpTrackerTest implements InitializingBean {
         
         @Override
         protected void storeResult(final SnmpResult res) {
-        	LogUtils.debugf(this, "storing result: %s", res);
+        	LOG.debug("storing result: {}", res);
             m_count++;
         }
 
@@ -153,6 +157,7 @@ public class SnmpTrackerTest implements InitializingBean {
         private final List<SnmpRowResult> m_responses = new ArrayList<SnmpRowResult>();
         private final ResultTable m_results = new ResultTable();
 
+        @Override
         public void rowCompleted(final SnmpRowResult row) {
             m_responses.add(row);
             m_results.addSnmpRowResult(row);
@@ -256,9 +261,9 @@ public class SnmpTrackerTest implements InitializingBean {
     	final List<SnmpRowResult> responses = rc.getResponses();
         for (int i = 0; i < responses.size(); i++) {
             final SnmpRowResult row = responses.get(i);
-            LogUtils.debugf(this, "%d: instance=%s", i, row.getInstance());
+            LOG.debug("{}: instance={}", i, row.getInstance());
             for (final SnmpResult res : row.getResults()) {
-            	LogUtils.debugf(this, "    %s=%s", res.getBase(), res.getValue());
+            	LOG.debug("    {}={}", res.getBase(), res.getValue());
             }
         }
     }

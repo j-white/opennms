@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2002-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -39,18 +39,19 @@ import java.net.NoRouteToHostException;
 import java.net.Socket;
 import java.util.Map;
 import java.util.StringTokenizer;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 
-import org.apache.log4j.Level;
-import org.apache.regexp.RE;
-import org.apache.regexp.RESyntaxException;
 import org.opennms.core.utils.InetAddressUtils;
 import org.opennms.core.utils.ParameterMap;
 import org.opennms.core.utils.TimeoutTracker;
-import org.opennms.netmgt.model.PollStatus;
 import org.opennms.netmgt.poller.Distributable;
 import org.opennms.netmgt.poller.MonitoredService;
 import org.opennms.netmgt.poller.NetworkInterface;
 import org.opennms.netmgt.poller.NetworkInterfaceNotSupportedException;
+import org.opennms.netmgt.poller.PollStatus;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * <P>
@@ -63,9 +64,10 @@ import org.opennms.netmgt.poller.NetworkInterfaceNotSupportedException;
  * @author <A HREF="mailto:tarus@opennms.org">Tarus Balog </A>
  * @author <A HREF="http://www.opennms.org/">OpenNMS </A>
  */
-
 @Distributable
 public final class SmtpMonitor extends AbstractServiceMonitor {
+
+    public static final Logger LOG = LoggerFactory.getLogger(SmtpMonitor.class);
 
     /**
      * Default SMTP port.
@@ -93,15 +95,15 @@ public final class SmtpMonitor extends AbstractServiceMonitor {
      * the same 3 digit response code, but has a hyphen after the last number
      * instead of a space.
      */
-    private static final RE MULTILINE;
+    private static final Pattern MULTILINE;
 
     /**
      * Init MULTILINE
      */
     static {
         try {
-            MULTILINE = new RE("^[0-9]{3}-");
-        } catch (RESyntaxException ex) {
+            MULTILINE = Pattern.compile("^[0-9]{3}-");
+        } catch (PatternSyntaxException ex) {
             throw new java.lang.reflect.UndeclaredThrowableException(ex);
         }
     }
@@ -124,6 +126,7 @@ public final class SmtpMonitor extends AbstractServiceMonitor {
      * the service status to SERVICE_AVAILABLE and return.
      * </P>
      */
+    @Override
     public PollStatus poll(MonitoredService svc, Map<String, Object> parameters) {
         NetworkInterface<InetAddress> iface = svc.getNetInterface();
 
@@ -132,7 +135,7 @@ public final class SmtpMonitor extends AbstractServiceMonitor {
         if (iface.getType() != NetworkInterface.TYPE_INET) {
             throw new NetworkInterfaceNotSupportedException("Unsupported interface type, only TYPE_INET currently supported");
         }
-        
+
         TimeoutTracker tracker = new TimeoutTracker(parameters, DEFAULT_RETRY, DEFAULT_TIMEOUT);
 
         int port = ParameterMap.getKeyedInteger(parameters, "port", DEFAULT_PORT);
@@ -142,9 +145,7 @@ public final class SmtpMonitor extends AbstractServiceMonitor {
         InetAddress ipAddr = iface.getAddress();
 
         final String hostAddress = InetAddressUtils.str(ipAddr);
-        if (log().isDebugEnabled()) {
-            log().debug("poll: address = " + hostAddress + ", port = " + port + ", " + tracker);
-        }
+        LOG.debug("poll: address = {}, port = {}, {}", hostAddress, port, tracker);
 
         PollStatus serviceStatus = PollStatus.unavailable();
 
@@ -159,7 +160,7 @@ public final class SmtpMonitor extends AbstractServiceMonitor {
                 socket.connect(new InetSocketAddress(ipAddr, port), tracker.getConnectionTimeout());
                 socket.setSoTimeout(tracker.getSoTimeout());
 
-                log().debug("SmtpMonitor: connected to host: " + ipAddr + " on port: " + port);
+                LOG.debug("SmtpMonitor: connected to host: {} on port: {}", ipAddr, port);
 
                 // We're connected, so upgrade status to unresponsive
                 serviceStatus = PollStatus.unresponsive();
@@ -170,40 +171,8 @@ public final class SmtpMonitor extends AbstractServiceMonitor {
                 // Tokenize the Banner Line, and check the first
                 // line for a valid return.
                 //
-                String banner = rdr.readLine();
-
-                if (banner == null) {
-                    continue;
-                }
-
-                if (MULTILINE.match(banner)) {
-                    // Ok we have a multi-line response...first three
-                    // chars of the response line are the return code.
-                    // The last line of the response will start with
-                    // return code followed by a space.
-                    String multiLineRC = new String(banner.getBytes("ASCII"), 0, 3, "ASCII");
-
-                    // Create new regExp to look for last line
-                    // of this multi line response
-                    RE endMultiline = null;
-                    try {
-                        endMultiline = new RE(multiLineRC);
-                    } catch (RESyntaxException ex) {
-                        throw new java.lang.reflect.UndeclaredThrowableException(ex);
-                    }
-
-                    // read until we hit the last line of the multi-line
-                    // response
-                    do {
-                        banner = rdr.readLine();
-                    } while (banner != null && !endMultiline.match(banner));
-                    if (banner == null) {
-                        continue;
-                    }
-                }
-
-                if (log().isDebugEnabled())
-                    log().debug("poll: banner = " + banner);
+                String banner = sendMessage(socket, rdr, null);
+                LOG.debug("poll: banner = {}", banner);
 
                 StringTokenizer t = new StringTokenizer(banner);
                 int rc = Integer.parseInt(t.nextToken());
@@ -225,7 +194,7 @@ public final class SmtpMonitor extends AbstractServiceMonitor {
                         continue;
                     }
 
-                    if (MULTILINE.match(response)) {
+                    if (MULTILINE.matcher(response).find()) {
                         // Ok we have a multi-line response...first three
                         // chars of the response line are the return code.
                         // The last line of the response will start with
@@ -234,10 +203,10 @@ public final class SmtpMonitor extends AbstractServiceMonitor {
 
                         // Create new regExp to look for last line
                         // of this multi line response
-                        RE endMultiline = null;
+                        Pattern endMultiline = null;
                         try {
-                            endMultiline = new RE(multiLineRC);
-                        } catch (RESyntaxException ex) {
+                            endMultiline = Pattern.compile(multiLineRC);
+                        } catch (PatternSyntaxException ex) {
                             throw new java.lang.reflect.UndeclaredThrowableException(ex);
                         }
 
@@ -245,7 +214,7 @@ public final class SmtpMonitor extends AbstractServiceMonitor {
                         // response
                         do {
                             response = rdr.readLine();
-                        } while (response != null && !endMultiline.match(response));
+                        } while (response != null && !endMultiline.matcher(response).find());
                         if (response == null) {
                             continue;
                         }
@@ -254,42 +223,7 @@ public final class SmtpMonitor extends AbstractServiceMonitor {
                     t = new StringTokenizer(response);
                     rc = Integer.parseInt(t.nextToken());
                     if (rc == 250) {
-                        cmd = "QUIT\r\n";
-                        socket.getOutputStream().write(cmd.getBytes("ASCII"));
-
-                        //
-                        // get the returned string, tokenize, and
-                        // verify the correct output.
-                        //
-                        response = rdr.readLine();
-                        if (response == null) {
-                            continue;
-                        }
-                        if (MULTILINE.match(response)) {
-                            // Ok we have a multi-line response...first three
-                            // chars of the response line are the return code.
-                            // The last line of the response will start with
-                            // return code followed by a space.
-                            String multiLineRC = new String(response.getBytes("ASCII"), 0, 3, "ASCII");
-
-                            // Create new regExp to look for last line
-                            // of this multi line response
-                            RE endMultiline = null;
-                            try {
-                                endMultiline = new RE(multiLineRC);
-                            } catch (RESyntaxException ex) {
-                                throw new java.lang.reflect.UndeclaredThrowableException(ex);
-                            }
-
-                            // read until we hit the last line of the multi-line
-                            // response
-                            do {
-                                response = rdr.readLine();
-                            } while (response != null && !endMultiline.match(response));
-                            if (response == null) {
-                                continue;
-                            }
-                        }
+                        response = sendMessage(socket, rdr, "QUIT\r\n");
 
                         t = new StringTokenizer(response);
                         rc = Integer.parseInt(t.nextToken());
@@ -298,25 +232,38 @@ public final class SmtpMonitor extends AbstractServiceMonitor {
                             serviceStatus = PollStatus.available(responseTime);
                         }
                     }
+                } else if (rc == 554) {
+                    String response = sendMessage(socket, rdr, "QUIT\r\n");
+                    serviceStatus = PollStatus.unavailable("Server rejecting transactions with 554");
                 }
 
-                // If we get this far and the status has not been set
-                // to available, then something didn't verify during
-                // the banner checking or HELO/QUIT comand process.
+                // If we get this far and the status has not been set to
+                // available, then something didn't verify during the banner
+                // checking or HELO/QUIT comand process.
                 if (!serviceStatus.isAvailable()) {
-                    serviceStatus = PollStatus.unavailable();
+                    serviceStatus = PollStatus.unavailable(serviceStatus.getReason());
                 }
             } catch (NumberFormatException e) {
-            	serviceStatus = logDown(Level.DEBUG, "NumberFormatException while polling address " + hostAddress, e);
+                String reason = "NumberFormatException while polling address " + hostAddress;
+                LOG.debug(reason, e);
+                serviceStatus = PollStatus.unavailable(reason);
             } catch (NoRouteToHostException e) {
-            	serviceStatus = logDown(Level.DEBUG, "No route to host exception for address " + hostAddress, e);
+                String reason = "No route to host exception for address " + hostAddress;
+                LOG.debug(reason, e);
+                serviceStatus = PollStatus.unavailable(reason);
                 break; // Break out of for(;;)
             } catch (InterruptedIOException e) {
-            	serviceStatus = logDown(Level.DEBUG, "Did not receive expected response within timeout " + tracker);
+                String reason = "Did not receive expected response within timeout " + tracker;
+                LOG.debug(reason);
+                serviceStatus = PollStatus.unavailable(reason);
             } catch (ConnectException e) {
-            	serviceStatus = logDown(Level.DEBUG, "Unable to connect to address " + hostAddress, e);
+                String reason = "Unable to connect to address " + hostAddress;
+                LOG.debug(reason, e);
+                serviceStatus = PollStatus.unavailable(reason);
             } catch (IOException e) {
-            	serviceStatus = logDown(Level.DEBUG, "IOException while polling address " + hostAddress, e);
+                String reason = "IOException while polling address " + hostAddress;
+                LOG.debug(reason, e);
+                serviceStatus = PollStatus.unavailable(reason);
             } finally {
                 try {
                     // Close the socket
@@ -325,9 +272,7 @@ public final class SmtpMonitor extends AbstractServiceMonitor {
                     }
                 } catch (IOException e) {
                     e.fillInStackTrace();
-                    if (log().isDebugEnabled()) {
-                        log().debug("poll: Error closing socket.", e);
-                    }
+                    LOG.debug("poll: Error closing socket.", e);
                 }
             }
         }
@@ -336,6 +281,47 @@ public final class SmtpMonitor extends AbstractServiceMonitor {
         // return the status of the service
         //
         return serviceStatus;
+    }
+
+    private String sendMessage(Socket socket, BufferedReader rdr, String command) throws IOException {
+        if (command != null && !"".equals(command)) {
+            socket.getOutputStream().write(command.getBytes("ASCII"));
+        }
+
+        //
+        // get the returned string, tokenize, and
+        // verify the correct output.
+        //
+        String response = rdr.readLine();
+        if (response == null) {
+            return "";
+        }
+        if (MULTILINE.matcher(response).find()) {
+            // Ok we have a multi-line response...first three
+            // chars of the response line are the return code.
+            // The last line of the response will start with
+            // return code followed by a space.
+            String multiLineRC = new String(response.getBytes("ASCII"), 0, 3, "ASCII") + " ";
+
+            // Create new regExp to look for last line
+            // of this multi line response
+            Pattern endMultiline = null;
+            try {
+                endMultiline = Pattern.compile(multiLineRC);
+            } catch (PatternSyntaxException ex) {
+                throw new java.lang.reflect.UndeclaredThrowableException(ex);
+            }
+
+            // read until we hit the last line of the multi-line
+            // response
+            do {
+                response = rdr.readLine();
+            } while (response != null && !endMultiline.matcher(response).find());
+            if (response == null) {
+                return "";
+            }
+        }
+        return response;
     }
 
 }

@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2012-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -32,9 +32,9 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
+import org.opennms.features.topology.api.Operation;
 import org.opennms.features.topology.app.internal.TopoContextMenu.TopoContextMenuItem;
 
-@SuppressWarnings("unchecked")
 public class ContextMenuBuilder extends MenuBuilder<Command, TopoContextMenuItem> {
 
 	public TopoContextMenu get() {
@@ -42,14 +42,13 @@ public class ContextMenuBuilder extends MenuBuilder<Command, TopoContextMenuItem
         
         Set<Entry<String, Object>> sortedEntrySet = getSortedMenuItems();
         for(Entry<String, Object> entry : sortedEntrySet) {
-            if(entry.getValue() instanceof Map) {
-                TopoContextMenuItem menuItem = cMenu.addItem(entry.getKey(), null);
+            if(entry.getValue() instanceof Map<?,?>) {
+                TopoContextMenuItem menuItem = cMenu.addItem(removeLabelProperties(entry.getKey()), (Operation)null);
                 addMenuItems(menuItem, (Map<String, Object>) entry.getValue());
             }else {
                 OperationCommand command = (OperationCommand) entry.getValue();
-                cMenu.addItem(entry.getKey(), command.getOperation());
+                cMenu.addItem(removeLabelProperties(entry.getKey()), command.getOperation());
             }
-            
         }
         return cMenu;
 	}
@@ -60,21 +59,18 @@ public class ContextMenuBuilder extends MenuBuilder<Command, TopoContextMenuItem
 	    Set<Entry<String, Object>> sortedEntrySet = getSortedSubmenuGroup(subMenu.getName(), value);
 	    for(Entry<String, Object> entry : sortedEntrySet) {
 	        String commandKey = entry.getKey();
-	        if(entry.getValue() instanceof Map) {
-	            TopoContextMenuItem subMenuItem = subMenu.addItem(commandKey, null);
+	        if(entry.getValue() instanceof Map<?,?>) {
+	            TopoContextMenuItem subMenuItem = subMenu.addChildMenuItem(removeLabelProperties(commandKey), null);
 	            addMenuItems(subMenuItem, (Map<String, Object>) entry.getValue());
 	        }else {
 	            if(commandKey.startsWith("separator")) {
 	                subMenu.setSeparatorVisible(true);
 	            }else {
 	                Command cmd = (Command) entry.getValue();
-	                subMenu.addItem(removeLabelProperties(commandKey), cmd.getOperation());
+	                subMenu.addChildMenuItem(removeLabelProperties(commandKey), cmd.getOperation());
 	            }
 	        }
 	        
 	    }
 	}
-
-
-	
 }

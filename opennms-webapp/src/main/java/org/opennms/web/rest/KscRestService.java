@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2012-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -30,7 +30,6 @@ package org.opennms.web.rest;
 
 import java.text.ParseException;
 import java.util.Collection;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
@@ -54,11 +53,13 @@ import javax.xml.bind.annotation.XmlAttribute;
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
 
-import org.opennms.core.utils.LogUtils;
+import org.opennms.core.config.api.JaxbListWrapper;
 import org.opennms.netmgt.config.KSC_PerformanceReportFactory;
 import org.opennms.netmgt.config.kscReports.Graph;
 import org.opennms.netmgt.config.kscReports.Report;
 import org.opennms.web.svclayer.KscReportService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
@@ -71,6 +72,9 @@ import com.sun.jersey.spi.resource.PerRequest;
 @Scope("prototype")
 @Path("ksc")
 public class KscRestService extends OnmsRestService {
+
+    private static final Logger LOG = LoggerFactory.getLogger(KscRestService.class);
+
     @Autowired
     private KscReportService m_kscReportService;
 
@@ -144,6 +148,9 @@ public class KscRestService extends OnmsRestService {
                 throw getException(Status.BAD_REQUEST, "Invalid request: reportName and resourceId cannot be empty!");
             }
             final Report report = m_kscReportFactory.getReportByIndex(kscReportId);
+            if (report == null) {
+                throw getException(Status.NOT_FOUND, "Invalid request: No KSC report found with ID: " + kscReportId);
+            }
             final Graph graph = new Graph();
             if (title != null) {
                 graph.setTitle(title);
@@ -158,7 +165,7 @@ public class KscRestService extends OnmsRestService {
             }
 
             if (!found) {
-                LogUtils.debugf(this, "invalid timespan ('%s'), setting to '7_day' instead.", timespan);
+                LOG.debug("invalid timespan ('{}'), setting to '7_day' instead.", timespan);
                 timespan = "7_day";
             }
 
@@ -180,49 +187,23 @@ public class KscRestService extends OnmsRestService {
 
     @Entity
     @XmlRootElement(name = "kscReports")
-    @XmlAccessorType(XmlAccessType.NONE)
-    public static final class KscReportCollection extends LinkedList<KscReport> {
-        private static final long serialVersionUID = -4169259948312457702L;
+    public static final class KscReportCollection extends JaxbListWrapper<KscReport> {
+        private static final long serialVersionUID = 1L;
 
-        private int m_totalCount;
-
-        public KscReportCollection() {
-            super();
+        public KscReportCollection() {super();}
+        public KscReportCollection(Collection<? extends KscReport> reports) {
+            super(reports);
         }
-
-        public KscReportCollection(final Collection<? extends KscReport> c) {
-            super(c);
-        }
-
         public KscReportCollection(final Map<Integer, String> reportList) {
+            super();
             for (final Integer key : reportList.keySet()) {
                 add(new KscReport(key, reportList.get(key)));
             }
         }
 
-        @XmlElement(name = "kscReport")
-        public List<KscReport> getKscReports() {
-            return this;
-        }
-
-        public void setKscReports(final List<KscReport> reports) {
-            if (reports == this) return;
-            clear();
-            addAll(reports);
-        }
-
-        @XmlAttribute(name = "count")
-        public Integer getCount() {
-            return this.size();
-        }
-
-        @XmlAttribute(name = "totalCount")
-        public int getTotalCount() {
-            return m_totalCount;
-        }
-
-        public void setTotalCount(final int count) {
-            m_totalCount = count;
+        @XmlElement(name="kscReport")
+        public List<KscReport> getObjects() {
+            return super.getObjects();
         }
     }
 

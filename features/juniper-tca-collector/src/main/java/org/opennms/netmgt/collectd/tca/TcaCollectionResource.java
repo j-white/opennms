@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2012-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -30,15 +30,13 @@ package org.opennms.netmgt.collectd.tca;
 
 import java.io.File;
 
-import org.opennms.core.utils.DefaultTimeKeeper;
-import org.opennms.core.utils.TimeKeeper;
-import org.opennms.netmgt.collectd.AbstractCollectionResource;
-import org.opennms.netmgt.collectd.CollectionAgent;
-import org.opennms.netmgt.config.StorageStrategy;
-import org.opennms.netmgt.config.collector.CollectionAttributeType;
-import org.opennms.netmgt.config.collector.ServiceParameters;
+import org.opennms.netmgt.collection.api.CollectionAgent;
+import org.opennms.netmgt.collection.api.StorageStrategy;
+import org.opennms.netmgt.collection.api.TimeKeeper;
+import org.opennms.netmgt.collection.support.AbstractCollectionResource;
+import org.opennms.netmgt.collection.support.DefaultTimeKeeper;
 import org.opennms.netmgt.dao.support.IndexStorageStrategy;
-import org.opennms.netmgt.model.RrdRepository;
+import org.opennms.netmgt.rrd.RrdRepository;
 
 /**
  * The Class TcaCollectionResource.
@@ -65,10 +63,10 @@ public class TcaCollectionResource extends AbstractCollectionResource {
 	private TimeKeeper m_timeKeeper = new DefaultTimeKeeper();
 
 	/** The m_peer address. */
-	private String m_peerAddress;
+	private final String m_peerAddress;
 
 	/** The m_strategy. */
-	private StorageStrategy m_strategy;
+	private final StorageStrategy m_strategy;
 
 	/**
 	 * Instantiates a new TCA collection resource.
@@ -92,14 +90,6 @@ public class TcaCollectionResource extends AbstractCollectionResource {
 	}
 
 	/* (non-Javadoc)
-	 * @see org.opennms.netmgt.config.collector.CollectionResource#getParent()
-	 */
-	@Override
-	public String getParent() {
-		return m_agent.getStorageDir().toString();
-	}
-
-	/* (non-Javadoc)
 	 * @see org.opennms.netmgt.config.collector.CollectionResource#getInstance()
 	 */
 	@Override
@@ -111,32 +101,8 @@ public class TcaCollectionResource extends AbstractCollectionResource {
 	 * @see org.opennms.netmgt.collectd.AbstractCollectionResource#getLabel()
 	 */
 	@Override
-	public String getLabel() {
+	public String getInterfaceLabel() {
 		return m_peerAddress;
-	}
-
-	/* (non-Javadoc)
-	 * @see org.opennms.netmgt.collectd.AbstractCollectionResource#getType()
-	 */
-	@Override
-	public int getType() {
-		return -1; // Is this right?
-	}
-
-	/* (non-Javadoc)
-	 * @see org.opennms.netmgt.collectd.AbstractCollectionResource#rescanNeeded()
-	 */
-	@Override
-	public boolean rescanNeeded() {
-		return false;
-	}
-
-	/* (non-Javadoc)
-	 * @see org.opennms.netmgt.collectd.AbstractCollectionResource#shouldPersist(org.opennms.netmgt.config.collector.ServiceParameters)
-	 */
-	@Override
-	public boolean shouldPersist(ServiceParameters params) {
-		return true;
 	}
 
 	/* (non-Javadoc)
@@ -144,7 +110,7 @@ public class TcaCollectionResource extends AbstractCollectionResource {
 	 */
 	@Override
 	public String toString() {
-		return "node[" + m_agent.getNodeId() + "]." + getResourceTypeName() + "[" + getLabel() +"]";
+		return "node[" + m_agent.getNodeId() + "]." + getResourceTypeName() + "[" + getInterfaceLabel() +"]";
 	}
 
 	/* (non-Javadoc)
@@ -152,7 +118,7 @@ public class TcaCollectionResource extends AbstractCollectionResource {
 	 */
 	@Override
 	public File getResourceDir(RrdRepository repository) {
-		String resourcePath = m_strategy.getRelativePathForAttribute(getParent(), getLabel(), null);
+		String resourcePath = m_strategy.getRelativePathForAttribute(getParent(), getInterfaceLabel());
 		return new File(repository.getRrdBaseDir(), resourcePath);
 	}
 
@@ -180,7 +146,7 @@ public class TcaCollectionResource extends AbstractCollectionResource {
      * @param value the value
      */
     public void setAttributeValue(TcaCollectionAttributeType type, String value) {
-        TcaCollectionAttribute attr = new TcaCollectionAttribute(this, type, type.getName(), value);
+        TcaCollectionAttribute attr = new TcaCollectionAttribute(this, type, value);
         addAttribute(attr);
     }
 

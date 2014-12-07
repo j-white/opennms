@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2002-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -42,18 +42,20 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.TreeMap;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
+import org.apache.commons.lang.StringUtils;
 import org.exolab.castor.xml.MarshalException;
 import org.exolab.castor.xml.Marshaller;
 import org.exolab.castor.xml.ValidationException;
 import org.jasypt.util.password.PasswordEncryptor;
 import org.jasypt.util.password.StrongPasswordEncryptor;
 import org.opennms.core.xml.CastorUtils;
-import org.opennms.netmgt.EventConstants;
+import org.opennms.netmgt.config.api.UserConfig;
 import org.opennms.netmgt.config.users.Contact;
 import org.opennms.netmgt.config.users.DutySchedule;
 import org.opennms.netmgt.config.users.Header;
@@ -61,6 +63,7 @@ import org.opennms.netmgt.config.users.Password;
 import org.opennms.netmgt.config.users.User;
 import org.opennms.netmgt.config.users.Userinfo;
 import org.opennms.netmgt.config.users.Users;
+import org.opennms.netmgt.events.api.EventConstants;
 import org.opennms.netmgt.model.OnmsUser;
 import org.opennms.netmgt.model.OnmsUserList;
 
@@ -71,7 +74,7 @@ import org.opennms.netmgt.model.OnmsUserList;
  * @author <a href="mailto:brozow@opennms.org">Matt Brozowski</a>
  * @author <a href="mailto:ranger@opennms.org">Benjamin Reed</a>
  */
-public abstract class UserManager {
+public abstract class UserManager implements UserConfig {
     private static final char[] HEX = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F' };
 
     private static final PasswordEncryptor m_passwordEncryptor = new StrongPasswordEncryptor();
@@ -79,18 +82,6 @@ public abstract class UserManager {
     private final ReadWriteLock m_readWriteLock = new ReentrantReadWriteLock();
     private final Lock m_readLock = m_readWriteLock.readLock();
     private final Lock m_writeLock = m_readWriteLock.writeLock();
-
-    public enum ContactType {
-        email,
-        pagerEmail,
-        xmppAddress,
-        microblog,
-        numericPage,
-        textPage,
-        workPhone,
-        mobilePhone,
-        homePhone
-    }
 
     protected GroupManager m_groupManager;
     /**
@@ -100,7 +91,7 @@ public abstract class UserManager {
     /**
      * The duty schedules for each user
      */
-    protected HashMap<String, List<DutySchedule>> m_dutySchedules;
+    protected Map<String, List<DutySchedule>> m_dutySchedules;
     private Header oldHeader;
 
     /**
@@ -169,30 +160,33 @@ public abstract class UserManager {
         _saveCurrent();
     }
     
-    public void save(final OnmsUser user) throws Exception {
+    public void save(final OnmsUser onmsUser) throws Exception {
         update();
 
         m_writeLock.lock();
         
         try {
-            User castorUser = _getUser(user.getUsername());
+            User castorUser = _getUser(onmsUser.getUsername());
             if (castorUser == null) {
                 castorUser = new User();
-                castorUser.setUserId(user.getUsername());
+                castorUser.setUserId(onmsUser.getUsername());
             }
-            castorUser.setFullName(user.getFullName());
-            castorUser.setUserComments(user.getComments());
+            castorUser.setFullName(onmsUser.getFullName());
+            castorUser.setUserComments(onmsUser.getComments());
+
+            // Contact info
+            _setContact(castorUser, ContactType.email, onmsUser.getEmail());
             
             final Password pass = new Password();
-            pass.setContent(user.getPassword());
-            pass.setSalt(user.getPasswordSalted());
+            pass.setContent(onmsUser.getPassword());
+            pass.setSalt(onmsUser.getPasswordSalted());
             castorUser.setPassword(pass);
     
-            if (user.getDutySchedule() != null) {
-                castorUser.setDutySchedule(user.getDutySchedule());
+            if (onmsUser.getDutySchedule() != null) {
+                castorUser.setDutySchedule(onmsUser.getDutySchedule());
             }
             
-            _writeUser(user.getUsername(), castorUser);
+            _writeUser(onmsUser.getUsername(), castorUser);
         } finally {
             m_writeLock.unlock();
         }
@@ -209,8 +203,9 @@ public abstract class UserManager {
     private void _buildDutySchedules(final Map<String,User> users) {
         m_dutySchedules = new HashMap<String,List<DutySchedule>>();
         
-        for (final String key : users.keySet()) {
-            final User curUser = users.get(key);
+        for (final Entry<String,User> entry : users.entrySet()) {
+            final String key = entry.getKey();
+            final User curUser = entry.getValue();
     
             if (curUser.getDutyScheduleCount() > 0) {
                 final List<DutySchedule> dutyList = new ArrayList<DutySchedule>();
@@ -317,8 +312,20 @@ public abstract class UserManager {
         user.setPassword(castorUser.getPassword().getContent());
         user.setPasswordSalted(castorUser.getPassword().getSalt());
         user.setDutySchedule(castorUser.getDutyScheduleCollection());
-   
+        user.setEmail(_getContactInfo(castorUser, ContactType.email));
         return user;
+    }
+    
+    private Contact _getContact(final String userId, final ContactType contactType) {
+    	User user = _getUser(userId);
+    	if (user != null && contactType != null) {
+    		for (Contact eachContact : user.getContactCollection()) {
+    			if (contactType.name().equals(eachContact.getType())) {
+    				return eachContact;
+    			}
+    		}
+    	}
+    	return null;
     }
     
     /**
@@ -463,7 +470,42 @@ public abstract class UserManager {
     public String getMicroblogName(final User user) throws MarshalException, ValidationException, FileNotFoundException, IOException {
         return getContactInfo(user, ContactType.microblog.toString());
     }
+    
+    public void setContactInfo(final String userId, final ContactType contactType, final String contactValue) throws Exception {
+    	 update();
+         m_writeLock.lock();
+         
+         try {
+             final User user = _getUser(userId);
+             if (user != null) {
+            	 _setContact(user, contactType, contactValue);
+             }
+             _saveCurrent();
+         } finally {
+             m_writeLock.unlock();
+         }
+	}
+    
+    private void _setContact(final User user, final ContactType contactType, final String value) {
+        if (user != null && !StringUtils.isEmpty(value)) {
+        	Contact contact = _getContact(user.getUserId(), contactType);
+        	if (contact == null) {
+        		contact = new Contact();
+        		user.addContact(contact);
+        	}
+        	contact.setInfo(value);
+    		contact.setType(contactType.name());
+        }
+    }
 
+    /**
+     * @see {@link #getContactInfo(String, String)} 
+     */
+    public String getContactInfo(final String userId, final ContactType contactType) throws MarshalException, ValidationException, IOException {
+    	if (userId == null || contactType == null) return null;
+    	return getContactInfo(userId, contactType.name());
+	}
+    
     /**
      * Get the contact info given a command string
      *
@@ -510,6 +552,10 @@ public abstract class UserManager {
         }
     }
 
+    private String _getContactInfo(final User user, final ContactType contactType) {
+    	return _getContactInfo(user, contactType.name());
+    }
+    
     private String _getContactInfo(final User user, final String command) {
         if (user == null) return "";
         

@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2012-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -43,10 +43,9 @@ import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.opennms.core.test.MockLogAppender;
-import org.opennms.core.utils.LogUtils;
-import org.opennms.netmgt.EventConstants;
-import org.opennms.netmgt.eventd.mock.EventAnticipator;
-import org.opennms.netmgt.eventd.mock.MockEventIpcManager;
+import org.opennms.netmgt.dao.mock.EventAnticipator;
+import org.opennms.netmgt.dao.mock.MockEventIpcManager;
+import org.opennms.netmgt.events.api.EventConstants;
 import org.opennms.netmgt.model.events.EventBuilder;
 import org.opennms.netmgt.model.ncs.NCSComponent;
 import org.opennms.netmgt.model.ncs.NCSComponentRepository;
@@ -54,9 +53,13 @@ import org.opennms.netmgt.ncs.persistence.NCSComponentDao;
 import org.opennms.netmgt.ncs.persistence.NCSComponentService;
 import org.opennms.netmgt.xml.event.Event;
 import org.opennms.netmgt.xml.event.Parm;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.mock.web.MockHttpServletRequest;
 
 public class NCSRestServiceTest extends AbstractSpringJerseyRestTestCase {
+	private static final Logger LOG = LoggerFactory.getLogger(NCSRestServiceTest.class);
+
 	private static void setupLogging(final String level) {
 		final Properties config = new Properties();
 		config.setProperty("log4j.logger.org.opennms.netmgt.mock.MockEventIpcManager", "ERROR");
@@ -188,7 +191,7 @@ public class NCSRestServiceTest extends AbstractSpringJerseyRestTestCase {
 
 	@Override
 	protected void afterServletStart() throws Exception {
-		m_eventIpcManager = getWebAppContext().getBean(MockEventIpcManager.class);
+		m_eventIpcManager = getWebAppContext().getBean("eventProxy", MockEventIpcManager.class);
 		m_eventAnticipator = m_eventIpcManager.getEventAnticipator();
 		final NCSComponentService service = getWebAppContext().getBean(NCSComponentService.class);
 		service.setEventProxy(m_eventIpcManager);
@@ -222,7 +225,7 @@ public class NCSRestServiceTest extends AbstractSpringJerseyRestTestCase {
 
 		final NCSComponentRepository repo = getBean("ncsComponentRepository", NCSComponentRepository.class);
 		for (final NCSComponent component : repo.findAll()) {
-			LogUtils.debugf(this, "Found Component: %s/%s/%s", component.getType(), component.getForeignSource(), component.getForeignId());
+			LOG.debug("Found Component: {}/{}/{}", component.getType(), component.getForeignSource(), component.getForeignId());
 		}
 		String url = "/NCS/ServiceElementComponent/NA-SvcElemComp:9876%2Cvcid(50)";
 		// Testing GET Collection

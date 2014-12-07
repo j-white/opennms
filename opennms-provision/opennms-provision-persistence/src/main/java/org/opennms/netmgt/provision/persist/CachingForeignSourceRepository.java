@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2012-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -54,7 +54,6 @@ public class CachingForeignSourceRepository extends AbstractForeignSourceReposit
 	private final WriteLock m_writeLock = m_globalLock.writeLock();
 
 	private ForeignSourceRepository m_foreignSourceRepository;
-	private long m_refreshInterval;
 
 	private Set<String> m_dirtyForeignSources = new HashSet<String>();
 	private Set<String> m_dirtyRequisitions   = new HashSet<String>();
@@ -66,7 +65,7 @@ public class CachingForeignSourceRepository extends AbstractForeignSourceReposit
 	private ScheduledExecutorService m_executor;
 
 	public CachingForeignSourceRepository() {
-		m_refreshInterval = Long.getLong("org.opennms.netmgt.provision.persist.cacheRefreshInterval", 300000);
+		long refreshInterval = Long.getLong("org.opennms.netmgt.provision.persist.cacheRefreshInterval", 300000);
 
 		final ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(1);
 		executor.setContinueExistingPeriodicTasksAfterShutdownPolicy(false);
@@ -74,7 +73,7 @@ public class CachingForeignSourceRepository extends AbstractForeignSourceReposit
 		m_executor = executor;
 
 		// every refreshInterval milliseconds, save any modifications, and clean out existing cached data
-		m_executor.scheduleAtFixedRate(getRefreshRunnable(), m_refreshInterval, m_refreshInterval, TimeUnit.MILLISECONDS);
+		m_executor.scheduleAtFixedRate(getRefreshRunnable(), refreshInterval, refreshInterval, TimeUnit.MILLISECONDS);
 	}
 
 	protected void writeUnlock() {
@@ -159,6 +158,7 @@ public class CachingForeignSourceRepository extends AbstractForeignSourceReposit
 		m_foreignSourceRepository = fsr;
 	}
 
+        @Override
 	public void afterPropertiesSet() {
 		Assert.notNull(m_foreignSourceRepository);
 	}

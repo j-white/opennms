@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2003-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -72,6 +72,7 @@ public class SnmpTrapHelperException extends Exception {
      *
      * @return The message associated with this exception.
      */
+    @Override
     public String getMessage() {
         Throwable cause = getCause();
 
@@ -89,6 +90,7 @@ public class SnmpTrapHelperException extends Exception {
      * print stream. If this exception has an associated cause exception, the
      * stack trace associated with the cause exception is printed.
      */
+    @Override
     public void printStackTrace(java.io.PrintStream ps) {
         Throwable cause = getCause();
 
@@ -107,6 +109,7 @@ public class SnmpTrapHelperException extends Exception {
      * this exception has an associated cause exception, the stack trace
      * associated with the cause exception is printed.
      */
+    @Override
     public void printStackTrace() {
         printStackTrace(System.err);
     }
@@ -119,6 +122,7 @@ public class SnmpTrapHelperException extends Exception {
      * @param pw
      *            The print writer to which the stack trace should be printed.
      */
+    @Override
     public void printStackTrace(java.io.PrintWriter pw) {
         Throwable cause = getCause();
 

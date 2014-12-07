@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2011-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2009-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -31,16 +31,17 @@ package org.opennms.netmgt.alarmd;
 import java.util.List;
 import java.util.Map;
 
-import org.opennms.core.utils.LogUtils;
 import org.opennms.netmgt.alarmd.api.NorthboundAlarm;
 import org.opennms.netmgt.alarmd.api.Northbounder;
 import org.opennms.netmgt.daemon.SpringServiceDaemon;
+import org.opennms.netmgt.events.api.EventForwarder;
+import org.opennms.netmgt.events.api.annotations.EventHandler;
+import org.opennms.netmgt.events.api.annotations.EventListener;
 import org.opennms.netmgt.model.OnmsAlarm;
-import org.opennms.netmgt.model.events.EventForwarder;
-import org.opennms.netmgt.model.events.annotations.EventHandler;
-import org.opennms.netmgt.model.events.annotations.EventListener;
 import org.opennms.netmgt.xml.event.Event;
 import org.opennms.netmgt.xml.event.Parm;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.DisposableBean;
 
 /**
@@ -54,8 +55,9 @@ import org.springframework.beans.factory.DisposableBean;
  * @author <a href="mailto:david@opennms.org">David Hustace</a>
  * @version $Id: $
  */
-@EventListener(name=Alarmd.NAME)
+@EventListener(name=Alarmd.NAME, logPrefix="alarmd")
 public class Alarmd implements SpringServiceDaemon, DisposableBean {
+    private static final Logger LOG = LoggerFactory.getLogger(Alarmd.class);
 
     /** Constant <code>NAME="Alarmd"</code> */
     public static final String NAME = "Alarmd";
@@ -96,7 +98,7 @@ public class Alarmd implements SpringServiceDaemon, DisposableBean {
 
     @EventHandler(uei = "uei.opennms.org/internal/reloadDaemonConfig")
     private void handleReloadEvent(Event e) {
-    	LogUtils.infof(this, "Received reload configuration event: %s", e);
+    	LOG.info("Received reload configuration event: {}", e);
 
     	//Currently, Alarmd has no configuration... I'm sure this will change soon.
 
@@ -107,15 +109,15 @@ public class Alarmd implements SpringServiceDaemon, DisposableBean {
     		String parmName = parm.getParmName();
     		if("daemonName".equals(parmName)) {
     			if (parm.getValue() == null || parm.getValue().getContent() == null) {
-    				LogUtils.warnf(this, "The daemonName parameter has no value, ignoring.");
+    				LOG.warn("The daemonName parameter has no value, ignoring.");
     				return;
     			}
 
     			List<Northbounder> nbis = getNorthboundInterfaces();
     			for (Northbounder nbi : nbis) {
     				if (parm.getValue().getContent().contains(nbi.getName())) {
-    					LogUtils.debugf(this, "Handling reload event for NBI: %s", nbi.getName());
-    					LogUtils.debugf(this, "Reloading NBI configuration not yet implemented.", nbi.getName());
+    					LOG.debug("Handling reload event for NBI: {}", nbi.getName());
+    					LOG.debug("Reloading NBI configuration for interface {} not yet implemented.", nbi.getName());
     					return;
     				}
     			}
@@ -146,7 +148,7 @@ public class Alarmd implements SpringServiceDaemon, DisposableBean {
     /**
      * <p>getEventForwarder</p>
      *
-     * @return a {@link org.opennms.netmgt.model.events.EventForwarder} object.
+     * @return a {@link org.opennms.netmgt.events.api.EventForwarder} object.
      */
     public EventForwarder getEventForwarder() {
         return m_eventForwarder;
@@ -155,7 +157,7 @@ public class Alarmd implements SpringServiceDaemon, DisposableBean {
     /**
      * <p>setEventForwarder</p>
      *
-     * @param eventForwarder a {@link org.opennms.netmgt.model.events.EventForwarder} object.
+     * @param eventForwarder a {@link org.opennms.netmgt.events.api.EventForwarder} object.
      */
     public void setEventForwarder(EventForwarder eventForwarder) {
         m_eventForwarder = eventForwarder;
@@ -182,6 +184,7 @@ public class Alarmd implements SpringServiceDaemon, DisposableBean {
      *
      * @throws java.lang.Exception if any.
      */
+    @Override
     public void destroy() throws Exception {
     }
 
@@ -199,6 +202,7 @@ public class Alarmd implements SpringServiceDaemon, DisposableBean {
      *
      * @throws java.lang.Exception if any.
      */
+    @Override
     public void start() throws Exception {
     }
 

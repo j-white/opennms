@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2006-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2006-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -41,19 +41,20 @@ import java.util.Map;
 
 import org.opennms.core.utils.InetAddressUtils;
 import org.opennms.core.utils.ParameterMap;
-import org.opennms.core.utils.ThreadCategory;
 import org.opennms.netmgt.config.PollerConfig;
 import org.opennms.netmgt.config.poller.Package;
-import org.opennms.netmgt.model.PollStatus;
-import org.opennms.netmgt.model.RrdRepository;
 import org.opennms.netmgt.poller.MonitoredService;
+import org.opennms.netmgt.poller.PollStatus;
 import org.opennms.netmgt.poller.ServiceMonitor;
 import org.opennms.netmgt.rrd.RrdDataSource;
 import org.opennms.netmgt.rrd.RrdException;
+import org.opennms.netmgt.rrd.RrdRepository;
 import org.opennms.netmgt.rrd.RrdUtils;
 import org.opennms.netmgt.threshd.LatencyThresholdingSet;
 import org.opennms.netmgt.threshd.ThresholdingEventProxy;
 import org.opennms.netmgt.xml.event.Event;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * <p>LatencyStoringServiceMonitorAdaptor class.</p>
@@ -63,6 +64,9 @@ import org.opennms.netmgt.xml.event.Event;
  */
 public class LatencyStoringServiceMonitorAdaptor implements ServiceMonitor {
 
+    
+    private static final Logger LOG = LoggerFactory.getLogger(LatencyStoringServiceMonitorAdaptor.class);
+    
     /** Constant <code>DEFAULT_BASENAME="response-time"</code> */
     public static final String DEFAULT_BASENAME = "response-time";
 
@@ -86,6 +90,7 @@ public class LatencyStoringServiceMonitorAdaptor implements ServiceMonitor {
     }
 
     /** {@inheritDoc} */
+    @Override
     public void initialize(Map<String, Object> parameters) {
         m_serviceMonitor.initialize(parameters);
     }
@@ -95,11 +100,13 @@ public class LatencyStoringServiceMonitorAdaptor implements ServiceMonitor {
      *
      * @param svc a {@link org.opennms.netmgt.poller.MonitoredService} object.
      */
+    @Override
     public void initialize(MonitoredService svc) {
         m_serviceMonitor.initialize(svc);
     }
 
     /** {@inheritDoc} */
+    @Override
     public PollStatus poll(MonitoredService svc, Map<String, Object> parameters) {
         PollStatus status = m_serviceMonitor.poll(svc, parameters);
 
@@ -117,7 +124,7 @@ public class LatencyStoringServiceMonitorAdaptor implements ServiceMonitor {
         return status;
     }
 
-    private void storeResponseTime(MonitoredService svc, LinkedHashMap<String, Number> entries, Map<String,Object> parameters) {
+    private void storeResponseTime(MonitoredService svc, Map<String, Number> entries, Map<String,Object> parameters) {
         String rrdPath     = ParameterMap.getKeyedString(parameters, "rrd-repository", null);
         String dsName      = ParameterMap.getKeyedString(parameters, "ds-name", DEFAULT_BASENAME);
         String rrdBaseName = ParameterMap.getKeyedString(parameters, "rrd-base-name", dsName);
@@ -128,21 +135,21 @@ public class LatencyStoringServiceMonitorAdaptor implements ServiceMonitor {
             entries.remove(DEFAULT_BASENAME);
         }
 
-        if (thresholds.toLowerCase().equals("true")) {
+        if (thresholds.equalsIgnoreCase("true")) {
             applyThresholds(rrdPath, svc, dsName, entries);
         } else {
-            log().debug("storeResponseTime: Thresholds processing is not enabled. Check thresholding-enabled parameter on service definition");
+            LOG.debug("storeResponseTime: Thresholds processing is not enabled. Check thresholding-enabled parameter on service definition");
         }
 
         if (rrdPath == null) {
-            log().debug("storeResponseTime: RRD repository not specified in parameters, latency data will not be stored.");
+            LOG.debug("storeResponseTime: RRD repository not specified in parameters, latency data will not be stored.");
             return;
         }
 
         updateRRD(rrdPath, svc.getAddress(), rrdBaseName, entries);
     }
 
-    private void applyThresholds(String rrdPath, MonitoredService service, String dsName, LinkedHashMap<String, Number> entries) {
+    private void applyThresholds(String rrdPath, MonitoredService service, String dsName, Map<String, Number> entries) {
         try {
             if (m_thresholdingSet == null) {
                 RrdRepository repository = new RrdRepository();
@@ -159,7 +166,7 @@ public class LatencyStoringServiceMonitorAdaptor implements ServiceMonitor {
                 }
             }
             if (m_thresholdingSet.isNodeInOutage()) {
-                log().info("applyThresholds: the threshold processing will be skipped because the service " + service + " is on a scheduled outage.");
+                LOG.info("applyThresholds: the threshold processing will be skipped because the service {} is on a scheduled outage.", service);
             } else if (m_thresholdingSet.hasThresholds(attributes)) {
                 List<Event> events = m_thresholdingSet.applyThresholds(dsName, attributes);
                 if (events.size() > 0) {
@@ -169,7 +176,7 @@ public class LatencyStoringServiceMonitorAdaptor implements ServiceMonitor {
                 }
             }
 	} catch(Throwable e) {
-	    log().error("Failed to threshold on " + service + " for " + dsName + " because of an exception", e);
+	    LOG.error("Failed to threshold on {} for {} because of an exception", service, dsName, e);
 	}
     }
 
@@ -203,7 +210,7 @@ public class LatencyStoringServiceMonitorAdaptor implements ServiceMonitor {
      *            the entries for the rrd, containing a Map of dsNames to values
      * @param rrdBaseName a {@link java.lang.String} object.
      */
-    public void updateRRD(String repository, InetAddress addr, String rrdBaseName, LinkedHashMap<String, Number> entries) {
+    public void updateRRD(String repository, InetAddress addr, String rrdBaseName, Map<String, Number> entries) {
         try {
             // Create RRD if it doesn't already exist
             List<RrdDataSource> dsList = new ArrayList<RrdDataSource>(entries.size());
@@ -238,11 +245,9 @@ public class LatencyStoringServiceMonitorAdaptor implements ServiceMonitor {
             RrdUtils.updateRRD(hostAddress, path, rrdBaseName, value.toString());
 
         } catch (RrdException e) {
-            if (log().isEnabledFor(ThreadCategory.Level.ERROR)) {
-                String msg = e.getMessage();
-                log().error(msg);
-                throw new RuntimeException(msg, e);
-            }
+            String msg = e.getMessage();
+            LOG.error(msg);
+            throw new RuntimeException(msg, e);
         }
     }
 
@@ -289,18 +294,16 @@ public class LatencyStoringServiceMonitorAdaptor implements ServiceMonitor {
 
     }
 
-    private ThreadCategory log() {
-        return ThreadCategory.getInstance(getClass());
-    }
-
     /**
      * <p>release</p>
      */
+    @Override
     public void release() {
         m_serviceMonitor.release();
     }
 
     /** {@inheritDoc} */
+    @Override
     public void release(MonitoredService svc) {
         m_serviceMonitor.release(svc);
     }

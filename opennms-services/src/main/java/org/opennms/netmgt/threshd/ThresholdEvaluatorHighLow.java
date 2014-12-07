@@ -1,22 +1,22 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2007-2012 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2012 The OpenNMS Group, Inc.
+ * Copyright (C) 2007-2014 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2014 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License,
  * or (at your option) any later version.
  *
  * OpenNMS(R) is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with OpenNMS(R).  If not, see:
  *      http://www.gnu.org/licenses/
  *
@@ -32,8 +32,10 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.opennms.netmgt.EventConstants;
+import org.opennms.netmgt.events.api.EventConstants;
 import org.opennms.netmgt.xml.event.Event;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.util.Assert;
 
 /**
@@ -43,7 +45,7 @@ import org.springframework.util.Assert;
  * @version $Id: $
  */
 public class ThresholdEvaluatorHighLow implements ThresholdEvaluator {
-
+    private static final Logger LOG = LoggerFactory.getLogger(ThresholdEvaluatorHighLow.class);
     /**
      * <p>Constructor for ThresholdEvaluatorHighLow.</p>
      */
@@ -52,11 +54,13 @@ public class ThresholdEvaluatorHighLow implements ThresholdEvaluator {
     }
     
     /** {@inheritDoc} */
+    @Override
     public boolean supportsType(String type) {
         return "low".equals(type) || "high".equals(type);
     }
     
     /** {@inheritDoc} */
+    @Override
     public ThresholdEvaluatorState getThresholdEvaluatorState(BaseThresholdDefConfigWrapper threshold) {
         return new ThresholdEvaluatorStateHighLow(threshold);
     }
@@ -110,6 +114,7 @@ public class ThresholdEvaluatorHighLow implements ThresholdEvaluator {
             m_exceededCount = exceededCount;
         }
 
+        @Override
         public BaseThresholdDefConfigWrapper getThresholdConfig() {
             return m_thresholdConfig;
         }
@@ -129,17 +134,16 @@ public class ThresholdEvaluatorHighLow implements ThresholdEvaluator {
             return getThresholdConfig().getType();
         }
         
+        @Override
         public Status evaluate(double dsValue) {
             if (isThresholdExceeded(dsValue)) {
                 if (isArmed()) {
                     setExceededCount(getExceededCount() + 1);
 
-                    if (log().isDebugEnabled()) {
-                        log().debug("evaluate: " + getType() + " threshold exceeded, count=" + getExceededCount());
-                    }
+                    LOG.debug("evaluate: {} threshold exceeded, count={}", getType(), getExceededCount());
 
                     if (isTriggerCountExceeded()) {
-                        log().debug("evaluate: " + getType() + " threshold triggered");
+                        LOG.debug("evaluate: {} threshold triggered", getType());
                         setExceededCount(1);
                         setArmed(false);
                         return Status.TRIGGERED;
@@ -147,17 +151,17 @@ public class ThresholdEvaluatorHighLow implements ThresholdEvaluator {
                 }
             } else if (isRearmExceeded(dsValue)) {
                 if (!isArmed()) {
-                    log().debug("evaluate: " + getType() + " threshold rearmed");
+                    LOG.debug("evaluate: {} threshold rearmed", getType());
                     setArmed(true);
                     setExceededCount(0);
                     return Status.RE_ARMED;
                 }
                 if (getExceededCount() > 0) {
-                    log().debug("evaluate: resetting " + getType() + " threshold count to 0, because the current value indicates that the in-progress threshold has been rearmed, but it doesn't triggered yet.");
+                    LOG.debug("evaluate: resetting {} threshold count to 0, because the current value indicates that the in-progress threshold has been rearmed, but it doesn't triggered yet.", getType());
                     setExceededCount(0);
                 }
             } else {
-                log().debug("evaluate: resetting " + getType() + " threshold count to 0");
+                LOG.debug("evaluate: resetting {} threshold count to 0", getType());
                 setExceededCount(0);
             }
 
@@ -188,6 +192,7 @@ public class ThresholdEvaluatorHighLow implements ThresholdEvaluator {
             return getExceededCount() >= getThresholdConfig().getTrigger();
         }
         
+        @Override
         public Event getEventForState(Status status, Date date, double dsValue, CollectionResourceWrapper resource) {
             /*
              * If resource is null, we will use m_lastCollectionResourceUsed; else we will use provided resource.
@@ -248,14 +253,17 @@ public class ThresholdEvaluatorHighLow implements ThresholdEvaluator {
             return createBasicEvent(uei, date, dsValue, resource, params);
         }
         
+        @Override
         public ThresholdEvaluatorState getCleanClone() {
             return new ThresholdEvaluatorStateHighLow(m_thresholdConfig);
         }
 
+        @Override
         public boolean isTriggered() {
             return !isArmed();
         }
         
+        @Override
         public void clearState() {
             setArmed(true);
             setExceededCount(0);
