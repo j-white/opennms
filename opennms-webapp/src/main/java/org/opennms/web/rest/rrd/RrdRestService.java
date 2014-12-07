@@ -71,7 +71,7 @@ public class RrdRestService extends OnmsRestService {
 			} catch (Exception e) {
 				LOG.error("An error occured while retrieve the RRD data for {}",
 						request, e);
-				throw new WebApplicationException(Response.Status.INTERNAL_SERVER_ERROR);
+				throw new WebApplicationException(e, Response.Status.INTERNAL_SERVER_ERROR);
 			}
 
             // Do the calculations and build the list of resulting metrics
@@ -87,11 +87,20 @@ public class RrdRestService extends OnmsRestService {
                     final JexlContext context = new MapContext(jexlValues);
 
                     try {
-                    	values.put(expressionEntry.getKey(),
-                                (Double) expressionEntry.getValue().evaluate(context));
+                    	Object derived = expressionEntry.getValue().evaluate(context);
+                    	Double value;
+                    	if (derived == null) {
+                    		value = null;
+                    	} else if (derived instanceof Double) {
+                    		value = (Double)derived;
+                    	} else {
+                    		value = Double.valueOf(derived.toString());
+                    	}
+                    	values.put(expressionEntry.getKey(), value);
                     } catch (Throwable t) {
-                    	LOG.error("An error occurred while evaluating the expression for {}. Skipping.",
+                    	LOG.error("An error occurred while evaluating the expression for {}.",
                     			expressionEntry.getKey(), t);
+                    	throw new WebApplicationException(t, Response.Status.INTERNAL_SERVER_ERROR);
                     }
                 }
 

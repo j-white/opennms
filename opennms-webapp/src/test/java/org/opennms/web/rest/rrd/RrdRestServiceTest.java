@@ -33,11 +33,18 @@ public class RrdRestServiceTest {
 		queryRequest.setStart(1);
 		queryRequest.setEnd(10);
 		queryRequest.setStep(1);
-		
+
+		// A function of x
 		QueryRequest.Expression y = new QueryRequest.Expression();
 		y.setLabel("y");
 		y.setExpression("(x * 1024)");
-		queryRequest.setExpressions(Lists.newArrayList(y));
+
+		// A constant integer
+		QueryRequest.Expression z = new QueryRequest.Expression();
+		z.setLabel("z");
+		z.setExpression("0");
+		
+		queryRequest.setExpressions(Lists.newArrayList(y, z));
 
 		Response response = restService.query(queryRequest);
 		QueryResponse queryResponse = (QueryResponse)response.getEntity();
