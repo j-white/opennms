@@ -35,13 +35,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.SortedMap;
 
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
 import org.apache.commons.jexl2.JexlContext;
 import org.apache.commons.jexl2.JexlEngine;
 import org.apache.commons.jexl2.MapContext;
-import org.opennms.netmgt.dao.api.ResourceDao;
 import org.opennms.web.rest.measurements.fetch.FetchResults;
 import org.opennms.web.rest.measurements.fetch.MeasurementFetchStrategy;
 import org.opennms.web.rest.measurements.model.Expression;
@@ -80,6 +80,8 @@ import javax.ws.rs.core.Response.Status;
  * Calculations may then be performed on these measurements
  * using JEXL expressions.
  *
+ * Units of time, including timestamps are expressed in milliseconds.
+ *
  * This API is designed to be similar to the one provided
  * by Newts.
  *
@@ -94,9 +96,6 @@ public class MeasurementsRestService {
     private static final Logger LOG = LoggerFactory.getLogger(MeasurementsRestService.class);
 
     @Autowired
-    private ResourceDao m_resourceDao;
-
-    @Autowired
     private MeasurementFetchStrategy m_fetchStrategy;
 
     /**
@@ -109,17 +108,15 @@ public class MeasurementsRestService {
     @Transactional(readOnly=true)
     public QueryResponse simpleQuery(@PathParam("resourceId") final String resourceId,
             @PathParam("attribute") final String attribute,
-            @DefaultValue("-14400") @QueryParam("start") final long start,
+            @DefaultValue("-14400000") @QueryParam("start") final long start,
             @DefaultValue("0") @QueryParam("end") final long end,
-            @DefaultValue("300") @QueryParam("step") final long step,
+            @DefaultValue("300000") @QueryParam("step") final long step,
+            @DefaultValue("0") @QueryParam("maxrows") final int maxrows,
             @DefaultValue("AVERAGE") @QueryParam("aggregation") final String aggregation) {
-
-        final Date now = new Date();
-        final long timestamp = now.getTime() / 1000;
 
         QueryRequest request = new QueryRequest();
         // If end is not strictly positive, use the current timestamp
-        request.setEnd(end > 0 ? end : timestamp);
+        request.setEnd(end > 0 ? end : new Date().getTime());
         // If start is negative, subtract it from the end
         request.setStart(start >= 0 ? start : request.getEnd() + start);
         // Make sure the resulting start time is not negative
@@ -128,6 +125,7 @@ public class MeasurementsRestService {
         }
 
         request.setStep(step);
+        request.setMaxRows(maxrows);
 
         // Use the attribute name as the label
         Source source = new Source(attribute, resourceId, attribute, false);
@@ -151,6 +149,7 @@ public class MeasurementsRestService {
     @Produces({MediaType.APPLICATION_XML, MediaType.APPLICATION_JSON, MediaType.APPLICATION_ATOM_XML})
     @Transactional(readOnly=true)
     public QueryResponse query(final QueryRequest request) {
+        Preconditions.checkState(m_fetchStrategy != null);
 
         // Compile the expressions
         final JexlEngine jexl = new JexlEngine();
@@ -164,10 +163,12 @@ public class MeasurementsRestService {
         FetchResults results;
         try {
             results = m_fetchStrategy.fetch(
-			request.getStep(),
-                    request.getStart(),
-                    request.getEnd(),
-                    request.getSources());
+                        request.getStart(),
+                        request.getEnd(),
+                        request.getStep(),
+                        request.getMaxRows(),
+                        request.getSources()
+                        );
         } catch (Exception e) {
             throw getException(Status.INTERNAL_SERVER_ERROR, e, "Fetch failed");
         }
