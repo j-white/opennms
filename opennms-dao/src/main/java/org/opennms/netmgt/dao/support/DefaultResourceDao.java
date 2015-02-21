@@ -450,14 +450,18 @@ public class DefaultResourceDao implements ResourceDao, InitializingBean {
      * @return a {@link org.opennms.netmgt.model.OnmsResource} object.
      */
     protected OnmsResource getChildResource(OnmsResource parentResource, String resourceType, String resource) {
-        for (OnmsResource r : parentResource.getChildResources()) {
-            if (resourceType.equals(r.getResourceType().getName())
-                    && resource.equals(r.getName())) {
-                LOG.debug("getChildResource: returning resource {}", r);
-                return r;
-            }
+        final OnmsResourceType targetType = m_resourceTypes.get(resourceType);
+        if (targetType == null) {
+            throw new ObjectRetrievalFailureException(OnmsResource.class, resourceType + "/" + resource,
+                    "Unsupported resource type: " + resourceType, null);
         }
         
+        final OnmsResource childResource = targetType.getChildByName(parentResource, resource);
+        if (childResource != null) {
+            LOG.debug("getChildResource: returning resource {}", childResource);
+            return childResource;
+        }
+
         throw new ObjectRetrievalFailureException(OnmsResource.class, resourceType + "/" + resource, "Could not find child resource '"
                                       + resource + "' with resource type '" + resourceType + "' on resource '" + resource + "'", null);
     }

@@ -94,4 +94,6 @@ public interface OnmsResourceType {
     public boolean isResourceTypeOnNodeSource(String nodeSource, int nodeId);
     
     public List<OnmsResource> getResourcesForNodeSource(String nodeSource, int nodeId);
+
+    public OnmsResource getChildByName(OnmsResource parent, String name);
 }
