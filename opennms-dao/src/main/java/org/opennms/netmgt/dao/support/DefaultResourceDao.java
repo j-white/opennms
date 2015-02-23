@@ -54,6 +54,7 @@ import org.opennms.netmgt.collection.api.StorageStrategy;
 import org.opennms.netmgt.config.CollectdConfigFactory;
 import org.opennms.netmgt.config.DataCollectionConfigDao;
 import org.opennms.netmgt.config.datacollection.ResourceType;
+import org.opennms.netmgt.dao.api.IpInterfaceDao;
 import org.opennms.netmgt.dao.api.LocationMonitorDao;
 import org.opennms.netmgt.dao.api.NodeDao;
 import org.opennms.netmgt.dao.api.ResourceDao;
@@ -86,6 +87,7 @@ public class DefaultResourceDao implements ResourceDao, InitializingBean {
 
     private NodeDao m_nodeDao;
     private LocationMonitorDao m_locationMonitorDao;
+    private IpInterfaceDao m_ipInterfaceDao;
     private File m_rrdDirectory;
     private CollectdConfigFactory m_collectdConfig;
     private DataCollectionConfigDao m_dataCollectionConfigDao;
@@ -203,6 +205,14 @@ public class DefaultResourceDao implements ResourceDao, InitializingBean {
         m_locationMonitorDao = locationMonitorDao;
     }
 
+    public IpInterfaceDao getIpInterfaceDao() {
+        return m_ipInterfaceDao;
+    }
+
+    public void setIpInterfaceDao(IpInterfaceDao ipInterfaceDao) {
+        m_ipInterfaceDao = ipInterfaceDao;
+    }
+
     /**
      * <p>afterPropertiesSet</p>
      *
@@ -245,7 +255,7 @@ public class DefaultResourceDao implements ResourceDao, InitializingBean {
         resourceType = new InterfaceSnmpResourceType(this, m_nodeDao);
         resourceTypes.put(resourceType.getName(), resourceType);
         
-        resourceType = new ResponseTimeResourceType(this, m_nodeDao);
+        resourceType = new ResponseTimeResourceType(this, m_nodeDao, m_ipInterfaceDao);
         resourceTypes.put(resourceType.getName(), resourceType);
         
         resourceType = new DistributedStatusResourceType(this, m_locationMonitorDao);

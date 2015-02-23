@@ -36,6 +36,7 @@ import java.util.Set;
 
 import org.opennms.core.utils.InetAddressUtils;
 import org.opennms.core.utils.LazySet;
+import org.opennms.netmgt.dao.api.IpInterfaceDao;
 import org.opennms.netmgt.dao.api.NodeDao;
 import org.opennms.netmgt.dao.api.ResourceDao;
 import org.opennms.netmgt.model.OnmsAttribute;
@@ -55,18 +56,20 @@ public class ResponseTimeResourceType implements OnmsResourceType {
     
     private static final Logger LOG = LoggerFactory.getLogger(ResponseTimeResourceType.class);
     
-    private ResourceDao m_resourceDao;
-    private NodeDao m_nodeDao;
-    
+    private final ResourceDao m_resourceDao;
+    private final NodeDao m_nodeDao;
+    private final IpInterfaceDao m_ipInterfaceDao;
+
     /**
      * <p>Constructor for ResponseTimeResourceType.</p>
      *
      * @param resourceDao a {@link org.opennms.netmgt.dao.api.ResourceDao} object.
      * @param nodeDao a {@link org.opennms.netmgt.dao.api.NodeDao} object.
      */
-    public ResponseTimeResourceType(final ResourceDao resourceDao, final NodeDao nodeDao) {
+    public ResponseTimeResourceType(final ResourceDao resourceDao, final NodeDao nodeDao, final IpInterfaceDao ipInterfaceDao) {
         m_resourceDao = resourceDao;
         m_nodeDao = nodeDao;
+        m_ipInterfaceDao = ipInterfaceDao;
     }
     
     /**
@@ -116,6 +119,38 @@ public class ResponseTimeResourceType implements OnmsResourceType {
         }
 
         return resources;
+    }
+
+    @Override
+    public OnmsResource getChildByName(OnmsResource parent, String ipAddress) {
+        if (!(parent.getResourceType() instanceof NodeResourceType)) {
+            throw new ObjectRetrievalFailureException(OnmsResource.class, "Response times are not available on parent resources with type "
+                    + parent.getResourceType().getClass());
+        }
+
+        // Grab the interface directory and verify that it exists
+        getInterfaceDirectory(ipAddress, true);
+
+        // If we reach this point, we know that the requested resource exists
+
+        // Grab the node
+        final String nodeId = parent.getName();
+        final OnmsNode node = m_nodeDao.get(nodeId);
+        if (node == null) {
+            throw new ObjectRetrievalFailureException(OnmsNode.class, nodeId, "Could not find node for node Id " + nodeId, null);
+        }
+
+        // Grab the interface
+        final OnmsIpInterface matchingIf = m_ipInterfaceDao.get(node, ipAddress);
+        if (matchingIf == null) {
+            throw new ObjectRetrievalFailureException(OnmsIpInterface.class, nodeId, "No interface with ipAddr "
+                    + ipAddress + " could be found on node with id " + nodeId, null);
+        }
+
+        // Create the resource
+        final OnmsResource resource = createResource(matchingIf);
+        resource.setParent(parent);
+        return resource;
     }
 
     private File getInterfaceDirectory(final String ipAddr, final boolean verify) {
