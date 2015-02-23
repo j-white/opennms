@@ -93,7 +93,14 @@ public class NodeResourceType implements OnmsResourceType {
     public List<OnmsResource> getResourcesForNode(int nodeId) {
         return null;
     }
-    
+
+    /** {@inheritDoc} */
+    @Override
+    public OnmsResource getChildByName(OnmsResource parent, String name) {
+        // Nodes are top-level resources
+        return null;
+    }
+
     /** {@inheritDoc} */
     @Override
        public List<OnmsResource> getResourcesForNodeSource(String nodeSource, int nodeId) {

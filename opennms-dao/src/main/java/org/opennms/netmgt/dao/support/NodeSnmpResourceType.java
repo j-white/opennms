@@ -103,16 +103,35 @@ public class NodeSnmpResourceType implements OnmsResourceType {
     @Override
     public List<OnmsResource> getResourcesForNode(int nodeId) {
         ArrayList<OnmsResource> resources = new ArrayList<OnmsResource>();
-
-        Set<OnmsAttribute> attributes = ResourceTypeUtils.getAttributesAtRelativePath(m_resourceDao.getRrdDirectory(), getRelativePathForResource(nodeId));
-        
-        OnmsResource resource = new OnmsResource("", "Node-level Performance Data", this, attributes);
-        resources.add(resource);
+        resources.add(getResourceForNode(Integer.toString(nodeId)));
         return resources;
     }
-    
-    private String getRelativePathForResource(int nodeId) {
-        return ResourceTypeUtils.SNMP_DIRECTORY + File.separator + Integer.toString(nodeId);
+
+    /** {@inheritDoc} */
+    @Override
+    public OnmsResource getChildByName(OnmsResource parent, String name) {
+        if (!(parent.getResourceType() instanceof NodeResourceType)) {
+            throw new ObjectRetrievalFailureException(OnmsResource.class, "The Node SNMP resource is not available on parent resources with type "
+                    + parent.getResourceType().getClass());
+        }
+
+        if (name != "") {
+            throw new ObjectRetrievalFailureException(OnmsResource.class, "Unsupported name '" + name + "' for node SNMP resource type.");
+        }
+
+        OnmsResource resource = getResourceForNode(parent.getName());
+        resource.setParent(parent);
+        return resource;
+    }
+
+    private OnmsResource getResourceForNode(String nodeId) {
+        Set<OnmsAttribute> attributes = ResourceTypeUtils.getAttributesAtRelativePath(m_resourceDao.getRrdDirectory(), getRelativePathForResource(nodeId));
+        
+        return new OnmsResource("", "Node-level Performance Data", this, attributes);
+    }
+
+    private String getRelativePathForResource(String nodeId) {
+        return ResourceTypeUtils.SNMP_DIRECTORY + File.separator + nodeId;
     }
 
     /**

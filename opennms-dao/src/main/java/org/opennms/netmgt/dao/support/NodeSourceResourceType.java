@@ -101,6 +101,13 @@ public class NodeSourceResourceType implements OnmsResourceType {
 
     /** {@inheritDoc} */
     @Override
+    public OnmsResource getChildByName(OnmsResource parent, String name) {
+        // Nodes are top-level resources
+        return null;
+    }
+
+    /** {@inheritDoc} */
+    @Override
     public List<OnmsResource> getResourcesForDomain(String domain) {
         return null;
     }
@@ -203,6 +210,4 @@ public class NodeSourceResourceType implements OnmsResourceType {
             return resourceTypes;
         }
     }
-
-
 }
