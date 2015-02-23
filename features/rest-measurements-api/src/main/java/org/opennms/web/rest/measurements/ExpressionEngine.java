@@ -26,41 +26,24 @@
  *     http://www.opennms.com/
  *******************************************************************************/
 
-package org.opennms.web.rest.measurements.fetch;
+package org.opennms.web.rest.measurements;
 
-import java.util.List;
-import java.util.Map;
-
-import org.opennms.web.rest.measurements.model.Measurement;
+import org.opennms.web.rest.measurements.fetch.FetchResults;
+import org.opennms.web.rest.measurements.model.QueryRequest;
 
 /**
- * Used to store the results of a fetch.
+ * Used to apply arbitrary expressions to the fetched measurements.
  *
- * @author Jesse White <jesse@opennms.org>
+ * @author jwhite
  */
-public class FetchResults {
+public interface ExpressionEngine {
 
-    private final List<Measurement> m_measurements;
+    /**
+     * Transient values from the results or expressions are not included
+     * in the measurements.
+     *
+     * @throws ExpressionException
+     */
+    public void applyExpressions(QueryRequest request, FetchResults results) throws ExpressionException;
 
-    private final Map<String, Object> m_constants;
-
-    private final long m_step;
-
-    public FetchResults(List<Measurement> measurements, long step, Map<String, Object> constants) {
-        m_measurements = measurements;
-        m_step = step;
-        m_constants = constants;
-    }
-
-    public List<Measurement> getMeasurements() {
-        return m_measurements;
-    }
-
-    public long getStep() {
-        return m_step;
-    }
-
-    public Map<String, Object> getConstants() {
-        return m_constants;
-    }
 }

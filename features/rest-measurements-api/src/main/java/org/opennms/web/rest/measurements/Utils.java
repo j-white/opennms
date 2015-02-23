@@ -26,41 +26,27 @@
  *     http://www.opennms.com/
  *******************************************************************************/
 
-package org.opennms.web.rest.measurements.fetch;
-
-import java.util.List;
-import java.util.Map;
-
-import org.opennms.web.rest.measurements.model.Measurement;
+package org.opennms.web.rest.measurements;
 
 /**
- * Used to store the results of a fetch.
+ * Utility functions.
  *
- * @author Jesse White <jesse@opennms.org>
+ * @author jwhite
  */
-public class FetchResults {
+public class Utils {
 
-    private final List<Measurement> m_measurements;
-
-    private final Map<String, Object> m_constants;
-
-    private final long m_step;
-
-    public FetchResults(List<Measurement> measurements, long step, Map<String, Object> constants) {
-        m_measurements = measurements;
-        m_step = step;
-        m_constants = constants;
-    }
-
-    public List<Measurement> getMeasurements() {
-        return m_measurements;
-    }
-
-    public long getStep() {
-        return m_step;
-    }
-
-    public Map<String, Object> getConstants() {
-        return m_constants;
+    /**
+     * Attempts to cast an arbitrary object to a Double.
+     *
+     * @throws NullPointerException when o is null
+     * @throws NumberFormatException when the cast fails
+     */
+    public static Double toDouble(Object o) {
+        if (o instanceof Double) {
+            return (Double)o;
+        } else {
+            // Simple way of casting integers, floats and longs
+            return Double.valueOf(o.toString());
+        }
     }
 }

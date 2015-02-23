@@ -26,41 +26,17 @@
  *     http://www.opennms.com/
  *******************************************************************************/
 
-package org.opennms.web.rest.measurements.fetch;
-
-import java.util.List;
-import java.util.Map;
-
-import org.opennms.web.rest.measurements.model.Measurement;
+package org.opennms.web.rest.measurements;
 
 /**
- * Used to store the results of a fetch.
+ * A generic exception used by the expression engine.
  *
- * @author Jesse White <jesse@opennms.org>
+ * @author jwhite
  */
-public class FetchResults {
+public class ExpressionException extends Exception {
+    private static final long serialVersionUID = 8110948443639294775L;
 
-    private final List<Measurement> m_measurements;
-
-    private final Map<String, Object> m_constants;
-
-    private final long m_step;
-
-    public FetchResults(List<Measurement> measurements, long step, Map<String, Object> constants) {
-        m_measurements = measurements;
-        m_step = step;
-        m_constants = constants;
-    }
-
-    public List<Measurement> getMeasurements() {
-        return m_measurements;
-    }
-
-    public long getStep() {
-        return m_step;
-    }
-
-    public Map<String, Object> getConstants() {
-        return m_constants;
+    public ExpressionException(String message, RuntimeException cause) {
+        super(message, cause);
     }
 }
