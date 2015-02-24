@@ -123,28 +123,14 @@ public class ResponseTimeResourceType implements OnmsResourceType {
 
     @Override
     public OnmsResource getChildByName(OnmsResource parent, String ipAddress) {
-        if (!(parent.getResourceType() instanceof NodeResourceType)) {
-            throw new ObjectRetrievalFailureException(OnmsResource.class, "Response times are not available on parent resources with type "
-                    + parent.getResourceType().getClass());
-        }
-
-        // Grab the interface directory and verify that it exists
-        getInterfaceDirectory(ipAddress, true);
-
-        // If we reach this point, we know that the requested resource exists
-
-        // Grab the node
-        final String nodeId = parent.getName();
-        final OnmsNode node = m_nodeDao.get(nodeId);
-        if (node == null) {
-            throw new ObjectRetrievalFailureException(OnmsNode.class, nodeId, "Could not find node for node Id " + nodeId, null);
-        }
+        // Grab the node entity
+        final OnmsNode node = ResourceTypeUtils.getNodeFromResource(parent);
 
         // Grab the interface
         final OnmsIpInterface matchingIf = m_ipInterfaceDao.get(node, ipAddress);
         if (matchingIf == null) {
-            throw new ObjectRetrievalFailureException(OnmsIpInterface.class, nodeId, "No interface with ipAddr "
-                    + ipAddress + " could be found on node with id " + nodeId, null);
+            throw new ObjectRetrievalFailureException(OnmsIpInterface.class, "No interface with ipAddr "
+                    + ipAddress + " could be found on node with id " + node.getId());
         }
 
         // Create the resource

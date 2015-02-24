@@ -40,7 +40,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import org.easymock.EasyMock;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -95,18 +94,15 @@ public class ResponseTimeResourceTypeTest {
 
     @Test
     public void canGetChildByName() throws IOException {
-        expect(nodeDao.get("1")).andReturn(node);
         expect(ipInterface.getIpAddress()).andReturn(InetAddress.getByName("127.0.0.1")).atLeastOnce();
         expect(ipInterfaceDao.get(node, "127.0.0.1")).andReturn(ipInterface);
 
         OnmsResource parent = createMock(OnmsResource.class);
-        parent.getResourceType();
-        EasyMock.expectLastCall().andReturn(new NodeResourceType(resourceDao));
-        expect(parent.getName()).andReturn("1");
+        expect(parent.getEntity()).andReturn(node);
 
-        replay(nodeDao, ipInterface, parent, ipInterfaceDao);
+        replay(ipInterface, parent, ipInterfaceDao);
         OnmsResource resource = responseTimeResourceType.getChildByName(parent, "127.0.0.1");
-        verify(nodeDao, ipInterface, parent, ipInterfaceDao);
+        verify(ipInterface, parent, ipInterfaceDao);
 
         assertEquals("127.0.0.1", resource.getName());
         assertEquals(parent, resource.getParent());

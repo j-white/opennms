@@ -36,6 +36,7 @@ import java.util.Set;
 
 import org.opennms.netmgt.dao.api.ResourceDao;
 import org.opennms.netmgt.model.OnmsAttribute;
+import org.opennms.netmgt.model.OnmsNode;
 import org.opennms.netmgt.model.OnmsResource;
 import org.opennms.netmgt.model.OnmsResourceType;
 import org.opennms.netmgt.model.ResourceTypeUtils;
@@ -110,16 +111,16 @@ public class NodeSnmpResourceType implements OnmsResourceType {
     /** {@inheritDoc} */
     @Override
     public OnmsResource getChildByName(OnmsResource parent, String name) {
-        if (!(parent.getResourceType() instanceof NodeResourceType)) {
-            throw new ObjectRetrievalFailureException(OnmsResource.class, "The Node SNMP resource is not available on parent resources with type "
-                    + parent.getResourceType().getClass());
-        }
-
+        // Node-level SNMP resources always have a blank name
         if (name != "") {
             throw new ObjectRetrievalFailureException(OnmsResource.class, "Unsupported name '" + name + "' for node SNMP resource type.");
         }
 
-        OnmsResource resource = getResourceForNode(parent.getName());
+        // Grab the node entity
+        final OnmsNode node = ResourceTypeUtils.getNodeFromResource(parent);
+
+        // Build the resource
+        final OnmsResource resource = getResourceForNode(Integer.toString(node.getId()));
         resource.setParent(parent);
         return resource;
     }

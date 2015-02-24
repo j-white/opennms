@@ -51,7 +51,7 @@ public class NodeResourceType implements OnmsResourceType {
     
     /** Constant <code>s_emptyAttributeSet</code> */
     protected static final Set<OnmsAttribute> s_emptyAttributeSet = Collections.unmodifiableSet(new HashSet<OnmsAttribute>());
-    protected ResourceDao m_resourceDao;
+    private final ResourceDao m_resourceDao;
 
     /**
      * <p>Constructor for NodeResourceType.</p>
@@ -61,7 +61,7 @@ public class NodeResourceType implements OnmsResourceType {
     public NodeResourceType(ResourceDao resourceDao) {
         m_resourceDao = resourceDao;
     }
-    
+
     /**
      * <p>getLabel</p>
      *
@@ -96,7 +96,7 @@ public class NodeResourceType implements OnmsResourceType {
 
     /** {@inheritDoc} */
     @Override
-    public OnmsResource getChildByName(OnmsResource parent, String name) {
+    public OnmsResource getChildByName(OnmsResource parent, String nodeIdStr) {
         // Nodes are top-level resources
         return null;
     }

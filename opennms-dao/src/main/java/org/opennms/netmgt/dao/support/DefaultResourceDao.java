@@ -475,7 +475,7 @@ public class DefaultResourceDao implements ResourceDao, InitializingBean {
         throw new ObjectRetrievalFailureException(OnmsResource.class, resourceType + "/" + resource, "Could not find child resource '"
                                       + resource + "' with resource type '" + resourceType + "' on resource '" + resource + "'", null);
     }
-    
+
     /**
      * <p>getChildResourceList</p>
      *
