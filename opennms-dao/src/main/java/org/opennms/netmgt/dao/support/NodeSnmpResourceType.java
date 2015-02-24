@@ -29,7 +29,6 @@
 package org.opennms.netmgt.dao.support;
 
 import java.io.File;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
@@ -42,6 +41,8 @@ import org.opennms.netmgt.model.OnmsResourceType;
 import org.opennms.netmgt.model.ResourceTypeUtils;
 import org.opennms.netmgt.rrd.RrdFileConstants;
 import org.springframework.orm.ObjectRetrievalFailureException;
+
+import com.google.common.collect.Lists;
 
 public class NodeSnmpResourceType implements OnmsResourceType {
 
@@ -103,9 +104,7 @@ public class NodeSnmpResourceType implements OnmsResourceType {
     /** {@inheritDoc} */
     @Override
     public List<OnmsResource> getResourcesForNode(int nodeId) {
-        ArrayList<OnmsResource> resources = new ArrayList<OnmsResource>();
-        resources.add(getResourceForNode(Integer.toString(nodeId)));
-        return resources;
+        return Lists.newArrayList(getResourceForNode(Integer.toString(nodeId)));
     }
 
     /** {@inheritDoc} */
@@ -120,14 +119,27 @@ public class NodeSnmpResourceType implements OnmsResourceType {
         final OnmsNode node = ResourceTypeUtils.getNodeFromResource(parent);
 
         // Build the resource
-        final OnmsResource resource = getResourceForNode(Integer.toString(node.getId()));
+        OnmsResource resource;
+        if (ResourceTypeUtils.isStoreByForeignSource()) {
+            resource = getResourceForNodeSource(String.format("%s:%s",
+                    node.getForeignSource(), node.getForeignId()));
+        } else {
+            resource = getResourceForNode(Integer.toString(node.getId()));
+        }
         resource.setParent(parent);
         return resource;
     }
 
     private OnmsResource getResourceForNode(String nodeId) {
-        Set<OnmsAttribute> attributes = ResourceTypeUtils.getAttributesAtRelativePath(m_resourceDao.getRrdDirectory(), getRelativePathForResource(nodeId));
-        
+        final Set<OnmsAttribute> attributes = ResourceTypeUtils.getAttributesAtRelativePath(m_resourceDao.getRrdDirectory(), getRelativePathForResource(nodeId));
+
+        return new OnmsResource("", "Node-level Performance Data", this, attributes);
+    }
+
+    private OnmsResource getResourceForNodeSource(String nodeSource) {
+        final File relPath = new File(ResourceTypeUtils.SNMP_DIRECTORY, ResourceTypeUtils.getRelativeNodeSourceDirectory(nodeSource).toString());
+        final Set<OnmsAttribute> attributes = ResourceTypeUtils.getAttributesAtRelativePath(m_resourceDao.getRrdDirectory(), relPath.toString());
+
         return new OnmsResource("", "Node-level Performance Data", this, attributes);
     }
 
@@ -172,14 +184,7 @@ public class NodeSnmpResourceType implements OnmsResourceType {
     /** {@inheritDoc} */
     @Override
     public List<OnmsResource> getResourcesForNodeSource(String nodeSource, int nodeId) {
-        ArrayList<OnmsResource> resources = new ArrayList<OnmsResource>();
-        File relPath = new File(ResourceTypeUtils.SNMP_DIRECTORY, ResourceTypeUtils.getRelativeNodeSourceDirectory(nodeSource).toString());
-
-        Set<OnmsAttribute> attributes = ResourceTypeUtils.getAttributesAtRelativePath(m_resourceDao.getRrdDirectory(), relPath.toString());
-
-        OnmsResource resource = new OnmsResource("", "Node-level Performance Data", this, attributes);
-        resources.add(resource);
-        return resources;
+        return Lists.newArrayList(getResourceForNodeSource(nodeSource));
     }
 
 }
