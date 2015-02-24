@@ -150,40 +150,38 @@ public class InterfaceSnmpResourceType implements OnmsResourceType {
                 }
             }
             throw new ObjectRetrievalFailureException(OnmsResource.class, "No child with name '" + name + "' found on '" + parent + "'");
-        } else if (parent.getResourceType() instanceof NodeResourceType) {
-            // Grab the node entity
-            final OnmsNode node = ResourceTypeUtils.getNodeFromResource(parent);
-
-            // Determine the parent folder
-            File parentFolder = null;
-            File relPath = null;
-            Boolean isForeign = ResourceTypeUtils.isStoreByForeignSource();
-
-            if (isForeign) {
-                relPath = new File(ResourceTypeUtils.FOREIGN_SOURCE_DIRECTORY, node.getForeignSource() + File.separator + node.getForeignId());
-                parentFolder = getParentResourceDirectory(relPath.toString(), true);;
-            } else {
-                parentFolder = getParentResourceDirectory(Integer.toString(node.getId()), true);
-            }
-
-            // Verify that the requested resource exists
-            final File resourceFolder = new File(parentFolder, name);
-            if (!resourceFolder.isDirectory()) {
-                throw new ObjectRetrievalFailureException(OnmsResource.class, "No resource with name '" + name + "' found.");
-            }
-
-            // Leverage the existing function for retrieving the resource list
-            final List<OnmsResource> resources = populateResourceList(parentFolder, relPath, new File[] {resourceFolder}, node, isForeign);
-            if (resources.size() != 1) {
-                throw new ObjectRetrievalFailureException(OnmsResource.class, "No resource with name '" + name + "' found.");
-            }
-
-            final OnmsResource resource = resources.get(0);
-            resource.setParent(parent);
-            return resource;
-        } else {
-            throw new ObjectRetrievalFailureException(OnmsResource.class, "Unsupported parent type " + parent.getResourceType().getClass());
         }
+
+        // Grab the node entity
+        final OnmsNode node = ResourceTypeUtils.getNodeFromResource(parent);
+
+        // Determine the parent folder
+        File parentFolder = null;
+        File relPath = null;
+        Boolean isForeign = ResourceTypeUtils.isStoreByForeignSource();
+
+        if (isForeign) {
+            relPath = new File(ResourceTypeUtils.FOREIGN_SOURCE_DIRECTORY, node.getForeignSource() + File.separator + node.getForeignId());
+            parentFolder = getParentResourceDirectory(relPath.toString(), true);;
+        } else {
+            parentFolder = getParentResourceDirectory(Integer.toString(node.getId()), true);
+        }
+
+        // Verify that the requested resource exists
+        final File resourceFolder = new File(parentFolder, name);
+        if (!resourceFolder.isDirectory()) {
+            throw new ObjectRetrievalFailureException(OnmsResource.class, "No resource with name '" + name + "' found.");
+        }
+
+        // Leverage the existing function for retrieving the resource list
+        final List<OnmsResource> resources = populateResourceList(parentFolder, relPath, new File[] {resourceFolder}, node, isForeign);
+        if (resources.size() != 1) {
+            throw new ObjectRetrievalFailureException(OnmsResource.class, "No resource with name '" + name + "' found.");
+        }
+
+        final OnmsResource resource = resources.get(0);
+        resource.setParent(parent);
+        return resource;
     }
 
     private List<OnmsResource> populateResourceList(File parent, File relPath, OnmsNode node, Boolean isForeign) {
