@@ -36,6 +36,7 @@ import java.util.Set;
 
 import org.opennms.netmgt.dao.api.ResourceDao;
 import org.opennms.netmgt.model.OnmsAttribute;
+import org.opennms.netmgt.model.OnmsNode;
 import org.opennms.netmgt.model.OnmsResource;
 import org.opennms.netmgt.model.OnmsResourceType;
 import org.opennms.netmgt.model.ResourceTypeUtils;
@@ -103,16 +104,35 @@ public class NodeSnmpResourceType implements OnmsResourceType {
     @Override
     public List<OnmsResource> getResourcesForNode(int nodeId) {
         ArrayList<OnmsResource> resources = new ArrayList<OnmsResource>();
-
-        Set<OnmsAttribute> attributes = ResourceTypeUtils.getAttributesAtRelativePath(m_resourceDao.getRrdDirectory(), getRelativePathForResource(nodeId));
-        
-        OnmsResource resource = new OnmsResource("", "Node-level Performance Data", this, attributes);
-        resources.add(resource);
+        resources.add(getResourceForNode(Integer.toString(nodeId)));
         return resources;
     }
-    
-    private String getRelativePathForResource(int nodeId) {
-        return ResourceTypeUtils.SNMP_DIRECTORY + File.separator + Integer.toString(nodeId);
+
+    /** {@inheritDoc} */
+    @Override
+    public OnmsResource getChildByName(OnmsResource parent, String name) {
+        // Node-level SNMP resources always have a blank name
+        if (name != "") {
+            throw new ObjectRetrievalFailureException(OnmsResource.class, "Unsupported name '" + name + "' for node SNMP resource type.");
+        }
+
+        // Grab the node entity
+        final OnmsNode node = ResourceTypeUtils.getNodeFromResource(parent);
+
+        // Build the resource
+        final OnmsResource resource = getResourceForNode(Integer.toString(node.getId()));
+        resource.setParent(parent);
+        return resource;
+    }
+
+    private OnmsResource getResourceForNode(String nodeId) {
+        Set<OnmsAttribute> attributes = ResourceTypeUtils.getAttributesAtRelativePath(m_resourceDao.getRrdDirectory(), getRelativePathForResource(nodeId));
+        
+        return new OnmsResource("", "Node-level Performance Data", this, attributes);
+    }
+
+    private String getRelativePathForResource(String nodeId) {
+        return ResourceTypeUtils.SNMP_DIRECTORY + File.separator + nodeId;
     }
 
     /**
