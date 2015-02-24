@@ -112,7 +112,7 @@ public class NodeSnmpResourceType implements OnmsResourceType {
     @Override
     public OnmsResource getChildByName(OnmsResource parent, String name) {
         // Node-level SNMP resources always have a blank name
-        if (name != "") {
+        if (!"".equals(name)) {
             throw new ObjectRetrievalFailureException(OnmsResource.class, "Unsupported name '" + name + "' for node SNMP resource type.");
         }
 
