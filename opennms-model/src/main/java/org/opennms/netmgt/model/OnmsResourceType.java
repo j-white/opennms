@@ -30,8 +30,6 @@ package org.opennms.netmgt.model;
 
 import java.util.List;
 
-import org.springframework.orm.ObjectRetrievalFailureException;
-
 /**
  * <p>OnmsResourceType interface.</p>
  */

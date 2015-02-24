@@ -165,6 +165,7 @@ public class NodeSourceResourceType implements OnmsResourceType {
         final String label = ident[0] + ":" + node.getLabel();
         NodeSourceChildResourceLoader loader = new NodeSourceChildResourceLoader(nodeSource, node.getId());
         OnmsResource resource = new OnmsResource(nodeSource, label, this, s_emptyAttributeSet, new LazyList<OnmsResource>(loader));
+        resource.setEntity(node);
         loader.setParent(resource);
 
         return resource;
