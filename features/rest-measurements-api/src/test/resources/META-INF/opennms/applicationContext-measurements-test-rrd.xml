@@ -10,7 +10,7 @@
 
   <context:annotation-config />
 
-  <bean id="jniRrdStrategy" class="org.opennms.netmgt.rrd.rrdtool.JniRrdStrategy" />
+  <bean id="jniRrdStrategy" class="org.opennms.netmgt.rrd.rrdtool.MultithreadedJniRrdStrategy" />
 
   <bean id="setJniRrdStrategy" class="org.springframework.beans.factory.config.MethodInvokingFactoryBean" depends-on="jniRrdStrategy">
     <property name="targetClass" value="org.opennms.netmgt.rrd.RrdUtils"/>
