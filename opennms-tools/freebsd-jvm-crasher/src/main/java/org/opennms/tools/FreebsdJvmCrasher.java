@@ -33,7 +33,7 @@ public class FreebsdJvmCrasher {
     
     private static final Logger LOG = LoggerFactory.getLogger(FreebsdJvmCrasher.class);
 
-    private static final int NUM_THREADS = 512;
+    private static final int NUM_THREADS = 32;
 
     private static class SnmpTask implements Runnable {
         private final int id;
@@ -102,10 +102,6 @@ public class FreebsdJvmCrasher {
         @Override
         public void run() {
             for (final ServiceDetector detector : detectors) {
-                double dd[] = new double[65536];
-                dd[0] = 0;
-                dd[65535] = 1;
-
                 boolean detected;
                 
                 if (detector instanceof AsyncServiceDetector) {
