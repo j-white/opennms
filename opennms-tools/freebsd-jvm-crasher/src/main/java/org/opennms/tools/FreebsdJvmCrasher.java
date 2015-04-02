@@ -146,7 +146,7 @@ public class FreebsdJvmCrasher {
 
         detectors.add(new DnsDetector());
 
-        detectors.add(new HttpDetector());
+        //detectors.add(new HttpDetector());
 
         return detectors;
     }
