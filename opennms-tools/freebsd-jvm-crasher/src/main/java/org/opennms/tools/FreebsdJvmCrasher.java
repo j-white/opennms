@@ -15,12 +15,15 @@ import org.opennms.netmgt.snmp.TableTracker;
 import org.opennms.netmgt.snmp.snmp4j.Snmp4JStrategy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.snmp4j.TransportMapping;
+import org.snmp4j.smi.UdpAddress;
+import org.snmp4j.transport.DefaultUdpTransportMapping;
 
 public class FreebsdJvmCrasher {
     
     private static final Logger LOG = LoggerFactory.getLogger(FreebsdJvmCrasher.class);
 
-    private static final int NUM_THREADS = 1024;
+    private static final int NUM_THREADS = 512;
 
     private static class Task implements Runnable {
         private final int id;
@@ -46,7 +49,12 @@ public class FreebsdJvmCrasher {
 
         @Override
         public void run() {
+            TransportMapping<UdpAddress> transport = null;
             try {
+                final UdpAddress udpAddress = new UdpAddress(10000 + id);
+                transport = new DefaultUdpTransportMapping(udpAddress);
+                transport.listen();
+
                 final SnmpAgentConfig agentConfig = agentConfigs.get(id % agentConfigs.size());
                 final TableTracker tracker = new TableTracker(SnmpObjId.get(".1.3.6.1.2.1.1"));
                 final SnmpWalker snmpWalker = snmpStrategy.createWalker(agentConfig, "localhost", tracker);
@@ -60,6 +68,14 @@ public class FreebsdJvmCrasher {
                 }
             } catch (Throwable t) {
                 LOG.warn("[{}] Walk failed.", id, t);
+            } finally {
+                if (transport != null) {
+                    try {
+                        transport.close();
+                    } catch (IOException e) {
+                        // pass
+                    }
+                }
             }
         }
     };
