@@ -16,6 +16,7 @@ import org.opennms.netmgt.provision.detector.datagram.DnsDetector;
 import org.opennms.netmgt.provision.detector.icmp.IcmpDetector;
 import org.opennms.netmgt.provision.detector.simple.HttpDetector;
 import org.opennms.netmgt.provision.detector.snmp.SnmpDetector;
+import org.opennms.netmgt.provision.support.ConnectionFactoryNewConnectorImpl;
 import org.opennms.netmgt.provision.support.SyncAbstractDetector;
 import org.opennms.netmgt.snmp.SnmpAgentConfig;
 import org.opennms.netmgt.snmp.SnmpObjId;
@@ -145,7 +146,7 @@ public class FreebsdJvmCrasher {
 
         detectors.add(new DnsDetector());
 
-        detectors.add(new HttpDetector());
+        //detectors.add(new HttpDetector());
 
         return detectors;
     }
@@ -153,7 +154,7 @@ public class FreebsdJvmCrasher {
     private void run() throws IOException, InterruptedException {
         while(true) {
             final SnmpStrategy snmpStrategy = new Snmp4JStrategy();
-            final List<ServiceDetector> detectors = getDetectors(); 
+            final List<ServiceDetector> detectors = getDetectors();
 
             final List<Thread> threads = new LinkedList<Thread>();
             LOG.info("Spawning {} threads", NUM_THREADS);
