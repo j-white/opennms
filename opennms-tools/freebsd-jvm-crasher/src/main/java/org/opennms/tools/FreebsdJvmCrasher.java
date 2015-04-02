@@ -8,8 +8,13 @@ import java.util.LinkedList;
 import java.util.List;
 
 import org.opennms.netmgt.config.api.SnmpAgentConfigFactory;
+import org.opennms.netmgt.provision.AsyncServiceDetector;
+import org.opennms.netmgt.provision.DetectFuture;
 import org.opennms.netmgt.provision.ServiceDetector;
+import org.opennms.netmgt.provision.SyncServiceDetector;
+import org.opennms.netmgt.provision.detector.datagram.DnsDetector;
 import org.opennms.netmgt.provision.detector.icmp.IcmpDetector;
+import org.opennms.netmgt.provision.detector.simple.HttpDetector;
 import org.opennms.netmgt.provision.detector.snmp.SnmpDetector;
 import org.opennms.netmgt.provision.support.SyncAbstractDetector;
 import org.opennms.netmgt.snmp.SnmpAgentConfig;
@@ -87,29 +92,47 @@ public class FreebsdJvmCrasher {
 
     private static class DetectTask implements Runnable {
         private final int id;
-        private final List<SyncAbstractDetector> detectors;
+        private final List<ServiceDetector> detectors;
 
-        public DetectTask(int id, List<SyncAbstractDetector> detectors) throws UnknownHostException {
+        public DetectTask(int id, List<ServiceDetector> detectors) throws UnknownHostException {
             this.id = id;
             this.detectors = detectors;
         }
 
         @Override
         public void run() {
-            for (final SyncAbstractDetector detector : detectors) {
+            for (final ServiceDetector detector : detectors) {
+                double dd[] = new double[65536];
+                dd[0] = 0;
+                dd[65535] = 1;
+
                 boolean detected;
-                try {
-                    detected = detector.isServiceDetected(InetAddress.getByName(String.format("127.0.0.%d", id % 255 + 1)));
-                } catch (UnknownHostException e) {
-                    detected = false;
+                
+                if (detector instanceof AsyncServiceDetector) {
+                    AsyncServiceDetector asyncDetector = (AsyncServiceDetector)detector;
+                    try {
+                        DetectFuture detectFuture = asyncDetector.isServiceDetected(InetAddress.getByName(String.format("127.0.0.%d", id % 255 + 1)));
+                        detectFuture.awaitFor();
+                        detected = detectFuture.isServiceDetected();
+                    } catch (UnknownHostException | InterruptedException e) {
+                        detected = false;
+                    }
+                } else {
+                    SyncServiceDetector syncDetector = (SyncServiceDetector)detector;
+                    try {
+                        detected = syncDetector.isServiceDetected(InetAddress.getByName(String.format("127.0.0.%d", id % 255 + 1)));
+                    } catch (UnknownHostException e) {
+                        detected = false;
+                    }
                 }
+
                 LOG.info("[{}] - {}: {}", id, detector, detected);
             }
         }
     };
 
-    private List<SyncAbstractDetector> getDetectors() {
-        final List<SyncAbstractDetector> detectors = new LinkedList<SyncAbstractDetector>();
+    private List<ServiceDetector> getDetectors() {
+        final List<ServiceDetector> detectors = new LinkedList<ServiceDetector>();
         
         final IcmpDetector icmpDetector = new IcmpDetector();
         detectors.add(icmpDetector);
@@ -123,14 +146,18 @@ public class FreebsdJvmCrasher {
         final SnmpDetector snmpDetector = new SnmpDetector();
         snmpDetector.setAgentConfigFactory(snmpAgentConfigFactory);
         detectors.add(snmpDetector);
-        
+
+        detectors.add(new DnsDetector());
+
+        detectors.add(new HttpDetector());
+
         return detectors;
     }
 
     private void run() throws IOException, InterruptedException {
         while(true) {
             final SnmpStrategy snmpStrategy = new Snmp4JStrategy();
-            final List<SyncAbstractDetector> detectors = getDetectors(); 
+            final List<ServiceDetector> detectors = getDetectors(); 
 
             final List<Thread> threads = new LinkedList<Thread>();
             LOG.info("Spawning {} threads", NUM_THREADS);
