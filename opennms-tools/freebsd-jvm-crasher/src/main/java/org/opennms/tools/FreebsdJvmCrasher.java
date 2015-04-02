@@ -144,7 +144,10 @@ public class FreebsdJvmCrasher {
     private final SnmpAgentConfigFactory snmpAgentConfigFactory = new SnmpAgentConfigFactory() {
         @Override
         public SnmpAgentConfig getAgentConfig(InetAddress address) {
-            return new SnmpAgentConfig(address);
+            final SnmpAgentConfig agent = new SnmpAgentConfig(address);
+            agent.setTimeout(1800);
+            agent.setVersion(2);
+            return agent;
         }
     };
     
@@ -306,7 +309,7 @@ public class FreebsdJvmCrasher {
         }
 
         final PhysInterfaceTableTracker physIntTracker = new PhysInterfaceTableTracker();
-        walker = SnmpUtils.createWalker(agentConfig, "Physical interfaces tables", physIntTracker);
+        walker = SnmpUtils.createWalker(agentConfig, "ifTable/ifXTable", physIntTracker);
         walker.start();
         
         try {
