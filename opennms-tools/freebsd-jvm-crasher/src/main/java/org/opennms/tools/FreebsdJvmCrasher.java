@@ -7,6 +7,11 @@ import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 
+import org.opennms.netmgt.config.api.SnmpAgentConfigFactory;
+import org.opennms.netmgt.provision.ServiceDetector;
+import org.opennms.netmgt.provision.detector.icmp.IcmpDetector;
+import org.opennms.netmgt.provision.detector.snmp.SnmpDetector;
+import org.opennms.netmgt.provision.support.SyncAbstractDetector;
 import org.opennms.netmgt.snmp.SnmpAgentConfig;
 import org.opennms.netmgt.snmp.SnmpObjId;
 import org.opennms.netmgt.snmp.SnmpStrategy;
@@ -25,12 +30,12 @@ public class FreebsdJvmCrasher {
 
     private static final int NUM_THREADS = 512;
 
-    private static class Task implements Runnable {
+    private static class SnmpTask implements Runnable {
         private final int id;
         private final SnmpStrategy snmpStrategy;
         private final List<SnmpAgentConfig> agentConfigs;
 
-        public Task(int id, SnmpStrategy snmpStrategy) throws UnknownHostException {
+        public SnmpTask(int id, SnmpStrategy snmpStrategy) throws UnknownHostException {
             this.id = id;
             this.snmpStrategy = snmpStrategy;
             agentConfigs = buildAgentConfigs();
@@ -80,23 +85,68 @@ public class FreebsdJvmCrasher {
         }
     };
 
-    private void run() throws IOException, InterruptedException {
-        final SnmpStrategy snmpStrategy = new Snmp4JStrategy();
-        
-        final List<Thread> threads = new LinkedList<Thread>();
-        LOG.info("Spawning {} threads", NUM_THREADS);
-        for (int k = 0; k < NUM_THREADS; k++) {
-            final Task task = new Task(k, snmpStrategy);
-            final Thread thread = new Thread(task);
-            threads.add(thread);
-            thread.start();
+    private static class DetectTask implements Runnable {
+        private final int id;
+        private final List<SyncAbstractDetector> detectors;
+
+        public DetectTask(int id, List<SyncAbstractDetector> detectors) throws UnknownHostException {
+            this.id = id;
+            this.detectors = detectors;
         }
 
-        LOG.info("Done spawning theads. Waiting for completion...");
-        for (final Thread thread : threads) {
-            thread.join();
+        @Override
+        public void run() {
+            for (final SyncAbstractDetector detector : detectors) {
+                boolean detected;
+                try {
+                    detected = detector.isServiceDetected(InetAddress.getByName(String.format("127.0.0.%d", id % 255 + 1)));
+                } catch (UnknownHostException e) {
+                    detected = false;
+                }
+                LOG.info("[{}] - {}: {}", id, detector, detected);
+            }
         }
-        LOG.info("Done.");
+    };
+
+    private List<SyncAbstractDetector> getDetectors() {
+        final List<SyncAbstractDetector> detectors = new LinkedList<SyncAbstractDetector>();
+        
+        final IcmpDetector icmpDetector = new IcmpDetector();
+        detectors.add(icmpDetector);
+
+        final SnmpAgentConfigFactory snmpAgentConfigFactory = new SnmpAgentConfigFactory() {
+            @Override
+            public SnmpAgentConfig getAgentConfig(InetAddress address) {
+                return new SnmpAgentConfig(address);
+            }
+        };
+        final SnmpDetector snmpDetector = new SnmpDetector();
+        snmpDetector.setAgentConfigFactory(snmpAgentConfigFactory);
+        detectors.add(snmpDetector);
+        
+        return detectors;
+    }
+
+    private void run() throws IOException, InterruptedException {
+        while(true) {
+            final SnmpStrategy snmpStrategy = new Snmp4JStrategy();
+            final List<SyncAbstractDetector> detectors = getDetectors(); 
+
+            final List<Thread> threads = new LinkedList<Thread>();
+            LOG.info("Spawning {} threads", NUM_THREADS);
+            for (int k = 0; k < NUM_THREADS; k++) {
+                final DetectTask task = new DetectTask(k, detectors);
+                final Thread thread = new Thread(task);
+                threads.add(thread);
+                thread.start();
+            }
+
+            LOG.info("Done spawning theads. Waiting for completion...");
+            for (final Thread thread : threads) {
+                thread.join();
+            }
+            LOG.info("Done.");
+        }
     }
 
     public static void main(final String[] args) throws Exception {

@@ -23,9 +23,16 @@
   </repositories>
   <dependencies>
     <dependency>
-      <groupId>org.opennms.core.snmp</groupId>
-      <artifactId>org.opennms.core.snmp.implementations.snmp4j</artifactId>
-      <version>${project.version}</version>
+      <groupId>org.opennms</groupId>
+      <artifactId>opennms-detector-simple</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.opennms</groupId>
+      <artifactId>opennms-icmp-jni</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.opennms</groupId>
+      <artifactId>opennms-icmp-jni6</artifactId>
     </dependency>
     <dependency>
         <groupId>org.slf4j</groupId>
