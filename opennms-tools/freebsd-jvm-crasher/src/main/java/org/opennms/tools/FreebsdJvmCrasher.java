@@ -11,6 +11,7 @@ import java.util.Map;
 
 import org.opennms.netmgt.config.SnmpPeerFactory;
 import org.opennms.netmgt.config.api.SnmpAgentConfigFactory;
+import org.opennms.netmgt.model.OnmsIpInterface;
 import org.opennms.netmgt.poller.MonitoredService;
 import org.opennms.netmgt.poller.NetworkInterface;
 import org.opennms.netmgt.poller.PollStatus;
@@ -23,11 +24,14 @@ import org.opennms.netmgt.provision.detector.datagram.DnsDetector;
 import org.opennms.netmgt.provision.detector.icmp.IcmpDetector;
 import org.opennms.netmgt.provision.detector.simple.HttpDetector;
 import org.opennms.netmgt.provision.detector.snmp.SnmpDetector;
+import org.opennms.netmgt.provision.service.IPInterfaceTableTracker;
+import org.opennms.netmgt.provision.service.PhysInterfaceTableTracker;
 import org.opennms.netmgt.provision.support.ConnectionFactoryNewConnectorImpl;
 import org.opennms.netmgt.provision.support.SyncAbstractDetector;
 import org.opennms.netmgt.snmp.SnmpAgentConfig;
 import org.opennms.netmgt.snmp.SnmpObjId;
 import org.opennms.netmgt.snmp.SnmpStrategy;
+import org.opennms.netmgt.snmp.SnmpUtils;
 import org.opennms.netmgt.snmp.SnmpWalker;
 import org.opennms.netmgt.snmp.TableTracker;
 import org.opennms.netmgt.snmp.snmp4j.Snmp4JStrategy;
@@ -137,18 +141,19 @@ public class FreebsdJvmCrasher {
         }
     };
 
+    private final SnmpAgentConfigFactory snmpAgentConfigFactory = new SnmpAgentConfigFactory() {
+        @Override
+        public SnmpAgentConfig getAgentConfig(InetAddress address) {
+            return new SnmpAgentConfig(address);
+        }
+    };
+    
     private List<ServiceDetector> getDetectors() {
         final List<ServiceDetector> detectors = new LinkedList<ServiceDetector>();
         
         final IcmpDetector icmpDetector = new IcmpDetector();
         detectors.add(icmpDetector);
 
-        final SnmpAgentConfigFactory snmpAgentConfigFactory = new SnmpAgentConfigFactory() {
-            @Override
-            public SnmpAgentConfig getAgentConfig(InetAddress address) {
-                return new SnmpAgentConfig(address);
-            }
-        };
         final SnmpDetector snmpDetector = new SnmpDetector();
         snmpDetector.setAgentConfigFactory(snmpAgentConfigFactory);
         detectors.add(snmpDetector);
@@ -277,7 +282,59 @@ public class FreebsdJvmCrasher {
         LOG.info("Poll status: {}", pollStatus);
     }
     
+    private void runWalkOnAddr(String ipAddr) throws UnknownHostException {
+        final SnmpAgentConfig agentConfig = snmpAgentConfigFactory.getAgentConfig(InetAddress.getByName(ipAddr));
+        final IPInterfaceTableTracker ipIntTracker = new IPInterfaceTableTracker();
+        
+        SnmpWalker walker = SnmpUtils.createWalker(agentConfig, "IP address tables", ipIntTracker);
+        walker.start();
+        
+        try {
+            walker.waitFor();
+
+            if (walker.timedOut()) {
+                LOG.error("Aborting node scan : Agent timed out while scanning the IP address tables");
+            }
+            else if (walker.failed()) {
+                LOG.error("Aborting node scan : Agent failed while scanning the IP address tables : " + walker.getErrorMessage());
+            } else {
+                LOG.info("Success!");
+
+            }
+        } catch (final InterruptedException e) {
+            LOG.error("Aborting node scan : Scan thread failed while waiting for the IP address tables");
+        }
+
+        final PhysInterfaceTableTracker physIntTracker = new PhysInterfaceTableTracker();
+        walker = SnmpUtils.createWalker(agentConfig, "Physical interfaces tables", physIntTracker);
+        walker.start();
+        
+        try {
+            walker.waitFor();
+
+            if (walker.timedOut()) {
+                LOG.error("Aborting node scan : Agent timed out while scanning the IP address tables");
+            }
+            else if (walker.failed()) {
+                LOG.error("Aborting node scan : Agent failed while scanning the IP address tables : " + walker.getErrorMessage());
+            } else {
+                LOG.info("Success!");
+
+            }
+        } catch (final InterruptedException e) {
+            LOG.error("Aborting node scan : Scan thread failed while waiting for the IP address tables");
+        }
+    }
+    
+    public void runWalk() throws UnknownHostException {
+        for (int i = 0; i < 10; i++) {
+            runWalkOnAddr("127.0.0.1");
+            runWalkOnAddr("104.236.112.50");
+        }
+    }
+
     public static void main(final String[] args) throws Exception {
-        new FreebsdJvmCrasher().runTargeted();
+        new FreebsdJvmCrasher().runWalk();
     }
 }
+ 
