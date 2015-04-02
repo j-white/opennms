@@ -4,10 +4,17 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 
+import org.opennms.netmgt.config.SnmpPeerFactory;
 import org.opennms.netmgt.config.api.SnmpAgentConfigFactory;
+import org.opennms.netmgt.poller.MonitoredService;
+import org.opennms.netmgt.poller.NetworkInterface;
+import org.opennms.netmgt.poller.PollStatus;
+import org.opennms.netmgt.poller.monitors.SnmpMonitor;
 import org.opennms.netmgt.provision.AsyncServiceDetector;
 import org.opennms.netmgt.provision.DetectFuture;
 import org.opennms.netmgt.provision.ServiceDetector;
@@ -29,6 +36,8 @@ import org.slf4j.LoggerFactory;
 import org.snmp4j.TransportMapping;
 import org.snmp4j.smi.UdpAddress;
 import org.snmp4j.transport.DefaultUdpTransportMapping;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.core.io.Resource;
 
 public class FreebsdJvmCrasher {
     
@@ -179,8 +188,96 @@ public class FreebsdJvmCrasher {
             LOG.info("Done.");
         }
     }
+    
+    private static class MySnmpPeerFactory extends SnmpPeerFactory {
+        public MySnmpPeerFactory() {
+            super(new ClassPathResource("/snmp-config.xml"));
+        }
 
+        @Override
+        public SnmpAgentConfig getAgentConfig(final InetAddress address) {
+            return new SnmpAgentConfig(address);
+        }
+    }
+
+    private void runTargeted() throws IOException {
+        SnmpPeerFactory.setInstance(new MySnmpPeerFactory());
+
+        MonitoredService svc = new MonitoredService() {
+
+            @Override
+            public String getSvcUrl() {
+                // TODO Auto-generated method stub
+                return null;
+            }
+
+            @Override
+            public String getSvcName() {
+                // TODO Auto-generated method stub
+                return null;
+            }
+
+            @Override
+            public String getIpAddr() {
+                // TODO Auto-generated method stub
+                return null;
+            }
+
+            @Override
+            public int getNodeId() {
+                // TODO Auto-generated method stub
+                return 0;
+            }
+
+            @Override
+            public String getNodeLabel() {
+                // TODO Auto-generated method stub
+                return null;
+            }
+
+            @Override
+            public NetworkInterface<InetAddress> getNetInterface() {
+                return new NetworkInterface<InetAddress>() {
+
+                    @Override
+                    public int getType() {
+                        // TODO Auto-generated method stub
+                        return 0;
+                    }
+
+                    @Override
+                    public InetAddress getAddress() {
+                        return InetAddress.getLoopbackAddress();
+                    }
+
+                    @Override
+                    public <V> V getAttribute(String property) {
+                        // TODO Auto-generated method stub
+                        return null;
+                    }
+
+                    @Override
+                    public Object setAttribute(String property, Object value) {
+                        // TODO Auto-generated method stub
+                        return null;
+                    }
+                };
+            }
+
+            @Override
+            public InetAddress getAddress() {
+                // TODO Auto-generated method stub
+                return null;
+            }
+            
+        };
+        Map<String, Object> params = new HashMap<String, Object>();
+        SnmpMonitor snmpMonitor = new SnmpMonitor();
+        PollStatus pollStatus = snmpMonitor.poll(svc, params);
+        LOG.info("Poll status: {}", pollStatus);
+    }
+    
     public static void main(final String[] args) throws Exception {
-        new FreebsdJvmCrasher().run();
+        new FreebsdJvmCrasher().runTargeted();
     }
 }
