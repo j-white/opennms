@@ -117,7 +117,7 @@ public class FreebsdJvmCrasher {
                 } else {
                     SyncServiceDetector syncDetector = (SyncServiceDetector)detector;
                     try {
-                        detected = syncDetector.isServiceDetected(InetAddress.getByName(String.format("127.0.0.%d", id % 255 + 1)));
+                        detected = syncDetector.isServiceDetected(InetAddress.getByName(String.format("192.168.1.%d", id % 255 + 1)));
                     } catch (UnknownHostException e) {
                         detected = false;
                     }
@@ -146,7 +146,7 @@ public class FreebsdJvmCrasher {
 
         detectors.add(new DnsDetector());
 
-        //detectors.add(new HttpDetector());
+        detectors.add(new HttpDetector());
 
         return detectors;
     }
@@ -165,6 +165,13 @@ public class FreebsdJvmCrasher {
                 thread.start();
             }
 
+            for (int k = 0; k < NUM_THREADS; k++) {
+                final SnmpTask task = new SnmpTask(k, snmpStrategy);
+                final Thread thread = new Thread(task);
+                threads.add(thread);
+                thread.start();
+            }
+            
             LOG.info("Done spawning theads. Waiting for completion...");
             for (final Thread thread : threads) {
                 thread.join();
