@@ -397,10 +397,13 @@ public class FreebsdJvmCrasher {
         MyProvisioner myProvisioner = new MyProvisioner();
         Provisioner provisioner = myProvisioner.createAndStart();
 
-        for (int i = 0; i < 100; i++) {
-            Event e = new Event();
-            e.setNodeid(Long.valueOf(i));
-            provisioner.handleForceRescan(e);
+        while(true) {
+            for (int i = 0; i < 10; i++) {
+                Event e = new Event();
+                e.setNodeid(Long.valueOf(i));
+                provisioner.handleForceRescan(e);
+            }
+            Thread.sleep(15000);
         }
     }
 

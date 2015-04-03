@@ -59,6 +59,8 @@ import org.quartz.TriggerListener;
 import org.quartz.UnableToInterruptJobException;
 import org.quartz.impl.StdScheduler;
 import org.quartz.spi.JobFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.core.io.Resource;
 import org.springframework.scheduling.concurrent.CustomizableThreadFactory;
 import org.springframework.scheduling.concurrent.ScheduledExecutorFactoryBean;
@@ -68,6 +70,8 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
 public class MyProvisioner {
+    
+    private static final Logger LOG = LoggerFactory.getLogger(MyProvisioner.class);
     
     public Provisioner createAndStart() throws Exception {
         ProvisioningAdapterManager proAdaMan = new ProvisioningAdapterManager();
@@ -154,14 +158,12 @@ public class MyProvisioner {
     private static class MyEventForwarder implements EventForwarder {
         @Override
         public void sendNow(Event event) {
-            // TODO Auto-generated method stub
-            
+            LOG.info("Sending event: {}", event);
         }
 
         @Override
         public void sendNow(Log eventLog) {
-            // TODO Auto-generated method stub
-            
+            LOG.info("Sending event log: {}", eventLog);
         }
     }
 
@@ -175,33 +177,28 @@ public class MyProvisioner {
 
         @Override
         public boolean isDiscoveryEnabled() {
-            // TODO Auto-generated method stub
-            return false;
+            return true;
         }
 
         @Override
         public void clearCache() {
-            // TODO Auto-generated method stub
-            
+            // pass
         }
 
         @Override
-        public OnmsDistPoller createDistPollerIfNecessary(String dpName,
-                String dpAddr) {
-            // TODO Auto-generated method stub
+        public OnmsDistPoller createDistPollerIfNecessary(String dpName, String dpAddr) {
+            // pass
             return null;
         }
 
         @Override
         public void updateNode(OnmsNode node, String rescanExisting) {
-            // TODO Auto-generated method stub
-            
+            // pass
         }
 
         @Override
         public OnmsNode updateNodeAttributes(OnmsNode node) {
-            // TODO Auto-generated method stub
-            return null;
+            return node;
         }
 
         @Override
