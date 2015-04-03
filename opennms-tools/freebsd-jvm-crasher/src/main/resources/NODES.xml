@@ -1,0 +1,10 @@
+<model-import xmlns="http://xmlns.opennms.org/xsd/config/model-import" date-stamp="2015-04-02T02:09:44.632Z" foreign-source="NODES" last-import="2015-04-03T18:25:53.630Z">
+   <node building="NODES" foreign-id="1427940634713" node-label="ny-nms-1">
+      <interface descr="" ip-addr="104.236.112.50" status="1" snmp-primary="P"/>
+   </node>
+   <node building="NODES" foreign-id="1427940603383" node-label="ny-nms-2">
+      <interface descr="" ip-addr="127.0.0.1" status="1" snmp-primary="P">
+         <monitored-service service-name="OpenNMS-JVM"/>
+      </interface>
+   </node>
+</model-import>

@@ -18,6 +18,7 @@ import org.opennms.netmgt.dao.api.NodeDao;
 import org.opennms.netmgt.events.api.EventForwarder;
 import org.opennms.core.concurrent.PausibleScheduledThreadPoolExecutor;
 import org.opennms.core.tasks.DefaultTaskCoordinator;
+import org.opennms.core.xml.JaxbUtils;
 import org.opennms.netmgt.config.api.SnmpAgentConfigFactory;
 import org.opennms.netmgt.model.OnmsCategory;
 import org.opennms.netmgt.model.OnmsDistPoller;
@@ -36,13 +37,20 @@ import org.opennms.netmgt.provision.detector.icmp.IcmpDetector;
 import org.opennms.netmgt.provision.detector.simple.HttpDetector;
 import org.opennms.netmgt.provision.detector.snmp.SnmpDetector;
 import org.opennms.netmgt.provision.persist.ForeignSourceRepository;
+import org.opennms.netmgt.provision.persist.ForeignSourceRepositoryException;
+import org.opennms.netmgt.provision.persist.RequisitionFileUtils;
 import org.opennms.netmgt.provision.persist.requisition.Requisition;
+import org.opennms.netmgt.provision.service.CoreImportActivities;
 import org.opennms.netmgt.provision.service.HostnameResolver;
 import org.opennms.netmgt.provision.service.ImportScheduler;
 import org.opennms.netmgt.provision.service.NodeScanSchedule;
+import org.opennms.netmgt.provision.service.PluginRegistry;
 import org.opennms.netmgt.provision.service.ProvisionService;
 import org.opennms.netmgt.provision.service.Provisioner;
 import org.opennms.netmgt.provision.service.ProvisioningAdapterManager;
+import org.opennms.netmgt.provision.service.lifecycle.DefaultLifeCycleRepository;
+import org.opennms.netmgt.provision.service.lifecycle.LifeCycle;
+import org.opennms.netmgt.provision.service.lifecycle.LifeCycleRepository;
 import org.opennms.netmgt.snmp.SnmpAgentConfig;
 import org.opennms.netmgt.xml.event.Event;
 import org.opennms.netmgt.xml.event.Log;
@@ -85,6 +93,8 @@ public class MyProvisioner {
         ProvisioningAdapterManager proAdaMan = new ProvisioningAdapterManager();
         proAdaMan.setAdapters(new HashSet<ProvisioningAdapter>());
         
+        
+
         SchedulerFactoryBean schedulerFactory = new SchedulerFactoryBean();
         schedulerFactory.setSchedulerName("provisiond");
         schedulerFactory.afterPropertiesSet();
@@ -122,6 +132,15 @@ public class MyProvisioner {
         DefaultTaskCoordinator taskCoordinator = new DefaultTaskCoordinator("Provisiond");
         taskCoordinator.setDefaultExecutor("scan");
         taskCoordinator.setExecutors(executors);
+        
+        
+        LifeCycle importLifeCycle = new LifeCycle("import", Lists.newArrayList("validate", "audit", "scan", "delete", "update", "insert", "relate"));
+        LifeCycle nodeImportLifeCycle = new LifeCycle("nodeImport", Lists.newArrayList("scan", "persist"));
+
+        DefaultLifeCycleRepository lifeCycleRepository = new DefaultLifeCycleRepository(taskCoordinator);
+        lifeCycleRepository.setLifeCycles(Lists.newArrayList(importLifeCycle, nodeImportLifeCycle));
+        
+        CoreImportActivities importActivities = new CoreImportActivities(provisionService);
 
         EventForwarder eventForwarder = new MyEventForwarder();
         
@@ -133,6 +152,8 @@ public class MyProvisioner {
         provisioner.setTaskCoordinator(taskCoordinator);
         provisioner.setAgentConfigFactory(snmpAgentConfigFactory);
         provisioner.setEventForwarder(eventForwarder);
+        provisioner.setLifeCycleRepository(lifeCycleRepository);
+        provisioner.setImportActivities(importActivities);
         provisioner.start();
         
         return provisioner;
@@ -305,8 +326,7 @@ public class MyProvisioner {
 
         @Override
         public Map<String, Integer> getForeignIdToNodeIdMap(String foreignSource) {
-            // TODO Auto-generated method stub
-            return null;
+            return Maps.newHashMap();
         }
 
         @Override
@@ -331,14 +351,16 @@ public class MyProvisioner {
         @Override
         public void setForeignSourceRepository(
                 ForeignSourceRepository foriengSourceRepository) {
-            // TODO Auto-generated method stub
-            
+            // pass
         }
 
         @Override
         public Requisition loadRequisition(Resource resource) {
-            // TODO Auto-generated method stub
-            return null;
+            try {
+                return JaxbUtils.unmarshal(Requisition.class, resource.getFile());
+            } catch (final Throwable e) {
+                throw new ForeignSourceRepositoryException("unable to unmarshal " + resource, e);
+            }
         }
 
         @Override

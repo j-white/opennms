@@ -1,16 +1,23 @@
 package org.opennms.tools;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
+import org.opennms.netmgt.capsd.EventUtils;
 import org.opennms.netmgt.config.SnmpPeerFactory;
 import org.opennms.netmgt.config.api.SnmpAgentConfigFactory;
+import org.opennms.netmgt.events.api.EventConstants;
 import org.opennms.netmgt.model.OnmsIpInterface;
 import org.opennms.netmgt.poller.MonitoredService;
 import org.opennms.netmgt.poller.NetworkInterface;
@@ -213,8 +220,6 @@ public class FreebsdJvmCrasher {
     }
 
     private void runTargeted() throws IOException {
-        SnmpPeerFactory.setInstance(new MySnmpPeerFactory());
-
         MonitoredService svc = new MonitoredService() {
 
             @Override
@@ -401,22 +406,25 @@ public class FreebsdJvmCrasher {
         ipAddrs.add(InetAddress.getByName("192.168.1.199"));
         ipAddrs.add(InetAddress.getByName("104.236.62.208"));
         ipAddrs.add(InetAddress.getByName("104.236.112.50"));
-        
+
         MyProvisioner myProvisioner = new MyProvisioner(ipAddrs);
         Provisioner provisioner = myProvisioner.createAndStart();
 
+        Resource cpXml = new ClassPathResource("/NODES.xml");
+        Path tmpXml = Files.createTempFile("nodes.", ".xml");
+        Files.copy(cpXml.getInputStream(), tmpXml, StandardCopyOption.REPLACE_EXISTING);
+
         while(true) {
-            for (int i = 0; i < 10; i++) {
-                Event e = new Event();
-                e.setNodeid(Long.valueOf(i));
-                provisioner.handleForceRescan(e);
-            }
-            Thread.sleep(15000);
+            Event e = new Event();
+            EventUtils.addParam(e, EventConstants.PARM_URL, tmpXml.toUri().toURL().toString());
+            provisioner.doImport(e);
+            Thread.sleep(5000);
         }
     }
 
     public static void main(final String[] args) throws Exception {
         System.setProperty(LogFactory.SNMP4J_LOG_FACTORY_SYSTEM_PROPERTY, "org.snmp4j.log.Log4jLogFactory");
+        SnmpPeerFactory.setInstance(new MySnmpPeerFactory());
         new FreebsdJvmCrasher().runProvisioner();
     }
 }
