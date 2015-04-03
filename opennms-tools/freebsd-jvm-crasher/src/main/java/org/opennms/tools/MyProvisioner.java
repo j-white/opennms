@@ -14,6 +14,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 
+import org.opennms.netmgt.dao.api.NodeDao;
 import org.opennms.netmgt.events.api.EventForwarder;
 import org.opennms.core.concurrent.PausibleScheduledThreadPoolExecutor;
 import org.opennms.core.tasks.DefaultTaskCoordinator;
@@ -64,6 +65,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.core.io.Resource;
 import org.springframework.scheduling.concurrent.CustomizableThreadFactory;
 import org.springframework.scheduling.concurrent.ScheduledExecutorFactoryBean;
+import org.springframework.scheduling.quartz.SchedulerFactoryBean;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -73,15 +75,24 @@ public class MyProvisioner {
     
     private static final Logger LOG = LoggerFactory.getLogger(MyProvisioner.class);
     
+    private final List<InetAddress> ipAddrs;
+    
+    public MyProvisioner(List<InetAddress> ipAddrs) {
+        this.ipAddrs = ipAddrs;
+    }
+
     public Provisioner createAndStart() throws Exception {
         ProvisioningAdapterManager proAdaMan = new ProvisioningAdapterManager();
         proAdaMan.setAdapters(new HashSet<ProvisioningAdapter>());
         
-        Scheduler scheduler = new MyScheduler();
-        ImportScheduler importScheduler = new ImportScheduler(scheduler);
+        SchedulerFactoryBean schedulerFactory = new SchedulerFactoryBean();
+        schedulerFactory.setSchedulerName("provisiond");
+        schedulerFactory.afterPropertiesSet();
 
-        ProvisionService provisionService = new MyProvisionService();
-        
+        ImportScheduler importScheduler = new ImportScheduler(schedulerFactory.getObject());
+
+        ProvisionService provisionService = new MyProvisionService(new MyNodeDao(ipAddrs));
+
         CustomizableThreadFactory nodeScanExecutor = new CustomizableThreadFactory();
         nodeScanExecutor.setThreadNamePrefix("nodeScanExecutor-");
         
@@ -168,6 +179,12 @@ public class MyProvisioner {
     }
 
     private static class MyProvisionService implements ProvisionService {
+
+        private final NodeDao nodeDao;
+        
+        public MyProvisionService(NodeDao nodeDao) {
+            this.nodeDao = nodeDao;
+        }
 
         @Override
         public boolean isRequisitionedEntityDeletionEnabled() {
@@ -368,22 +385,7 @@ public class MyProvisioner {
 
         @Override
         public OnmsIpInterface getPrimaryInterfaceForNode(OnmsNode node) {
-            OnmsIpInterface ipInterface = new OnmsIpInterface();
-            try {
-                ipInterface.setIpAddress(InetAddress.getLocalHost());
-            } catch (UnknownHostException e) {
-                throw new RuntimeException(e);
-            }
-            
-            OnmsServiceType snmpSvcType = new OnmsServiceType();
-            snmpSvcType.setName("SNMP");
-            OnmsMonitoredService snmpSvc = new OnmsMonitoredService();
-            snmpSvc.setServiceType(snmpSvcType);
-            
-            ipInterface.setMonitoredServices(Sets.newHashSet(snmpSvc));
-
-            // getMonitoredServiceByServiceType
-            return ipInterface;
+            return nodeDao.get(node.getId()).getIpInterfaces().iterator().next();
         }
 
         @Override
@@ -395,17 +397,7 @@ public class MyProvisioner {
 
         @Override
         public OnmsNode getNode(Integer nodeId) {
-            OnmsIpInterface ipInterface = new OnmsIpInterface();
-            try {
-                ipInterface.setIpAddress(InetAddress.getLocalHost());
-            } catch (UnknownHostException e) {
-                throw new RuntimeException(e);
-            }
-
-            OnmsNode node = new OnmsNode();
-            node.setId(nodeId);
-            node.setIpInterfaces(Sets.newHashSet(ipInterface));
-            return node;
+            return nodeDao.get(nodeId);
         }
 
         @Override

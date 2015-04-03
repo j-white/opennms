@@ -380,6 +380,8 @@ public class FreebsdJvmCrasher {
     public void runWalkers() throws UnknownHostException {
         final List<InetAddress> ipAddrs = new ArrayList<InetAddress>();
         ipAddrs.add(InetAddress.getByName("127.0.0.1"));
+        ipAddrs.add(InetAddress.getByName("192.168.1.199"));
+        ipAddrs.add(InetAddress.getByName("104.236.62.208"));
         ipAddrs.add(InetAddress.getByName("104.236.112.50"));
 
         final List<Thread> threads = new LinkedList<Thread>();
@@ -394,7 +396,13 @@ public class FreebsdJvmCrasher {
     }
 
     public void runProvisioner() throws Exception {
-        MyProvisioner myProvisioner = new MyProvisioner();
+        final List<InetAddress> ipAddrs = new ArrayList<InetAddress>();
+        ipAddrs.add(InetAddress.getByName("127.0.0.1"));
+        ipAddrs.add(InetAddress.getByName("192.168.1.199"));
+        ipAddrs.add(InetAddress.getByName("104.236.62.208"));
+        ipAddrs.add(InetAddress.getByName("104.236.112.50"));
+        
+        MyProvisioner myProvisioner = new MyProvisioner(ipAddrs);
         Provisioner provisioner = myProvisioner.createAndStart();
 
         while(true) {
