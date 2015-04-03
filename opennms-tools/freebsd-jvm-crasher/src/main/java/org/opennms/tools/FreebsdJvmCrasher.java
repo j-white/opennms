@@ -434,6 +434,7 @@ public class FreebsdJvmCrasher {
             thread.start();
         }
         
+        /*
         for (int k = 0; k < NUM_THREADS; k++) {
             final DetectTask task = new DetectTask(k, getDetectors());
             final Thread thread = new Thread(task);
@@ -447,7 +448,8 @@ public class FreebsdJvmCrasher {
             threads.add(thread);
             thread.start();
         }
-
+        */
+        
         final List<InetAddress> ipAddrs = new ArrayList<InetAddress>();
         ipAddrs.add(InetAddress.getByName("127.0.0.1"));
         ipAddrs.add(InetAddress.getByName("192.168.1.199"));
@@ -466,6 +468,7 @@ public class FreebsdJvmCrasher {
             EventUtils.addParam(e, EventConstants.PARM_URL, tmpXml.toUri().toURL().toString());
             provisioner.doImport(e);
             Thread.sleep(5000);
+            System.gc();
         }
     }
 
