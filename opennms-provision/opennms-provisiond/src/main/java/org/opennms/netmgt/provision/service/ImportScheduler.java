@@ -79,7 +79,7 @@ public class ImportScheduler implements InitializingBean {
      *
      * @param scheduler a {@link org.quartz.Scheduler} object.
      */
-    protected ImportScheduler(Scheduler scheduler) {
+    public ImportScheduler(Scheduler scheduler) {
         m_scheduler = scheduler;
     }
 

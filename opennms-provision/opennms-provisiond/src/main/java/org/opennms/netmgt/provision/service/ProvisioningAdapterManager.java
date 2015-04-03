@@ -56,6 +56,10 @@ public class ProvisioningAdapterManager implements InitializingBean {
     private PluginRegistry m_pluginRegistry;
     private Collection<ProvisioningAdapter> m_adapters;
     
+    public void setAdapters(Collection<ProvisioningAdapter> adapters) {
+        m_adapters = adapters;
+    }
+    
     //may use this at some point
     private volatile EventForwarder m_eventForwarder;
     

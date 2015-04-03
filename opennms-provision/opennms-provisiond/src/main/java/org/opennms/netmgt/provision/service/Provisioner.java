@@ -99,6 +99,10 @@ public class Provisioner implements SpringServiceDaemon {
     @Autowired
     private ProvisioningAdapterManager m_manager;
     
+    public void setProvisioningAdapterManager(ProvisioningAdapterManager manager) {
+        m_manager = manager;
+    }
+    
     private ImportScheduler m_importSchedule;
 
     /**

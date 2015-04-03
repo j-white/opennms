@@ -27,6 +27,7 @@ import org.opennms.netmgt.provision.detector.snmp.SnmpDetector;
 import org.opennms.netmgt.provision.service.IPAddressTableTracker;
 import org.opennms.netmgt.provision.service.IPInterfaceTableTracker;
 import org.opennms.netmgt.provision.service.PhysInterfaceTableTracker;
+import org.opennms.netmgt.provision.service.Provisioner;
 import org.opennms.netmgt.provision.support.ConnectionFactoryNewConnectorImpl;
 import org.opennms.netmgt.provision.support.SyncAbstractDetector;
 import org.opennms.netmgt.snmp.SnmpAgentConfig;
@@ -36,6 +37,7 @@ import org.opennms.netmgt.snmp.SnmpUtils;
 import org.opennms.netmgt.snmp.SnmpWalker;
 import org.opennms.netmgt.snmp.TableTracker;
 import org.opennms.netmgt.snmp.snmp4j.Snmp4JStrategy;
+import org.opennms.netmgt.xml.event.Event;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.snmp4j.TransportMapping;
@@ -391,8 +393,19 @@ public class FreebsdJvmCrasher {
         }
     }
 
+    public void runProvisioner() throws Exception {
+        MyProvisioner myProvisioner = new MyProvisioner();
+        Provisioner provisioner = myProvisioner.createAndStart();
+
+        for (int i = 0; i < 100; i++) {
+            Event e = new Event();
+            e.setNodeid(Long.valueOf(i));
+            provisioner.handleForceRescan(e);
+        }
+    }
+
     public static void main(final String[] args) throws Exception {
         System.setProperty(LogFactory.SNMP4J_LOG_FACTORY_SYSTEM_PROPERTY, "org.snmp4j.log.Log4jLogFactory");
-        new FreebsdJvmCrasher().runWalkers();
+        new FreebsdJvmCrasher().runProvisioner();
     }
 }
