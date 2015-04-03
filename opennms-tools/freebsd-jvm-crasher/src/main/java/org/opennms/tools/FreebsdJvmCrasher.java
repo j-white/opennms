@@ -3,6 +3,10 @@ package org.opennms.tools;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.net.SocketAddress;
 import java.net.UnknownHostException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -58,7 +62,7 @@ public class FreebsdJvmCrasher {
     
     private static final Logger LOG = LoggerFactory.getLogger(FreebsdJvmCrasher.class);
 
-    private static final int NUM_THREADS = 32;
+    private static final int NUM_THREADS = 400;
 
     private static class SnmpTask implements Runnable {
         private final int id;
@@ -207,6 +211,8 @@ public class FreebsdJvmCrasher {
             LOG.info("Done.");
         }
     }
+    
+    final static SnmpStrategy snmpStrategy = new Snmp4JStrategy();
     
     private static class MySnmpPeerFactory extends SnmpPeerFactory {
         public MySnmpPeerFactory() {
@@ -399,8 +405,49 @@ public class FreebsdJvmCrasher {
             thread.start();
         }
     }
+    
+    public static class ListenTask implements Runnable {
+        final int id;
+        
+        public ListenTask(int id) {
+            this.id = id;
+        }
+
+        @Override
+        public void run() {
+            try {
+                ServerSocket server = new ServerSocket(0);
+                Socket client = server.accept();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
 
     public void runProvisioner() throws Exception {
+        final List<Thread> threads = new LinkedList<Thread>();
+        LOG.info("Spawning {} threads", NUM_THREADS);
+        for (int k = 0; k < NUM_THREADS; k++) {
+            final ListenTask task = new ListenTask(k);
+            final Thread thread = new Thread(task);
+            threads.add(thread);
+            thread.start();
+        }
+        
+        for (int k = 0; k < NUM_THREADS; k++) {
+            final DetectTask task = new DetectTask(k, getDetectors());
+            final Thread thread = new Thread(task);
+            threads.add(thread);
+            thread.start();
+        }
+        
+        for (int k = 0; k < NUM_THREADS; k++) {
+            final SnmpTask task = new SnmpTask(k, snmpStrategy);
+            final Thread thread = new Thread(task);
+            threads.add(thread);
+            thread.start();
+        }
+
         final List<InetAddress> ipAddrs = new ArrayList<InetAddress>();
         ipAddrs.add(InetAddress.getByName("127.0.0.1"));
         ipAddrs.add(InetAddress.getByName("192.168.1.199"));
