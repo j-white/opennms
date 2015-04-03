@@ -5,14 +5,17 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.Date;
 import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 
 import org.opennms.netmgt.events.api.EventForwarder;
+import org.opennms.core.concurrent.PausibleScheduledThreadPoolExecutor;
 import org.opennms.core.tasks.DefaultTaskCoordinator;
 import org.opennms.netmgt.config.api.SnmpAgentConfigFactory;
 import org.opennms.netmgt.model.OnmsCategory;
@@ -27,6 +30,10 @@ import org.opennms.netmgt.provision.NodePolicy;
 import org.opennms.netmgt.provision.ProvisioningAdapter;
 import org.opennms.netmgt.provision.ServiceDetector;
 import org.opennms.netmgt.provision.SnmpInterfacePolicy;
+import org.opennms.netmgt.provision.detector.datagram.DnsDetector;
+import org.opennms.netmgt.provision.detector.icmp.IcmpDetector;
+import org.opennms.netmgt.provision.detector.simple.HttpDetector;
+import org.opennms.netmgt.provision.detector.snmp.SnmpDetector;
 import org.opennms.netmgt.provision.persist.ForeignSourceRepository;
 import org.opennms.netmgt.provision.persist.requisition.Requisition;
 import org.opennms.netmgt.provision.service.HostnameResolver;
@@ -53,8 +60,11 @@ import org.quartz.UnableToInterruptJobException;
 import org.quartz.impl.StdScheduler;
 import org.quartz.spi.JobFactory;
 import org.springframework.core.io.Resource;
+import org.springframework.scheduling.concurrent.CustomizableThreadFactory;
+import org.springframework.scheduling.concurrent.ScheduledExecutorFactoryBean;
 
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
 public class MyProvisioner {
@@ -68,9 +78,35 @@ public class MyProvisioner {
 
         ProvisionService provisionService = new MyProvisionService();
         
-        ScheduledExecutorService scheduledExector = Executors.newScheduledThreadPool(10);
+        CustomizableThreadFactory nodeScanExecutor = new CustomizableThreadFactory();
+        nodeScanExecutor.setThreadNamePrefix("nodeScanExecutor-");
+        
+        ScheduledExecutorService scheduledExector = new PausibleScheduledThreadPoolExecutor(10, nodeScanExecutor);
+        
+        ScheduledExecutorFactoryBean importExecutor = new ScheduledExecutorFactoryBean();
+        importExecutor.setBeanName("importExecutor");
+        importExecutor.setPoolSize(8);
+        importExecutor.initialize();
+        
+        ScheduledExecutorFactoryBean scanExecutor = new ScheduledExecutorFactoryBean();
+        scanExecutor.setBeanName("scanExecutor");
+        scanExecutor.setPoolSize(10);
+        scanExecutor.initialize();
+        
+        ScheduledExecutorFactoryBean writeExecutor = new ScheduledExecutorFactoryBean();
+        writeExecutor.setBeanName("writeExecutor");
+        writeExecutor.setPoolSize(10);
+        writeExecutor.initialize();
 
-        DefaultTaskCoordinator taskCoordinator = new DefaultTaskCoordinator("Tasks", Executors.newFixedThreadPool(10));
+        Map<String, Executor> executors = Maps.newHashMap();
+        executors.put("import", importExecutor.getObject());
+        executors.put("scan", scanExecutor.getObject());
+        executors.put("default", importExecutor.getObject());
+        executors.put("write", writeExecutor.getObject());
+
+        DefaultTaskCoordinator taskCoordinator = new DefaultTaskCoordinator("Provisiond");
+        taskCoordinator.setDefaultExecutor("scan");
+        taskCoordinator.setExecutors(executors);
 
         EventForwarder eventForwarder = new MyEventForwarder();
         
@@ -86,52 +122,35 @@ public class MyProvisioner {
         
         return provisioner;
     }
-    
-    /*
-    public static void main(String[] args) throws Exception {
-        ProvisioningAdapterManager proAdaMan = new ProvisioningAdapterManager();
-        proAdaMan.setAdapters(new HashSet<ProvisioningAdapter>());
+
+    private static List<ServiceDetector> getDetectors() {
+        final List<ServiceDetector> detectors = new LinkedList<ServiceDetector>();
         
-        Scheduler scheduler = new MyScheduler();
-        ImportScheduler importScheduler = new ImportScheduler(scheduler);
+        final IcmpDetector icmpDetector = new IcmpDetector();
+        detectors.add(icmpDetector);
 
-        ProvisionService provisionService = new MyProvisionService();
-        
-        ScheduledExecutorService scheduledExector = Executors.newScheduledThreadPool(10);
+        final SnmpDetector snmpDetector = new SnmpDetector();
+        snmpDetector.setAgentConfigFactory(snmpAgentConfigFactory);
+        detectors.add(snmpDetector);
 
-        DefaultTaskCoordinator taskCoordinator = new DefaultTaskCoordinator("Tasks", Executors.newFixedThreadPool(10));
+        detectors.add(new DnsDetector());
 
-        EventForwarder eventForwarder = new MyEventForwarder();
-        
-        Provisioner provisioner = new Provisioner();
-        provisioner.setProvisioningAdapterManager(proAdaMan);
-        provisioner.setProvisionService(provisionService);
-        provisioner.setImportSchedule(importScheduler);
-        provisioner.setScheduledExecutor(scheduledExector);
-        provisioner.setTaskCoordinator(taskCoordinator);
-        provisioner.setAgentConfigFactory(snmpAgentConfigFactory);
-        provisioner.setEventForwarder(eventForwarder);
-        provisioner.start();
+        detectors.add(new HttpDetector());
 
-        Event e = new Event();
-        e.setNodeid(1L);
-        provisioner.handleForceRescan(e);
-
-        Thread.sleep(1000);
-        provisioner.destroy();
+        return detectors;
     }
-    */
-    
+
     private static final SnmpAgentConfigFactory snmpAgentConfigFactory = new SnmpAgentConfigFactory() {
         @Override
         public SnmpAgentConfig getAgentConfig(InetAddress address) {
             final SnmpAgentConfig agent = new SnmpAgentConfig(address);
             agent.setTimeout(1800);
             agent.setVersion(2);
+            agent.setRetries(1);
             return agent;
         }
     };
-    
+
     private static class MyEventForwarder implements EventForwarder {
         @Override
         public void sendNow(Event event) {
@@ -311,7 +330,7 @@ public class MyProvisioner {
         @Override
         public List<ServiceDetector> getDetectorsForForeignSource(
                 String foreignSource) {
-            return Lists.newArrayList();
+            return getDetectors();
         }
 
         @Override
