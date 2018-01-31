@@ -13,6 +13,7 @@ mvn install -DupdatePolicy=never -DskipTests=true -DskipITs=true -Dopennms.home=
 mvn install -DupdatePolicy=never -DskipTests=true -DskipITs=true -Dopennms.home=/opt/opennms -Dinstall.version=${INSTALL_VERSION} --batch-mode -Prun-expensive-tasks -Pdefault --file opennms-full-assembly/pom.xml || exit
 mvn install -DupdatePolicy=never -DskipTests=true -DskipITs=true -Dopennms.home=/opt/opennms -Dinstall.version=${INSTALL_VERSION} --batch-mode -Prun-expensive-tasks --non-recursive --file opennms-tools/pom.xml || exit
 mvn install -DupdatePolicy=never -DskipTests=true -DskipITs=true -Dopennms.home=/opt/opennms -Dinstall.version=${INSTALL_VERSION} --batch-mode -Prun-expensive-tasks --file opennms-tools/centric-troubleticketer/pom.xml || exit
+mvn install -DupdatePolicy=never -DskipTests=true -DskipITs=true -Psmoke --projects :smoke-test || exit 1
 
 # Javadoc
 echo "Generating Javadoc"
