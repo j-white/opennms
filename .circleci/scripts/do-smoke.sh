@@ -1,6 +1,4 @@
 #!/bin/sh
-rm -rf ~/.m2/repository/org/opennms
-mvn install -DupdatePolicy=never -DskipTests=true -DskipITs=true -Dopennms.home=/opt/opennms -Dinstall.version=${INSTALL_VERSION} --batch-mode || exit 1
-pushd smoke-test
-mvn install -DupdatePolicy=never -DskipTests=true -DskipITs=true || exit 1
-popd
+mvn -DupdatePolicy=never -DskipTests=true -DskipITs=true -Psmoke --projects :smoke-test --also-make clean install || exit 1
+cd smoke-test
+mvn -N -Dorg.opennms.smoketest.docker=true -DskipITs=false -Dtest=AboutPageIT integration-test
