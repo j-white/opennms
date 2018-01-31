@@ -180,12 +180,55 @@ jobs:
               echo "Build complete. Verifying..."
               mvn -P'!checkstyle' -DupdatePolicy=never -DskipITs=false -DskipTests=false --batch-mode -pl ${MODULES_TO_TEST} verify
 
+  smoke-test:
+    machine:
+      image: circleci/classic:latest
+
+    working_directory: ~/repo
+
+    #    parallelism: 4
+
+    environment:
+      - MAVEN_OPTS: -Xmx2048m -XX:ReservedCodeCacheSize=512m -XX:+TieredCompilation -XX:TieredStopAtLevel=1 -XX:-UseGCOverheadLimit -XX:+UseParallelGC -XX:+UseParallelOldGC
+
+    steps:
+      # Restore source cache
+      - restore_cache:
+          keys:
+            - source-v1-{{ .Branch }}-{{ .Revision }}
+            - source-v1-{{ .Branch }}-
+            - source-v1-
+
+      - checkout
+
+      # Prepare build
+      - run:
+          name: Preparing the build environment
+          command: |
+              chmod +x .circleci/scripts/*
+              mkdir -p ~/artifacts
+              mkdir -p ~/.m2
+              .circleci/scripts/pre-build.sh
+              sudo .circleci/scripts/install.sh
+      - run:
+          name: Print system information
+          command: |
+              .circleci/scripts/system-info.sh
+
+      # Smoke it
+      - run:
+          name: Smoke Tests
+          command: |
+            .circleci/scripts/do-smoke.sh
+
 workflows:
   version: 2
   build-deploy:
     jobs:
-      - build
-      - integration-test:
-          requires:
-            - build
+            #      - build
+            #      - integration-test:
+            #          requires:
+            #            - build
+      - smoke-test
+
 
