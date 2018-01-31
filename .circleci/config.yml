@@ -236,6 +236,9 @@ jobs:
           command: |
             .circleci/scripts/do-smoke.sh
 
+      - store_artifacts:
+          path: ~/repo/smoke-test/target/screenshots
+
 workflows:
   version: 2
   build-deploy:
