@@ -1,0 +1,4 @@
+opennms-ackd/
+opennms-alarms/
+opennms-asterisk/
+opennms-config/

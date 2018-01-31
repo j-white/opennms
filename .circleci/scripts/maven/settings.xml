@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<settings>
+    <mirrors>
+        <mirror>
+            <id>maven-proxy</id>
+            <url>http://193.174.29.5:8081/artifactory/remote-repos/</url>
+            <mirrorOf>*</mirrorOf>
+        </mirror>
+    </mirrors>
+</settings>

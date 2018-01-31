@@ -1,0 +1,191 @@
+# Java Maven CircleCI 2.0 configuration file
+#
+# Check https://circleci.com/docs/2.0/language-java/ for more details
+#
+version: 2
+jobs:
+  build:
+    machine:
+      image: circleci/classic:latest
+
+    working_directory: ~/repo
+
+    environment:
+      - MAVEN_OPTS: -Xmx2048m -XX:ReservedCodeCacheSize=512m -XX:+TieredCompilation -XX:TieredStopAtLevel=1 -XX:-UseGCOverheadLimit -XX:+UseParallelGC -XX:+UseParallelOldGC
+
+    steps:
+      # Restore source cache
+      - restore_cache:
+          keys:
+            - source-v1-{{ .Branch }}-{{ .Revision }}
+            - source-v1-{{ .Branch }}-
+            - source-v1-
+
+      - checkout
+
+      # Save source cache
+      - save_cache:
+          key: source-v1-{{ .Branch }}-{{ .Revision }}
+          paths:
+            - ".git"
+
+      # Prepare build
+      - run:
+          name: Preparing the build environment
+          command: |
+              chmod +x .circleci/scripts/*
+              mkdir -p ~/artifacts
+              mkdir -p ~/.m2
+              .circleci/scripts/pre-build.sh
+              sudo .circleci/scripts/install.sh
+      - run:
+          name: Print system information
+          command: |
+              .circleci/scripts/system-info.sh
+      - run:
+          name: Test for RPM requirements
+          command: |
+              .circleci/scripts/package/makerpm.sh -t
+      - run:
+          name: Fail quick
+          command: |
+              pyenv local 3.5.2
+              python3 .circleci/scripts/find-tests.py . 
+
+      # Restore cache
+      - run:
+          name: Calculate Cache Key
+          command: |
+            find . -type f -name "pom.xml" -exec sha256sum "{}" \; >> ~/artifacts/checksum.txt
+      - restore_cache:
+          keys:
+          - maven-dependencies-v1-{{ checksum "~/artifacts/checksum.txt" }}
+          - maven-dependencies-v1-
+      - run:
+          name: Removing OpenNMS maven artifacts from ~/.m2
+          command: |
+            rm -rf ~/.m2/repository/org/opennms
+            rm -rf ~/.m2/settings.xml
+
+      # Compile, create javadoc, run tests, etc.
+      - run:
+          name: Building sources
+          command: |
+            .circleci/scripts/build.sh
+
+      # Move .m2 artifacts out of the way before saving the cache
+      - run:
+          name: Cleanup
+          command: |
+            mv ~/.m2/repository/org/opennms ~/.m2.temp
+
+      # Save Cache
+      - save_cache:
+          paths:
+            - ~/.m2
+          key: maven-dependencies-v1-{{ checksum "~/artifacts/checksum.txt" }}
+
+      # Move .m2 artifacts back
+      - run:
+          name: Undo Cleanup
+          command: |
+            mv ~/.m2.temp ~/.m2/repository/org/opennms
+
+      # Package
+      # TODO sign rpms -s ${SIGN_KEY}
+      - run:
+          name: Packaging opennms
+          command: |
+            .circleci/scripts/package.sh
+
+      # Collect all artifacts
+      - run:
+          name: Fetching artifacts
+          command: |
+            .circleci/scripts/post-build.sh
+          when: always
+      - store_test_results:
+          path: ~/artifacts/test-results
+      - store_artifacts:
+          path: ~/artifacts
+
+  integration-test:
+    machine:
+      image: circleci/classic:latest
+
+    working_directory: ~/repo
+
+    parallelism: 4
+
+    environment:
+      - MAVEN_OPTS: -Xmx2048m -XX:ReservedCodeCacheSize=512m -XX:+TieredCompilation -XX:TieredStopAtLevel=1 -XX:-UseGCOverheadLimit -XX:+UseParallelGC -XX:+UseParallelOldGC
+
+    steps:
+      # Restore source cache
+      - restore_cache:
+          keys:
+            - source-v1-{{ .Branch }}-{{ .Revision }}
+            - source-v1-{{ .Branch }}-
+            - source-v1-
+
+      - checkout
+
+      # Prepare build
+      - run:
+          name: Preparing the build environment
+          command: |
+              chmod +x .circleci/scripts/*
+              mkdir -p ~/artifacts
+              mkdir -p ~/.m2
+              .circleci/scripts/pre-build.sh
+              sudo .circleci/scripts/install.sh
+      - run:
+          name: Print system information
+          command: |
+              .circleci/scripts/system-info.sh
+
+      # Restore cache
+      - run:
+          name: Calculate Cache Key
+          command: |
+            find . -type f -name "pom.xml" -exec sha256sum "{}" \; >> ~/artifacts/checksum.txt
+      - restore_cache:
+          keys:
+          - maven-dependencies-v1-{{ checksum "~/artifacts/checksum.txt" }}
+          - maven-dependencies-v1-
+      - run:
+          name: Removing OpenNMS maven artifacts from ~/.m2
+          command: |
+            rm -rf ~/.m2/repository/org/opennms
+            rm -rf ~/.m2/settings.xml
+
+            #      # Run Single tests
+            #      - run:
+            #          name: Running single tests before actually running all tests
+            #          command: |
+            #              sudo sysctl net.ipv4.ping_group_range='0 429496729'
+            #              mvn -P'!checkstyle' -P'!enable.tarball' -Dbuild.skip.tarball=true -DskipTests=true -pl org.opennms.features.events:org.opennms.features.events.traps --also-make install
+            #              mvn -P'!checkstyle' -DskipITs=false -pl org.opennms.features.events:org.opennms.features.events.traps verify
+
+      # Run tests
+      - run:
+          name: Running tests
+          no_output_timeout: 1.0h
+          command: |
+              sudo sysctl net.ipv4.ping_group_range='0 429496729'
+              pyenv local 3.5.2
+              MODULES_TO_TEST=$(python3 .circleci/scripts/find-tests.py . | circleci tests split | paste -s -d, -)
+              echo "Building modules and dependencies for: ${MODULES_TO_TEST}"
+              mvn -P'!checkstyle' -P'!enable.tarball' -DupdatePolicy=never -Dbuild.skip.tarball=true -DskipTests=true -am -pl ${MODULES_TO_TEST} install
+              echo "Build complete. Verifying..."
+              mvn -P'!checkstyle' -DupdatePolicy=never -DskipITs=false -DskipTests=false --batch-mode -pl ${MODULES_TO_TEST} verify
+
+workflows:
+  version: 2
+  build-deploy:
+    jobs:
+      - build
+      - integration-test:
+          requires:
+            - build
+
