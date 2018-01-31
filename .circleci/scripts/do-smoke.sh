@@ -1,7 +1,9 @@
 #!/bin/sh -e
 export RPM_VERSION="20.1.0-1"
-mkdir ~/rpms
-cd ~/rpms
+
+export OPENNMS_RPM_ROOT="~/rpms"
+mkdir -p $OPENNMS_RPM_ROOT
+cd $OPENNMS_RPM_ROOT
 wget -4 http://yum.opennms.org/obsolete/common/opennms/opennms-$RPM_VERSION.noarch.rpm
 wget -4 http://yum.opennms.org/obsolete/common/opennms/opennms-core-$RPM_VERSION.noarch.rpm
 wget -4 http://yum.opennms.org/obsolete/common/opennms/opennms-minion-$RPM_VERSION.noarch.rpm
@@ -9,7 +11,8 @@ wget -4 http://yum.opennms.org/obsolete/common/opennms/opennms-minion-container-
 wget -4 http://yum.opennms.org/obsolete/common/opennms/opennms-minion-features-core-$RPM_VERSION.noarch.rpm
 wget -4 http://yum.opennms.org/obsolete/common/opennms/opennms-minion-features-default-$RPM_VERSION.noarch.rpm
 wget -4 http://yum.opennms.org/obsolete/common/opennms/opennms-webapp-jetty-$RPM_VERSION.noarch.rpm
-export OPENNMS_RPM_ROOT="~/rpms"
+echo "PWD: "
+pwd
 
 git clone https://github.com/OpenNMS/opennms-system-test-api.git ~/stest-api || exit 1
 cd ~/stest-api/docker
