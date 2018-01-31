@@ -15,7 +15,18 @@ export OPENNMS_RPM_ROOT="~/rpms"
 
 git clone https://github.com/OpenNMS/opennms-system-test-api.git ~/stest-api || exit 1
 cd ~/stest-api/docker
+# Debug
+echo "#### Files in RPM root"
+ls $OPENNMS_RPM_ROOT
+echo "#### Determined release"
+export RELEASE=$(basename $OPENNMS_RPM_ROOT/opennms-minion-features-core-*.noarch.rpm | awk -F'-' '{ print $5; }')
+echo $RELEASE
 ./copy-rpms.sh
+echo "#### OpenNMS RPMs"
+ls opennms/rpms
+echo "#### Minion RPMs"
+ls minion/rpms
+
 ./build-docker-images.sh
 
 cd ~/repo/smoke-test
