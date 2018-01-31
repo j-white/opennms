@@ -215,6 +215,21 @@ jobs:
           command: |
               .circleci/scripts/system-info.sh
 
+      # Restore cache
+      - run:
+          name: Calculate Cache Key
+          command: |
+            find . -type f -name "pom.xml" -exec sha256sum "{}" \; >> ~/artifacts/checksum.txt
+      - restore_cache:
+          keys:
+          - maven-dependencies-v1-{{ checksum "~/artifacts/checksum.txt" }}
+          - maven-dependencies-v1-
+      - run:
+          name: Removing OpenNMS maven artifacts from ~/.m2
+          command: |
+            rm -rf ~/.m2/repository/org/opennms
+            rm -rf ~/.m2/settings.xml
+
       # Smoke it
       - run:
           name: Smoke Tests
