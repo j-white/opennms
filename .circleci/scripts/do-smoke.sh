@@ -1,6 +1,4 @@
-#!/bin/sh
-mvn -DupdatePolicy=never -DskipTests=true -DskipITs=true -P'!checkstyle' -Psmoke --projects :smoke-test --also-make clean install || exit 1
-
+#!/bin/sh -e
 export RPM_VERSION="20.1.0-1"
 mkdir ~/rpms
 cd ~/rpms
@@ -29,5 +27,7 @@ ls minion/rpms
 
 ./build-docker-images.sh
 
+cd ~/repo
+mvn -DupdatePolicy=never -DskipTests=true -DskipITs=true -P'!checkstyle' -Psmoke --projects :smoke-test --also-make clean install || exit 1
 cd ~/repo/smoke-test
 mvn -N -Dorg.opennms.smoketest.docker=true -DskipITs=false -Dtest=AboutPageIT integration-test
