@@ -98,16 +98,25 @@ jobs:
           command: |
             .circleci/scripts/package.sh
 
+
       # Collect all artifacts
       - run:
           name: Fetching artifacts
           command: |
             .circleci/scripts/post-build.sh
           when: always
+
+      # Attach artifacts to job
       - store_test_results:
           path: ~/artifacts/test-results
       - store_artifacts:
           path: ~/artifacts
+
+      # Copy artifacts to workspace
+      - persist_to_workspace:
+          root: /home/circleci/artifacts
+          paths:
+            - rpms
 
   integration-test:
     machine:
@@ -115,7 +124,7 @@ jobs:
 
     working_directory: ~/repo
 
-    parallelism: 4
+    parallelism: 2
 
     environment:
       - MAVEN_OPTS: -Xmx2048m -XX:ReservedCodeCacheSize=512m -XX:+TieredCompilation -XX:TieredStopAtLevel=1 -XX:-UseGCOverheadLimit -XX:+UseParallelGC -XX:+UseParallelOldGC
@@ -144,7 +153,7 @@ jobs:
           command: |
               .circleci/scripts/system-info.sh
 
-      # Restore cache
+      # Restore .m2 cache
       - run:
           name: Calculate Cache Key
           command: |
@@ -158,14 +167,6 @@ jobs:
           command: |
             rm -rf ~/.m2/repository/org/opennms
             rm -rf ~/.m2/settings.xml
-
-            #      # Run Single tests
-            #      - run:
-            #          name: Running single tests before actually running all tests
-            #          command: |
-            #              sudo sysctl net.ipv4.ping_group_range='0 429496729'
-            #              mvn -P'!checkstyle' -P'!enable.tarball' -Dbuild.skip.tarball=true -DskipTests=true -pl org.opennms.features.events:org.opennms.features.events.traps --also-make install
-            #              mvn -P'!checkstyle' -DskipITs=false -pl org.opennms.features.events:org.opennms.features.events.traps verify
 
       # Run tests
       - run:
@@ -180,13 +181,22 @@ jobs:
               echo "Build complete. Verifying..."
               mvn -P'!checkstyle' -DupdatePolicy=never -DskipITs=false -DskipTests=false --batch-mode -pl ${MODULES_TO_TEST} verify
 
+      # Collect all artifacts
+      - run:
+          name: Fetching artifacts
+          command: |
+            .circleci/scripts/post-build.sh
+          when: always
+
+      # Attach artifacts to job
+      - store_test_results:
+          path: ~/artifacts/test-results
+
   smoke-test:
     machine:
       image: circleci/classic:latest
 
     working_directory: ~/repo
-
-    #    parallelism: 4
 
     environment:
       - MAVEN_OPTS: -Xmx2048m -XX:ReservedCodeCacheSize=512m -XX:+TieredCompilation -XX:TieredStopAtLevel=1 -XX:-UseGCOverheadLimit -XX:+UseParallelGC -XX:+UseParallelOldGC
@@ -215,7 +225,7 @@ jobs:
           command: |
               .circleci/scripts/system-info.sh
 
-      # Restore cache
+      # Restore .m2 cache
       - run:
           name: Calculate Cache Key
           command: |
@@ -230,23 +240,38 @@ jobs:
             rm -rf ~/.m2/repository/org/opennms
             rm -rf ~/.m2/settings.xml
 
+      # Grab RPMs
+      - attach_workspace:
+          at: /home/circleci/artifacts
+
       # Smoke it
       - run:
           name: Smoke Tests
           command: |
             .circleci/scripts/do-smoke.sh
 
+      # Collect all artifacts
+      - run:
+          name: Fetching artifacts
+          command: |
+            .circleci/scripts/post-build.sh
+          when: always
+
+      # Attach artifacts to job
+      - store_test_results:
+          path: ~/artifacts/test-results
+
       - store_artifacts:
-          path: ~/repo/smoke-test/target/screenshots
+          path: ~/artifacts/screenshots
 
 workflows:
   version: 2
   build-deploy:
     jobs:
-            #      - build
-            #      - integration-test:
-            #          requires:
-            #            - build
-      - smoke-test
-
-
+      - build
+      - integration-test:
+          requires:
+            - build
+      - smoke-test:
+          requires:
+            - build
