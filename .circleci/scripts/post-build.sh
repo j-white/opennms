@@ -12,4 +12,6 @@ find . -type f -regex ".*/target/surefire-reports/.*xml" -exec cp {} ${ARTIFACT_
 find . -type f -regex ".*/target/failsafe-reports/.*xml" -exec cp {} ${ARTIFACT_DIRECTORY}/test-results/ \;
 find . -type f -name "*.tar.gz" -exec cp -v {} ${ARTIFACT_DIRECTORY}/targz \;
 find . -type f -name "*.zip" -exec cp -v {} ${ARTIFACT_DIRECTORY}/zip \;
-tar -czf ${ARTIFACT_DIRECTORY}/javadocs.tar.gz target/site/apidocs
+if [ -d target/site/apidocs ]; then
+  tar -czf ${ARTIFACT_DIRECTORY}/javadocs.tar.gz target/site/apidocs
+fi
