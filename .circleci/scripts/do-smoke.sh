@@ -16,4 +16,5 @@ ls minion/rpms
 cd ~/repo
 mvn -DupdatePolicy=never -DskipTests=true -DskipITs=true -P'!checkstyle' -Psmoke --projects :smoke-test --also-make clean install
 cd ~/repo/smoke-test
-mvn -N -Dorg.opennms.smoketest.docker=true -DskipTests=false -DskipITs=false integration-test
+CLASSES_TO_TEST=$(python3 ~/.circleci/scripts/find-tests.py --use-class-names . | circleci tests split | paste -s -d, -)
+mvn -N -Dorg.opennms.smoketest.docker=true -DskipTests=false -DskipITs=false -Dit.test=$CLASSES_TO_TEST integration-test

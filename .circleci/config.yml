@@ -124,7 +124,7 @@ jobs:
 
     working_directory: ~/repo
 
-    parallelism: 2
+    parallelism: 4
 
     environment:
       - MAVEN_OPTS: -Xmx2048m -XX:ReservedCodeCacheSize=512m -XX:+TieredCompilation -XX:TieredStopAtLevel=1 -XX:-UseGCOverheadLimit -XX:+UseParallelGC -XX:+UseParallelOldGC
@@ -197,6 +197,8 @@ jobs:
       image: circleci/classic:latest
 
     working_directory: ~/repo
+
+    parallelism: 4
 
     environment:
       - MAVEN_OPTS: -Xmx2048m -XX:ReservedCodeCacheSize=512m -XX:+TieredCompilation -XX:TieredStopAtLevel=1 -XX:-UseGCOverheadLimit -XX:+UseParallelGC -XX:+UseParallelOldGC
