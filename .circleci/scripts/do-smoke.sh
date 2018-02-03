@@ -1,20 +1,32 @@
 #!/bin/sh -e
 
-echo "#### Building Docker images..."
-git clone https://github.com/OpenNMS/opennms-system-test-api.git ~/stest-api
-cd ~/stest-api/docker
-export OPENNMS_RPM_ROOT="${ARTIFACT_DIRECTORY}/rpms"
-echo "#### RPMs in ${OPENNMS_RPM_ROOT}:"
-ls $OPENNMS_RPM_ROOT
-./copy-rpms.sh
-echo "#### OpenNMS RPMs:"
-ls opennms/rpms
-echo "#### Minion RPMs:"
-ls minion/rpms
-./build-docker-images.sh
+echo "#### Restoring Docker images..."
+mkdir "${ARTIFACT_DIRECTORY}/docker"
+for IMAGE in "opennms" "minion" "snmpd" "tomcat"
+do
+  docker image load -i "${ARTIFACT_DIRECTORY}/docker/stests-$IMAGE-docker-image"
+done
 
+echo "#### Pulling other referenced images..."
+echo "###### Pulling postgres image from public registry"
+run docker pull postgres:9.5.1
+
+echo "###### Pulling kafka 0.10.1.0 with scala 2.11 image from public registry"
+run docker pull spotify/kafka@sha256:cf8f8f760b48a07fb99df24fab8201ec8b647634751e842b67103a25a388981b
+
+echo "###### Pulling elasticsearch images from public registry"
+run docker pull elasticsearch:2-alpine
+run docker pull elasticsearch:5-alpine
+
+echo "#### Building dependencies"
 cd ~/repo
 mvn -DupdatePolicy=never -DskipTests=true -DskipITs=true -P'!checkstyle' -Psmoke --projects :smoke-test --also-make clean install
+echo "#### Executing tests"
 cd ~/repo/smoke-test
-CLASSES_TO_TEST=$(python3 ~/.circleci/scripts/find-tests.py --use-class-names . | circleci tests split | paste -s -d, -)
-mvn -N -Dorg.opennms.smoketest.docker=true -DskipTests=false -DskipITs=false -Dit.test=$CLASSES_TO_TEST integration-test
+# Iterate through the tests instead of running a single command, since I can't find a way to make the later stop
+# after the first failure
+for TEST_CLASS in $(python3 ~/.circleci/scripts/find-tests.py --use-class-names . | circleci tests split)
+do
+  echo "###### Testing: ${TEST_CLASS}"
+  mvn -N -Dorg.opennms.smoketest.docker=true -DskipTests=false -DskipITs=false -Dit.test=$TEST_CLASS integration-test
+done

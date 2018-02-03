@@ -118,6 +118,47 @@ jobs:
           paths:
             - rpms
 
+  docker-build:
+    machine:
+      image: circleci/classic:latest
+
+    working_directory: ~/repo
+
+    environment:
+      - MAVEN_OPTS: -Xmx2048m -XX:ReservedCodeCacheSize=512m -XX:+TieredCompilation -XX:TieredStopAtLevel=1 -XX:-UseGCOverheadLimit -XX:+UseParallelGC -XX:+UseParallelOldGC
+
+    steps:
+      # Restore source cache
+      - restore_cache:
+          keys:
+            - source-v1-{{ .Branch }}-{{ .Revision }}
+            - source-v1-{{ .Branch }}-
+            - source-v1-
+
+      - checkout
+
+      # Pull in common env. vars
+      - run:
+          name: Preparing environment
+          command: |
+              .circleci/scripts/pre-build.sh
+
+      # Grab RPMs
+      - attach_workspace:
+          at: /home/circleci/artifacts
+
+      # Build the Docker images
+      - run:
+          name: Docker build
+          command: |
+            .circleci/scripts/do-docker-build.sh
+
+      # Save Docker images to the workspace
+      - persist_to_workspace:
+          root: /home/circleci/artifacts
+          paths:
+            - docker
+
   integration-test:
     machine:
       image: circleci/classic:latest
@@ -242,7 +283,7 @@ jobs:
             rm -rf ~/.m2/repository/org/opennms
             rm -rf ~/.m2/settings.xml
 
-      # Grab RPMs
+      # Grab the docker images
       - attach_workspace:
           at: /home/circleci/artifacts
 
@@ -274,6 +315,9 @@ workflows:
       - integration-test:
           requires:
             - build
-      - smoke-test:
+      - docker-build:
           requires:
             - build
+      - smoke-test:
+          requires:
+            - docker-build
