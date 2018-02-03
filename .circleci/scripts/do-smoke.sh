@@ -1,7 +1,6 @@
 #!/bin/sh -e
 
 echo "#### Restoring Docker images..."
-mkdir "${ARTIFACT_DIRECTORY}/docker"
 for IMAGE in "opennms" "minion" "snmpd" "tomcat"
 do
   docker image load -i "${ARTIFACT_DIRECTORY}/docker/stests-$IMAGE-docker-image"
