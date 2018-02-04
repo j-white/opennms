@@ -312,9 +312,9 @@ workflows:
   build-deploy:
     jobs:
       - build
-      - integration-test:
-          requires:
-            - build
+        # - integration-test:
+        # -   requires:
+        # -     - build
       - docker-build:
           requires:
             - build
