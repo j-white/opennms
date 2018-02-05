@@ -305,6 +305,9 @@ jobs:
           path: ~/artifacts/test-results
 
       - store_artifacts:
+          path: ~/artifacts/test-output
+
+      - store_artifacts:
           path: ~/artifacts/screenshots
 
 workflows:
