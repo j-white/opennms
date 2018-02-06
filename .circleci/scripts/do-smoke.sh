@@ -28,5 +28,5 @@ pyenv local 3.5.2
 for TEST_CLASS in $(python3 ../.circleci/scripts/find-tests.py --use-class-names . | circleci tests split)
 do
   echo "###### Testing: ${TEST_CLASS}"
-  mvn -N -Dorg.opennms.smoketest.docker=true -DskipTests=false -DskipITs=false -Dit.test=$TEST_CLASS integration-test
+  mvn -N -Dorg.opennms.smoketest.docker=true -DskipTests=false -DskipITs=false -DfailIfNoTests=false -Dit.test=$TEST_CLASS integration-test
 done

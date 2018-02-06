@@ -64,7 +64,7 @@ def find_test_projects_in(path):
 
 def find_test_classes_in(path):
     classes = []
-    for src_file in glob.iglob(path + '/**/*.java', recursive=True):
+    for src_file in glob.iglob(path + '/src/test/**/*.java', recursive=True):
         classes.append(os.path.splitext(os.path.basename(src_file))[0])
     classes.sort()
     for clazz in classes:
