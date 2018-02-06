@@ -239,7 +239,7 @@ jobs:
 
     working_directory: ~/repo
 
-    parallelism: 4
+    parallelism: 8
 
     environment:
       - MAVEN_OPTS: -Xmx2048m -XX:ReservedCodeCacheSize=512m -XX:+TieredCompilation -XX:TieredStopAtLevel=1 -XX:-UseGCOverheadLimit -XX:+UseParallelGC -XX:+UseParallelOldGC
